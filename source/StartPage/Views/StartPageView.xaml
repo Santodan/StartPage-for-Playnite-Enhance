@@ -460,5 +460,19 @@
                 </ControlTemplate>
             </Button.Template>
         </Button>
+        <Grid x:Name="AppearanceOverlay" Visibility="Collapsed" Panel.ZIndex="1000"
+              Background="#66000000" Focusable="True" KeyboardNavigation.TabNavigation="Cycle"
+              PreviewKeyDown="AppearanceOverlay_PreviewKeyDown" MouseDown="AppearanceOverlay_MouseDown">
+            <Border HorizontalAlignment="Right" Width="420" MaxWidth="{Binding ActualWidth, ElementName=AppearanceOverlay}"
+                    Margin="16" Padding="8" CornerRadius="12" Background="{DynamicResource PopupBackgroundBrush}">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <DockPanel Margin="8">
+                        <TextBlock Text="Panel appearance" FontSize="20" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <local:PanelAppearanceView x:Name="AppearanceEditor" Grid.Row="1" Done="CloseAppearance_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

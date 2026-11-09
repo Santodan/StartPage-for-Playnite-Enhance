@@ -10,6 +10,8 @@ namespace LandingPage.Models.Layout
 {
     public class ViewProperties : ObservableObject
     {
+        private PanelAppearance appearance = new PanelAppearance();
+        public PanelAppearance Appearance { get => appearance; set => SetValue(ref appearance, value ?? new PanelAppearance()); }
         private string viewId;
         public string ViewId { get => viewId; set => SetValue(ref viewId, value); }
         private Guid instanceId = Guid.NewGuid();
@@ -26,6 +28,61 @@ namespace LandingPage.Models.Layout
         private StartPageViewArgsBase startPageViewArgs = null;
         [DontSerialize]
         public StartPageViewArgsBase StartPageViewArgs { get => startPageViewArgs; set => SetValue(ref startPageViewArgs, value); }
+    }
+
+    public class PanelAppearance : ObservableObjectExt
+    {
+        private bool enabled;
+        public bool Enabled { get => enabled; set => SetValue(ref enabled, value); }
+        private string title = string.Empty;
+        public string Title { get => title; set => SetValue(ref title, value ?? string.Empty); }
+        private string background = "#202020";
+        public string Background { get => background; set { ValidateColor(value); SetValue(ref background, value); } }
+        private string borderColor = "#808080";
+        public string BorderColor { get => borderColor; set { ValidateColor(value); SetValue(ref borderColor, value); } }
+        private string titleColor = "#FFFFFF";
+        public string TitleColor { get => titleColor; set { ValidateColor(value); SetValue(ref titleColor, value); } }
+        private bool customizeText;
+        public bool CustomizeText { get => customizeText; set => SetValue(ref customizeText, value); }
+        private bool customizeIcons;
+        public bool CustomizeIcons { get => customizeIcons; set => SetValue(ref customizeIcons, value); }
+        private string iconColor = "#FFFFFF";
+        public string IconColor { get => iconColor; set { ValidateColor(value); SetValue(ref iconColor, value); } }
+        private bool customizeCharts;
+        public bool CustomizeCharts { get => customizeCharts; set => SetValue(ref customizeCharts, value); }
+        private bool customizeHighlights;
+        public bool CustomizeHighlights { get => customizeHighlights; set => SetValue(ref customizeHighlights, value); }
+        private string textColor = "#FFFFFF";
+        public string TextColor { get => textColor; set { ValidateColor(value); SetValue(ref textColor, value); } }
+        private string chartColor = "#2196F3";
+        public string ChartColor { get => chartColor; set { ValidateColor(value); SetValue(ref chartColor, value); } }
+        private string highlightColor = "#607D8B";
+        public string HighlightColor { get => highlightColor; set { ValidateColor(value); SetValue(ref highlightColor, value); } }
+        private double backgroundOpacity = 0.6;
+        public double BackgroundOpacity { get => backgroundOpacity; set => SetValue(ref backgroundOpacity, Clamp(value, 0, 1)); }
+        private double borderWidth;
+        public double BorderWidth { get => borderWidth; set => SetValue(ref borderWidth, Clamp(value, 0, 10)); }
+        private double cornerRadius = 8;
+        public double CornerRadius { get => cornerRadius; set => SetValue(ref cornerRadius, Clamp(value, 0, 100)); }
+        private double padding = 8;
+        public double Padding { get => padding; set => SetValue(ref padding, Clamp(value, 0, 100)); }
+        private double margin;
+        public double Margin { get => margin; set => SetValue(ref margin, Clamp(value, 0, 100)); }
+        private double titleSize = 16;
+        public double TitleSize { get => titleSize; set => SetValue(ref titleSize, Clamp(value, 8, 72)); }
+        private System.Windows.TextAlignment titleAlignment = System.Windows.TextAlignment.Left;
+        public System.Windows.TextAlignment TitleAlignment { get => titleAlignment; set => SetValue(ref titleAlignment, value); }
+        private bool shadow;
+        public bool Shadow { get => shadow; set => SetValue(ref shadow, value); }
+
+        private static double Clamp(double value, double min, double max)
+            => double.IsNaN(value) || double.IsInfinity(value) ? min : Math.Max(min, Math.Min(max, value));
+
+        private static void ValidateColor(string value)
+        {
+            try { System.Windows.Media.ColorConverter.ConvertFromString(value ?? string.Empty); }
+            catch (Exception) { throw new ArgumentException("Enter a color name or #RRGGBB / #AARRGGBB."); }
+        }
     }
 
     public class StartPageViewArgs : StartPageViewArgsBase

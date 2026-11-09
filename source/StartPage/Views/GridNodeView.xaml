@@ -10,6 +10,7 @@
              xmlns:m="clr-namespace:LandingPage.Models.Layout"
              xmlns:conv="clr-namespace:LandingPage.Converters"
              xmlns:numeric="http://gu.se/NumericInput"
+             xmlns:controls="clr-namespace:LandingPage.Controls"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800"
              d:DataContext="{d:DesignInstance Type=layout:GridNodeViewModel, IsDesignTimeCreatable=False}"
@@ -140,15 +141,58 @@
                 </Border.Style>
             </Border>
         </Border>
+        <Border>
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding GridNode.ViewProperties.Appearance.Enabled}" Value="True">
+                            <Setter Property="Background">
+                                <Setter.Value>
+                                    <SolidColorBrush Color="{Binding GridNode.ViewProperties.Appearance.Background}" Opacity="{Binding GridNode.ViewProperties.Appearance.BackgroundOpacity}"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="BorderBrush" Value="{Binding GridNode.ViewProperties.Appearance.BorderColor}"/>
+                            <Setter Property="BorderThickness" Value="{Binding GridNode.ViewProperties.Appearance.BorderWidth}"/>
+                            <Setter Property="CornerRadius" Value="{Binding GridNode.ViewProperties.Appearance.CornerRadius}"/>
+                            <Setter Property="Padding" Value="{Binding GridNode.ViewProperties.Appearance.Padding}"/>
+                            <Setter Property="Margin" Value="{Binding GridNode.ViewProperties.Appearance.Margin}"/>
+                        </DataTrigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding GridNode.ViewProperties.Appearance.Enabled}" Value="True"/>
+                                <Condition Binding="{Binding GridNode.ViewProperties.Appearance.Shadow}" Value="True"/>
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Effect"><Setter.Value><DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.4"/></Setter.Value></Setter>
+                        </MultiDataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <TextBlock DockPanel.Dock="Top" Text="{Binding GridNode.ViewProperties.StartPageViewArgs.Name}" Margin="5 2 5 5" Style="{DynamicResource BaseTextBlockStyle}" FontWeight="Medium"
+            <TextBlock DockPanel.Dock="Top" Margin="5 2 5 5" FontWeight="Medium"
                        Visibility="{Binding GridNode.ViewProperties.ShowLabel, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue={x:Static Visibility.Collapsed}}" Grid.Row="0"
-                       />
-            <ContentControl Content="{Binding View}" x:Name="ViewContentControl" SizeChanged="UserControl_SizeChanged" Grid.Row="1">
+                       >
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                        <Setter Property="Text" Value="{Binding GridNode.ViewProperties.StartPageViewArgs.Name}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding GridNode.ViewProperties.Appearance.Enabled}" Value="True">
+                                <Setter Property="Text" Value="{Binding GridNode.ViewProperties.Appearance.Title}"/>
+                                <Setter Property="FontSize" Value="{Binding GridNode.ViewProperties.Appearance.TitleSize}"/>
+                                <Setter Property="Foreground" Value="{Binding GridNode.ViewProperties.Appearance.TitleColor}"/>
+                                <Setter Property="TextAlignment" Value="{Binding GridNode.ViewProperties.Appearance.TitleAlignment}"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding GridNode.ViewProperties.Appearance.Title}" Value="">
+                                <Setter Property="Text" Value="{Binding GridNode.ViewProperties.StartPageViewArgs.Name}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+            <ContentControl controls:WidgetPalette.Appearance="{Binding GridNode.ViewProperties.Appearance}" Content="{Binding View}" x:Name="ViewContentControl" SizeChanged="UserControl_SizeChanged" Grid.Row="1">
                 <ContentControl.Style>
                     <Style TargetType="ContentControl">
                         <Style.Triggers>
@@ -185,6 +229,7 @@
                 </ContentControl.Style>
             </ContentControl>
         </Grid>
+        </Border>
 
         <Grid Visibility="{Binding IsLeaf, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Border x:Name="EditPanel" CornerRadius="0" Margin="0" Background="Transparent" Visibility="{Binding EditModeEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -196,6 +241,8 @@
                     Cursor="SizeAll">
                 <Border.ContextMenu>
                     <ContextMenu UseLayoutRounding="True">
+                        <MenuItem Header="Panel appearance..." IsEnabled="{Binding HasView}" Click="OpenAppearance_Click"/>
+
                         <MenuItem>
                             <MenuItem.Header>
                                 <Grid>
@@ -362,6 +409,10 @@
                             </MenuItem.ItemContainerStyle>
                         </MenuItem>
                     </Menu>
+                    <Button Content="Appearance" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Grid.RowSpan="2" Margin="8" Padding="8,4" Cursor="Hand"
+                            Visibility="{Binding HasView, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Click="OpenAppearance_Click"/>
                     <Grid HorizontalAlignment="Right" VerticalAlignment="Top"
                           Visibility="Visible"
                           Grid.RowSpan="2">

@@ -23,6 +23,47 @@ namespace LandingPage.Views
         public StartPageView()
         {
             InitializeComponent();
+            Unloaded += (sender, args) => CloseAppearance();
+        }
+
+        private IInputElement appearancePreviousFocus;
+
+        internal void ShowAppearance(ViewModels.Layout.GridNodeViewModel model)
+        {
+            appearancePreviousFocus = Keyboard.FocusedElement;
+            AppearanceEditor.DataContext = model;
+            AppearanceOverlay.Visibility = Visibility.Visible;
+            AppearanceOverlay.Focus();
+        }
+
+        private void CloseAppearance()
+        {
+            // Move focus first so the last edited color/text field commits its binding.
+            AppearanceOverlay.Focus();
+            AppearanceOverlay.Visibility = Visibility.Collapsed;
+            AppearanceEditor.DataContext = null;
+            if (appearancePreviousFocus != null) Keyboard.Focus(appearancePreviousFocus);
+            appearancePreviousFocus = null;
+        }
+
+        private void CloseAppearance_Click(object sender, RoutedEventArgs e) => CloseAppearance();
+
+        private void AppearanceOverlay_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                CloseAppearance();
+                e.Handled = true;
+            }
+        }
+
+        private void AppearanceOverlay_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource == AppearanceOverlay)
+            {
+                CloseAppearance();
+                e.Handled = true;
+            }
         }
 
         private void ToggleNotifications_Click(object sender, RoutedEventArgs e)

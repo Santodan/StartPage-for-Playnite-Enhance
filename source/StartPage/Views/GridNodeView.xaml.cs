@@ -27,6 +27,17 @@ namespace LandingPage.Views
             InitializeComponent();
         }
 
+        private void OpenAppearance_Click(object sender, RoutedEventArgs e)
+        {
+            var model = (sender as FrameworkElement)?.DataContext as GridNodeViewModel;
+            if (model?.GridNode.ViewProperties == null) return;
+            DependencyObject parent = this;
+            while (parent != null && !(parent is StartPageView))
+                parent = VisualTreeHelper.GetParent(parent);
+            (parent as StartPageView)?.ShowAppearance(model);
+            e.Handled = true;
+        }
+
         private void Border_PreviewDragEnter(object sender, DragEventArgs e)
         {
             if (e.OriginalSource == sender && DataContext is GridNodeViewModel viewModel)
