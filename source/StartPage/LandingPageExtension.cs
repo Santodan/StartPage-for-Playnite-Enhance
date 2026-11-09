@@ -705,6 +705,13 @@ namespace LandingPage
                 Name = ResourceProvider.GetString("LOC_SPG_ClockView"),
                 Description = ResourceProvider.GetString("LOC_SPG_ClockViewDescription"),
             });
+            views.Add(new StartPageViewArgsBase
+            {
+                ViewId = "TextWidget",
+                Name = "Text",
+                Description = "Custom headings and notes. Configure text and formatting in Appearance.",
+                AllowMultipleInstances = true
+            });
             return args;
         }
 
@@ -744,6 +751,10 @@ namespace LandingPage
 
                     return view;
                 }
+            }
+            if (id == "TextWidget")
+            {
+                return new TextWidgetView();
             }
             if (id == "DigitalClock")
             {

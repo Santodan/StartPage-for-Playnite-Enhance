@@ -4,7 +4,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 
 1. [x] **Per-widget appearance.** Optional background color/opacity, border color/width, corner radius, internal padding, outer spacing, shadow, custom title, title visibility/color/size/alignment, and reset to theme defaults. Includes optional widget text, small bitmap icon, chart, and selection/highlight colors, including FusionZ row/header highlights used by DuplicateHider. Settings follow the widget and persist with its layout. Existing layouts retain their appearance until customization is enabled.
 2. [x] **Customizable clock.** Size, color, alignment, date visibility/format, 12/24-hour time, optional seconds, and optional clock animation.
-3. [ ] **Text widget.** Custom headings and notes with font size, color, alignment, and wrapping.
+3. [x] **Text widget.** Custom headings and notes with font size, color, alignment, and wrapping.
 4. [ ] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
 5. [ ] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
 6. [ ] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
@@ -41,3 +41,12 @@ Build verification does not replace visual testing in Playnite. Rounded corners 
 - Toggle **Animate at 13:37** to control the clock's existing animation.
 - Restart Playnite and check persistence. **Reset clock settings** restores clock defaults without changing panel appearance.
 - Build and runtime checks passed; user testing completed and the user authorized the commit.
+
+## Third change: testing in Playnite
+
+- Enter Edit Mode, choose an empty panel, and select **Add view > StartPage > Text**. Multiple Text widgets are supported.
+- Open **Appearance > Text settings** to edit multiline text, font size, bold/italic, wrapping, horizontal/vertical alignment, and an optional custom color.
+- Text uses the theme color by default. A custom text color takes priority over the general widget text color.
+- Use **Appearance settings** for backgrounds, borders, and spacing. Resetting text settings leaves panel appearance unchanged.
+- Add two text widgets and verify that editing one does not change the other. Restart Playnite to check persistence.
+- Release build and runtime checks passed; user testing completed and the user authorized the commit.

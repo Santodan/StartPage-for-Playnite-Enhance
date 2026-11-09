@@ -14,6 +14,8 @@ namespace LandingPage.Models.Layout
         public PanelAppearance Appearance { get => appearance; set => SetValue(ref appearance, value ?? new PanelAppearance()); }
         private Settings.ClockSettings clockSettings = new Settings.ClockSettings();
         public Settings.ClockSettings ClockSettings { get => clockSettings; set => SetValue(ref clockSettings, value ?? new Settings.ClockSettings()); }
+        private Settings.TextWidgetSettings textSettings = new Settings.TextWidgetSettings();
+        public Settings.TextWidgetSettings TextSettings { get => textSettings; set => SetValue(ref textSettings, value ?? new Settings.TextWidgetSettings()); }
         private string viewId;
         public string ViewId { get => viewId; set => SetValue(ref viewId, value); }
         private Guid instanceId = Guid.NewGuid();

@@ -55,6 +55,9 @@
     <Compile Include="Controls\WidgetPalette.cs" />
     <Compile Include="Settings\ClockSettings.cs" />
     <Compile Include="Views\Settings\ClockSettingsView.xaml.cs"><DependentUpon>ClockSettingsView.xaml</DependentUpon></Compile>
+    <Compile Include="Settings\TextWidgetSettings.cs" />
+    <Compile Include="Views\TextWidgetView.xaml.cs"><DependentUpon>TextWidgetView.xaml</DependentUpon></Compile>
+    <Compile Include="Views\Settings\TextWidgetSettingsView.xaml.cs"><DependentUpon>TextWidgetSettingsView.xaml</DependentUpon></Compile>
     <Compile Include="BusyObservableObject.cs" />
     <Compile Include="Controls\GroupListBox.xaml.cs">
       <DependentUpon>GroupListBox.xaml</DependentUpon>
@@ -314,6 +317,8 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\Settings\ClockSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Views\TextWidgetView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Views\Settings\TextWidgetSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Controls\GroupListBox.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
