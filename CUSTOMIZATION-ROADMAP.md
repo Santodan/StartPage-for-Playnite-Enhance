@@ -5,7 +5,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 1. [x] **Per-widget appearance.** Optional background color/opacity, border color/width, corner radius, internal padding, outer spacing, shadow, custom title, title visibility/color/size/alignment, and reset to theme defaults. Includes optional widget text, small bitmap icon, chart, and selection/highlight colors, including FusionZ row/header highlights used by DuplicateHider. Settings follow the widget and persist with its layout. Existing layouts retain their appearance until customization is enabled.
 2. [x] **Customizable clock.** Size, color, alignment, date visibility/format, 12/24-hour time, optional seconds, and optional clock animation.
 3. [x] **Text widget.** Custom headings and notes with font size, color, alignment, and wrapping.
-4. [ ] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
+4. [x] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
 5. [ ] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
 6. [ ] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
 7. [ ] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
@@ -49,4 +49,15 @@ Build verification does not replace visual testing in Playnite. Rounded corners 
 - Text uses the theme color by default. A custom text color takes priority over the general widget text color.
 - Use **Appearance settings** for backgrounds, borders, and spacing. Resetting text settings leaves panel appearance unchanged.
 - Add two text widgets and verify that editing one does not change the other. Restart Playnite to check persistence.
+- Release build and runtime checks passed; user testing completed and the user authorized the commit.
+
+## Fourth change: testing in Playnite
+
+- Enter Edit Mode and choose **Add view > StartPage > Image**. Multiple independent Image widgets are supported.
+- Open **Appearance > Image settings** and browse for a local PNG, JPEG, BMP, GIF, TIFF, or ICO. GIFs display a still frame.
+- Try **Fit**, **Fill**, **Stretch**, and **Original size**. Fill/original-size content is clipped to the widget panel. Image opacity supports fractional steps and direct numeric entry.
+- Optionally enter an `https://` or `http://` website link. Outside Edit Mode, clicking the image opens it in the default browser.
+- General icon-color settings leave image-widget artwork unchanged. Use Appearance settings for panel backgrounds, borders, and spacing.
+- Test two independent image widgets and restart Playnite to verify persistence. Missing/corrupt files show a message; **Clear image** and **Reset image settings** are available.
+- Local files are referenced in place, not copied into settings or presets. Keep them available at their saved paths.
 - Release build and runtime checks passed; user testing completed and the user authorized the commit.

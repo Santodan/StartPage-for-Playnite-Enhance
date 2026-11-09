@@ -8,6 +8,23 @@
                                         <StackPanel Margin="16">
                                             <Expander IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
                                                 <Expander.Header>
+                                                    <TextBlock Text="Image settings" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/>
+                                                </Expander.Header>
+                                                <Expander.Style>
+                                                    <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers><DataTrigger Binding="{Binding GridNode.ViewProperties.ViewId}" Value="ImageWidget">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger></Style.Triggers>
+                                                    </Style>
+                                                </Expander.Style>
+                                                <StackPanel>
+                                                    <settingsViews:ImageWidgetSettingsView DataContext="{Binding GridNode.ViewProperties.ImageSettings}"/>
+                                                    <Button Content="Reset image settings" Click="ResetImage_Click" Margin="0,8,0,0"/>
+                                                </StackPanel>
+                                            </Expander>
+                                            <Expander IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
+                                                <Expander.Header>
                                                     <TextBlock Text="Text settings" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/>
                                                 </Expander.Header>
                                                 <Expander.Style>

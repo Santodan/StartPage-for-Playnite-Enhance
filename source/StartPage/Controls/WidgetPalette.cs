@@ -180,12 +180,13 @@ namespace LandingPage.Controls
             {
                 if (!host.IsVisible) return;
                 touched.Clear();
-                Visit(host, false, false);
+                Visit(host, false, false, false);
                 foreach (var key in saved.Keys.Where(key => !touched.Contains(key)).ToArray()) Restore(key);
             }
 
-            private void Visit(DependencyObject element, bool inChart, bool customContentColor)
+            private void Visit(DependencyObject element, bool inChart, bool customContentColor, bool inImageWidget)
             {
+                inImageWidget |= element is Views.ImageWidgetView;
                 var type = element.GetType();
                 inChart |= type.Name.IndexOf("Chart", StringComparison.OrdinalIgnoreCase) >= 0
                     || type.Name == "GameActivityView" || type.Namespace?.IndexOf("LiveCharts", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -198,7 +199,7 @@ namespace LandingPage.Controls
                 }
                 if (element is FrameworkElement fe)
                 {
-                    if (appearance.CustomizeIcons && element is Image image) PaintIcon(image);
+                    if (appearance.CustomizeIcons && !inImageWidget && element is Image image) PaintIcon(image);
                     var bar = element is Border && fe.Name.IndexOf("Bar", StringComparison.OrdinalIgnoreCase) >= 0;
                     if (appearance.CustomizeCharts && (inChart || bar))
                     {
@@ -224,7 +225,7 @@ namespace LandingPage.Controls
                     }
                 }
                 for (var index = 0; index < VisualTreeHelper.GetChildrenCount(element); index++)
-                    Visit(VisualTreeHelper.GetChild(element, index), inChart, customContentColor);
+                    Visit(VisualTreeHelper.GetChild(element, index), inChart, customContentColor, inImageWidget);
             }
 
             private static bool IsTransparent(Brush brush) => brush is SolidColorBrush solid && solid.Color.A == 0;

@@ -712,6 +712,13 @@ namespace LandingPage
                 Description = "Custom headings and notes. Configure text and formatting in Appearance.",
                 AllowMultipleInstances = true
             });
+            views.Add(new StartPageViewArgsBase
+            {
+                ViewId = "ImageWidget",
+                Name = "Image",
+                Description = "Local images, banners, and logos with an optional website link. Configure in Appearance.",
+                AllowMultipleInstances = true
+            });
             return args;
         }
 
@@ -751,6 +758,10 @@ namespace LandingPage
 
                     return view;
                 }
+            }
+            if (id == "ImageWidget")
+            {
+                return new ImageWidgetView();
             }
             if (id == "TextWidget")
             {

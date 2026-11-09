@@ -58,6 +58,9 @@
     <Compile Include="Settings\TextWidgetSettings.cs" />
     <Compile Include="Views\TextWidgetView.xaml.cs"><DependentUpon>TextWidgetView.xaml</DependentUpon></Compile>
     <Compile Include="Views\Settings\TextWidgetSettingsView.xaml.cs"><DependentUpon>TextWidgetSettingsView.xaml</DependentUpon></Compile>
+    <Compile Include="Settings\ImageWidgetSettings.cs" />
+    <Compile Include="Views\ImageWidgetView.xaml.cs"><DependentUpon>ImageWidgetView.xaml</DependentUpon></Compile>
+    <Compile Include="Views\Settings\ImageWidgetSettingsView.xaml.cs"><DependentUpon>ImageWidgetSettingsView.xaml</DependentUpon></Compile>
     <Compile Include="BusyObservableObject.cs" />
     <Compile Include="Controls\GroupListBox.xaml.cs">
       <DependentUpon>GroupListBox.xaml</DependentUpon>
@@ -319,6 +322,8 @@
     <Page Include="Views\Settings\ClockSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Views\TextWidgetView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Views\Settings\TextWidgetSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Views\ImageWidgetView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Views\Settings\ImageWidgetSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Controls\GroupListBox.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

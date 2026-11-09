@@ -16,6 +16,8 @@ namespace LandingPage.Models.Layout
         public Settings.ClockSettings ClockSettings { get => clockSettings; set => SetValue(ref clockSettings, value ?? new Settings.ClockSettings()); }
         private Settings.TextWidgetSettings textSettings = new Settings.TextWidgetSettings();
         public Settings.TextWidgetSettings TextSettings { get => textSettings; set => SetValue(ref textSettings, value ?? new Settings.TextWidgetSettings()); }
+        private Settings.ImageWidgetSettings imageSettings = new Settings.ImageWidgetSettings();
+        public Settings.ImageWidgetSettings ImageSettings { get => imageSettings; set => SetValue(ref imageSettings, value ?? new Settings.ImageWidgetSettings()); }
         private string viewId;
         public string ViewId { get => viewId; set => SetValue(ref viewId, value); }
         private Guid instanceId = Guid.NewGuid();
