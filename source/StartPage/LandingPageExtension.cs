@@ -747,8 +747,7 @@ namespace LandingPage
             }
             if (id == "DigitalClock")
             {
-                var model = new { Clock = new Clock() };
-                return new ClockView() { DataContext = model };
+                return new ClockView();
             }
             if (id == "WeeklyActivity")
             {

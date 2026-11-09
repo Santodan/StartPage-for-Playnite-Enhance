@@ -1,9 +1,9 @@
 # StartPage customization roadmap
 
-Implement one numbered item per commit. Build a Release package after each item and wait for user testing and approval before starting the next item. Do not push unless requested.
+Implement one numbered item at a time. Commit only when the user explicitly requests a commit. Build a Release package after each item and wait for user testing and approval before starting the next item. Do not push unless requested.
 
 1. [x] **Per-widget appearance.** Optional background color/opacity, border color/width, corner radius, internal padding, outer spacing, shadow, custom title, title visibility/color/size/alignment, and reset to theme defaults. Includes optional widget text, small bitmap icon, chart, and selection/highlight colors, including FusionZ row/header highlights used by DuplicateHider. Settings follow the widget and persist with its layout. Existing layouts retain their appearance until customization is enabled.
-2. [ ] **Customizable clock.** Size, color, alignment, date visibility/format, 12/24-hour time, optional seconds, and optional clock animation.
+2. [x] **Customizable clock.** Size, color, alignment, date visibility/format, 12/24-hour time, optional seconds, and optional clock animation.
 3. [ ] **Text widget.** Custom headings and notes with font size, color, alignment, and wrapping.
 4. [ ] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
 5. [ ] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
@@ -31,3 +31,13 @@ Implement one numbered item per commit. Build a Release package after each item 
 - **Reset appearance to theme defaults** disables customization and clears its appearance settings; title visibility remains controlled by **Show title**.
 
 Build verification does not replace visual testing in Playnite. Rounded corners affect the panel background/border; widget content is not cropped to rounded corners.
+
+## Second change: testing in Playnite
+
+- Install the rebuilt package and restart Playnite. Open the clock panel's **Appearance** overlay; **Clock settings** appears at the top.
+- Try time/date sizes, horizontal/vertical alignment, and 12-hour, 24-hour, and system formats.
+- Toggle seconds and date visibility. Choose long, short, ISO, or a custom .NET date format such as `dddd, d MMMM yyyy`.
+- Enable **Use separate time and date colors** and select each color with its picker. These take priority over the general widget text color and do not require **Use custom appearance**.
+- Toggle **Animate at 13:37** to control the clock's existing animation.
+- Restart Playnite and check persistence. **Reset clock settings** restores clock defaults without changing panel appearance.
+- Build and runtime checks passed; user testing completed and the user authorized the commit.

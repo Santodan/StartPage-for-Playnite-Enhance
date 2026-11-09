@@ -1,49 +1,34 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using LandingPage.Models;
+using LandingPage.Settings;
 
 namespace LandingPage.Views
 {
-    /// <summary>
-    /// Interaktionslogik für ClockView.xaml
-    /// </summary>
     public partial class ClockView : UserControl
     {
-        public ClockView()
+        public Clock Clock { get; } = new Clock(false);
+        public static readonly DependencyProperty SettingsProperty = DependencyProperty.Register(
+            nameof(Settings), typeof(ClockSettings), typeof(ClockView),
+            new PropertyMetadata(null, (sender, args) => ((ClockView)sender).Clock.Settings = args.NewValue as ClockSettings));
+        public ClockSettings Settings
         {
-            InitializeComponent();
-
-            ClockTextBlock.Loaded += ClockTextBlock_Loaded;
-
+            get => (ClockSettings)GetValue(SettingsProperty);
+            set => SetValue(SettingsProperty, value);
         }
 
-        private void ClockTextBlock_Loaded(object sender, RoutedEventArgs e)
+        public ClockView()
         {
-            var formattedText = new FormattedText(
-                "01234:56789",
-                System.Globalization.CultureInfo.CurrentCulture,
-                System.Globalization.CultureInfo.CurrentCulture.TextInfo.IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
-                new Typeface(ClockTextBlock.FontFamily, ClockTextBlock.FontStyle, ClockTextBlock.FontWeight, ClockTextBlock.FontStretch),
-                ClockTextBlock.FontSize,
-                Background,
-                ClockTextBlock.FontSize);
-
-            var baseline = formattedText.Height - formattedText.Baseline;
-
-            //DateTransform.Y = -baseline;
-            ClockTextBlock.Height = formattedText.Baseline;
-            ClockTextBlock.Loaded -= ClockTextBlock_Loaded;
+            Settings = new ClockSettings();
+            InitializeComponent();
+            SetBinding(SettingsProperty, new Binding("DataContext.GridNode.ViewProperties.ClockSettings")
+            {
+                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(GridNodeView), 1),
+                FallbackValue = Settings, TargetNullValue = Settings
+            });
+            Loaded += (sender, args) => Clock.Start();
+            Unloaded += (sender, args) => Clock.Stop();
         }
     }
 }

@@ -15,6 +15,12 @@ namespace LandingPage.Views
 
         private void Done_Click(object sender, RoutedEventArgs e) => Done?.Invoke(this, e);
 
+        private void ResetClock_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)
+                model.GridNode.ViewProperties.ClockSettings = new LandingPage.Settings.ClockSettings();
+        }
+
         private void ResetAppearance_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)

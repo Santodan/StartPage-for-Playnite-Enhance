@@ -53,6 +53,8 @@
       <DependentUpon>ColorPicker.xaml</DependentUpon>
     </Compile>
     <Compile Include="Controls\WidgetPalette.cs" />
+    <Compile Include="Settings\ClockSettings.cs" />
+    <Compile Include="Views\Settings\ClockSettingsView.xaml.cs"><DependentUpon>ClockSettingsView.xaml</DependentUpon></Compile>
     <Compile Include="BusyObservableObject.cs" />
     <Compile Include="Controls\GroupListBox.xaml.cs">
       <DependentUpon>GroupListBox.xaml</DependentUpon>
@@ -311,6 +313,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Views\Settings\ClockSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Controls\GroupListBox.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

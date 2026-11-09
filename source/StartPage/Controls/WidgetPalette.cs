@@ -180,16 +180,17 @@ namespace LandingPage.Controls
             {
                 if (!host.IsVisible) return;
                 touched.Clear();
-                Visit(host, false);
+                Visit(host, false, false);
                 foreach (var key in saved.Keys.Where(key => !touched.Contains(key)).ToArray()) Restore(key);
             }
 
-            private void Visit(DependencyObject element, bool inChart)
+            private void Visit(DependencyObject element, bool inChart, bool customClockColors)
             {
                 var type = element.GetType();
                 inChart |= type.Name.IndexOf("Chart", StringComparison.OrdinalIgnoreCase) >= 0
                     || type.Name == "GameActivityView" || type.Namespace?.IndexOf("LiveCharts", StringComparison.OrdinalIgnoreCase) >= 0;
-                if (appearance.CustomizeText)
+                if (element is Views.ClockView clockView) customClockColors = clockView.Settings?.UseCustomColors == true;
+                if (appearance.CustomizeText && !customClockColors)
                 {
                     if (element is TextBlock) Paint(element, TextBlock.ForegroundProperty, text);
                     else if (element is Control) Paint(element, Control.ForegroundProperty, text);
@@ -222,7 +223,7 @@ namespace LandingPage.Controls
                     }
                 }
                 for (var index = 0; index < VisualTreeHelper.GetChildrenCount(element); index++)
-                    Visit(VisualTreeHelper.GetChild(element, index), inChart);
+                    Visit(VisualTreeHelper.GetChild(element, index), inChart, customClockColors);
             }
 
             private static bool IsTransparent(Brush brush) => brush is SolidColorBrush solid && solid.Color.A == 0;
