@@ -7,7 +7,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 3. [x] **Text widget.** Custom headings and notes with font size, color, alignment, and wrapping.
 4. [x] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
 5. [x] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
-6. [ ] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
+6. [x] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
 7. [ ] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
 8. [ ] **Multiple dashboard pages.** Named pages with independent layouts/backgrounds and convenient page switching.
 9. [ ] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
@@ -71,3 +71,19 @@ Build verification does not replace visual testing in Playnite. Rounded corners 
 - Grid/list styles scroll vertically; cover rows and wide cards scroll horizontally. Settings persist when Playnite restarts.
 - Missing artwork uses the standard placeholder. Switching layouts does not refresh game data unnecessarily.
 - Release build and rendered-view checks passed, including grouped grids; user testing completed and the user authorized the commit.
+
+## Sixth change: testing in Playnite
+
+- Open an individual shelf's settings popup and expand **Metadata and badges**.
+- Choose **Info placement > Over artwork (card overlay)** to place details on cover rows, cover grids, or wide cards. Customize the overlay background with its color picker and opacity slider. Compact lists keep details beside the image.
+- Expand **Text style** and enable **Customize metadata text** for separate title/info colors and sizes, alignment, bold, italic, and wrapping. These colors take priority over the general widget text color.
+- Expand **Translucent background** to show/hide the backdrop, pick its color, enter opacity, and adjust padding/corner radius.
+- Select **Default**, **Show**, or **Hide** for game titles. Toggle playtime, last played date, platform, favorites, installation status, and achievement progress independently for each shelf.
+- Metadata works with cover rows, cover grids, compact lists, and wide cards. Existing metadata defaults remain unchanged.
+- For storefronts, enable **Source/library icon** and optionally **Source/library name** (Steam, Epic, GOG, etc.). These use the game's library integration; missing icons fall back to the source name. Platforms remain a separate option.
+- Toggle **Platform icons** independently of **Platform names**. Icons come from Playnite platform settings; a missing icon falls back to its name. Enable **Trophy beside achievement progress** and adjust **Metadata icon size**. Trophy color follows the metadata text color.
+- Favorite labels appear for favorites only. Missing platforms and unavailable achievement data stay hidden. Unplayed games show **Last played: Never**.
+- Achievement progress reads the provider selected in StartPage settings: SuccessStory JSON or the PlayniteAchievements cache. Access is read-only; progress refreshes about every 10 seconds while visible.
+- Try changing a game's favorite/installation status, restart Playnite, and check the options persist. Use the appearance palette to recolor text and progress highlights.
+- Shelf settings can scroll when the expanded options exceed the available height.
+- Release build and rendered-view/provider checks passed; user testing completed and the user authorized the commit.

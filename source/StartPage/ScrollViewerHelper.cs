@@ -34,6 +34,15 @@ namespace LandingPage
 
                 if (scrollViewer == null) return;
 
+                // Let a card's metadata scroll vertically before handling the outer shelf wheel.
+                var target = args.OriginalSource as DependencyObject;
+                while (target != null && target != itemsControl)
+                {
+                    if (target is ScrollViewer nested && nested != scrollViewer && nested.ScrollableHeight > 0) return;
+                    target = target is FrameworkContentElement content ? content.Parent
+                        : target is System.Windows.Media.Visual ? System.Windows.Media.VisualTreeHelper.GetParent(target) : null;
+                }
+
                 double? scrollWidth = null;
 
                 var itemCount = itemsControl.ItemsSource?.Cast<object>().Count() ?? 0;

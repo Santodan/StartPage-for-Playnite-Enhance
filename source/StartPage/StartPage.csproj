@@ -61,6 +61,8 @@
     <Compile Include="Settings\ImageWidgetSettings.cs" />
     <Compile Include="Views\ImageWidgetView.xaml.cs"><DependentUpon>ImageWidgetView.xaml</DependentUpon></Compile>
     <Compile Include="Views\Settings\ImageWidgetSettingsView.xaml.cs"><DependentUpon>ImageWidgetSettingsView.xaml</DependentUpon></Compile>
+    <Compile Include="Models\ShelfAchievementProgress.cs" />
+    <Compile Include="Views\ShelfGameInfo.cs" />
     <Compile Include="BusyObservableObject.cs" />
     <Compile Include="Controls\GroupListBox.xaml.cs">
       <DependentUpon>GroupListBox.xaml</DependentUpon>

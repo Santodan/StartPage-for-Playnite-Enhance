@@ -247,6 +247,7 @@ namespace LandingPage.ViewModels
             if (old.Playtime != updated.Playtime) return true;
             if (old.Hidden != updated.Hidden) return true;
             if (old.Favorite != updated.Favorite) return true;
+            if (old.IsInstalled != updated.IsInstalled) return true;
             var oldPlatformIds = old.PlatformIds ?? new List<Guid>();
             var updatedPlatformIds = updated.PlatformIds ?? new List<Guid>();
             if (!(oldPlatformIds.All(id => updatedPlatformIds.Contains(id)) && oldPlatformIds.Count == updatedPlatformIds.Count)) return true;

@@ -16,6 +16,10 @@ namespace LandingPage.Controls
     // Applied only to the hosted widget, never the layout editor or other panels.
     public static class WidgetPalette
     {
+        public static readonly DependencyProperty PreserveTextColorProperty = DependencyProperty.RegisterAttached(
+            "PreserveTextColor", typeof(bool), typeof(WidgetPalette), new PropertyMetadata(false));
+        public static bool GetPreserveTextColor(DependencyObject target) => (bool)target.GetValue(PreserveTextColorProperty);
+        public static void SetPreserveTextColor(DependencyObject target, bool value) => target.SetValue(PreserveTextColorProperty, value);
         public static readonly DependencyProperty AppearanceProperty = DependencyProperty.RegisterAttached(
             "Appearance", typeof(PanelAppearance), typeof(WidgetPalette), new PropertyMetadata(null, Changed));
         private static readonly DependencyProperty ControllerProperty = DependencyProperty.RegisterAttached(
@@ -191,6 +195,8 @@ namespace LandingPage.Controls
                 inChart |= type.Name.IndexOf("Chart", StringComparison.OrdinalIgnoreCase) >= 0
                     || type.Name == "GameActivityView" || type.Namespace?.IndexOf("LiveCharts", StringComparison.OrdinalIgnoreCase) >= 0;
                 if (element is Views.ClockView clockView) customContentColor = clockView.Settings?.UseCustomColors == true;
+                if (element is Views.ShelfGameInfo info) customContentColor = info.Settings?.CustomizeMetadataText == true;
+                if (GetPreserveTextColor(element)) customContentColor = true;
                 if (element is Views.TextWidgetView textView) customContentColor = textView.Settings?.UseCustomColor == true;
                 if (appearance.CustomizeText && !customContentColor)
                 {

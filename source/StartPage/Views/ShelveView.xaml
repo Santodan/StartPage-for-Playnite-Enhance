@@ -85,8 +85,63 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="MetadataCardPanel" TargetType="Border">
+            <Setter Property="Grid.Row" Value="1"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.ShelveProperties.MetadataPosition, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="{x:Static lpm:ShelfMetadataPosition.OverArtwork}">
+                    <Setter Property="Grid.Row" Value="0"/>
+                    <Setter Property="VerticalAlignment" Value="Bottom"/>
+                    <Setter Property="MaxHeight" Value="{Binding ActualHeight, ElementName=ImageGrid}"/>
+                    <Setter Property="Panel.ZIndex" Value="2"/>
+                    <Setter Property="Padding" Value="{Binding DataContext.ShelveProperties.MetadataPadding, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                    <Setter Property="CornerRadius" Value="{Binding DataContext.ShelveProperties.MetadataCornerRadius, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                    <Setter Property="Background"><Setter.Value>
+                        <SolidColorBrush Color="{Binding Settings.MetadataBackground, ElementName=MetadataInfo}"
+                                         Opacity="{Binding Settings.MetadataOpacity, ElementName=MetadataInfo}"/>
+                    </Setter.Value></Setter>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DataContext.ShelveProperties.ShowMetadataBackground, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="False">
+                    <Setter Property="Background" Value="{x:Null}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="MetadataCardScroll" TargetType="ScrollViewer" BasedOn="{StaticResource {x:Type ScrollViewer}}">
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.ShelveProperties.MetadataPosition, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="{x:Static lpm:ShelfMetadataPosition.OverArtwork}">
+                    <Setter Property="MaxHeight" Value="{Binding ActualHeight, ElementName=ImageGrid}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="MetadataCoverTitle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.ShelveProperties.CustomizeMetadataText, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True">
+                    <Setter Property="FontSize" Value="{Binding DataContext.ShelveProperties.MetadataTitleSize, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                    <Setter Property="Foreground" Value="{Binding DataContext.ShelveProperties.MetadataTitleColor, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                    <Setter Property="TextAlignment" Value="{Binding DataContext.ShelveProperties.MetadataTextAlignment, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                    <Setter Property="FontWeight" Value="Normal"/>
+                    <Setter Property="FontStyle" Value="Normal"/>
+                </DataTrigger>
+                <MultiDataTrigger><MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding DataContext.ShelveProperties.CustomizeMetadataText, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
+                    <Condition Binding="{Binding DataContext.ShelveProperties.MetadataTitleBold, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
+                </MultiDataTrigger.Conditions><Setter Property="FontWeight" Value="Bold"/></MultiDataTrigger>
+                <MultiDataTrigger><MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding DataContext.ShelveProperties.CustomizeMetadataText, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
+                    <Condition Binding="{Binding DataContext.ShelveProperties.MetadataItalic, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
+                </MultiDataTrigger.Conditions><Setter Property="FontStyle" Value="Italic"/></MultiDataTrigger>
+                <MultiDataTrigger><MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding DataContext.ShelveProperties.CustomizeMetadataText, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
+                    <Condition Binding="{Binding DataContext.ShelveProperties.MetadataWrap, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="False"/>
+                </MultiDataTrigger.Conditions><Setter Property="TextWrapping" Value="NoWrap"/></MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
         <DataTemplate x:Key="GameCoverDataTemplate" DataType="{x:Type lpm:GameModel}">
-            <StackPanel Orientation="Horizontal" MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave">
+            <Grid MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <Grid>
                     <Grid ClipToBounds="True"
                           MaxWidth="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=ListBox}, Path=DataContext.ShelveSettings.MaxCoverWidth}" 
@@ -142,10 +197,9 @@
                                                 RenderOptions.BitmapScalingMode="Fant" Opacity="0.0"/>
                         <TextBlock x:Name="NameTextBlock"
                                    Text="{Binding Game.Name}" 
-                                   Style="{StaticResource BaseTextBlockStyle}" 
+                                   Style="{StaticResource MetadataCoverTitle}"
+                                   controls:WidgetPalette.PreserveTextColor="{Binding DataContext.ShelveProperties.CustomizeMetadataText, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                    VerticalAlignment="Bottom" 
-                                   TextWrapping="Wrap" 
-                                   TextAlignment="Center" 
                                    Padding="4" 
                                    Background="#7F000000"
                                    Visibility="Hidden"/>
@@ -186,7 +240,15 @@
                     </Border>
                 </Grid>
 
-            </StackPanel>
+                <Border Style="{StaticResource MetadataCardPanel}" Width="{Binding ActualWidth, ElementName=ImageGrid}"
+                        Visibility="{Binding Visibility, ElementName=MetadataInfo}">
+                    <ScrollViewer Style="{StaticResource MetadataCardScroll}">
+                        <local:ShelfGameInfo x:Name="MetadataInfo" IncludeTitle="False" Model="{Binding}"
+                            DefaultTitleVisible="{Binding DataContext.ShelveSettings.ShowTitleOnCover, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                            Settings="{Binding DataContext.ShelveProperties, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
             <DataTemplate.Triggers>
                 <DataTrigger Binding="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=ListBox}, Path=DataContext.ShelveSettings.ShowTitleOnCover}" Value="{StaticResource True}">
                     <Setter Property="Visibility" Value="Visible" TargetName="NameTextBlock"/>
@@ -242,6 +304,16 @@
                 <DataTrigger Binding="{Binding Game.IsInstalled}" Value="{StaticResource False}">
                     <Setter Property="Text" Value="" TargetName="PlayIcon"/>
                 </DataTrigger>
+                <DataTrigger Binding="{Binding DataContext.ShelveProperties.TitleDisplay, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="{x:Static lpm:ShelfTitleDisplay.Show}">
+                    <Setter Property="Visibility" TargetName="NameTextBlock" Value="Visible"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DataContext.ShelveProperties.TitleDisplay, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="{x:Static lpm:ShelfTitleDisplay.Hide}">
+                    <Setter Property="Visibility" TargetName="NameTextBlock" Value="Hidden"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding DataContext.ShelveProperties.MetadataPosition, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="{x:Static lpm:ShelfMetadataPosition.OverArtwork}">
+                    <Setter Property="Visibility" TargetName="NameTextBlock" Value="Hidden"/>
+                    <Setter Property="IncludeTitle" TargetName="MetadataInfo" Value="True"/>
+                </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
         <Style x:Key="GameGroupBox" TargetType="{x:Type GroupBox}" BasedOn="{StaticResource {x:Type GroupBox}}">
@@ -271,27 +343,34 @@
             </Setter>
         </Style>
         <DataTemplate x:Key="ShelfGridTemplate">
-            <StackPanel MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave"
+            <Grid MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave"
                         Width="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}}">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <Grid x:Name="ImageGrid" ClipToBounds="True"
                       Height="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource MultiplyConverter}, ConverterParameter=1.4}">
                     <Image Source="{Binding Game.CoverImage, Converter={StaticResource ImageStringToImageConverter}, TargetNullValue={StaticResource DefaultGameCover}, FallbackValue={StaticResource DefaultGameCover}}" Stretch="UniformToFill"/>
                 </Grid>
-                <TextBlock Text="{Binding Game.Name}" TextTrimming="CharacterEllipsis" Margin="2,6,2,2" ToolTip="{Binding Game.Name}"/>
-            </StackPanel>
+                <Border Style="{StaticResource MetadataCardPanel}" Visibility="{Binding Visibility, ElementName=MetadataInfo}">
+                    <ScrollViewer Style="{StaticResource MetadataCardScroll}">
+                        <local:ShelfGameInfo x:Name="MetadataInfo" Model="{Binding}" Settings="{Binding DataContext.ShelveProperties, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
         </DataTemplate>
         <DataTemplate x:Key="ShelfCompactTemplate">
             <StackPanel Orientation="Horizontal" MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave">
                 <Grid x:Name="ImageGrid" Width="32" Height="44" ClipToBounds="True" Margin="0,0,10,0">
                     <Image Source="{Binding Game.CoverImage, Converter={StaticResource ImageStringToImageConverter}, TargetNullValue={StaticResource DefaultGameCover}, FallbackValue={StaticResource DefaultGameCover}}" Stretch="UniformToFill"/>
                 </Grid>
-                <TextBlock Text="{Binding Game.Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                           Width="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}}" ToolTip="{Binding Game.Name}"/>
+                <local:ShelfGameInfo Model="{Binding}" VerticalAlignment="Center"
+                                     Width="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                     Settings="{Binding DataContext.ShelveProperties, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="ShelfWideTemplate">
-            <StackPanel MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave"
+            <Grid MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave"
                         Width="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource MultiplyConverter}, ConverterParameter=1.6}">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <Grid x:Name="ImageGrid" ClipToBounds="True"
                       Height="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource MultiplyConverter}, ConverterParameter=0.9}">
                     <Image Stretch="UniformToFill">
@@ -310,8 +389,12 @@
                         </Image.Style>
                     </Image>
                 </Grid>
-                <TextBlock Text="{Binding Game.Name}" TextTrimming="CharacterEllipsis" Margin="2,6,2,2" ToolTip="{Binding Game.Name}"/>
-            </StackPanel>
+                <Border Style="{StaticResource MetadataCardPanel}" Visibility="{Binding Visibility, ElementName=MetadataInfo}">
+                    <ScrollViewer Style="{StaticResource MetadataCardScroll}">
+                        <local:ShelfGameInfo x:Name="MetadataInfo" Model="{Binding}" Settings="{Binding DataContext.ShelveProperties, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
         </DataTemplate>
         <Style x:Key="GameListItem" TargetType="ListBoxItem">
             <EventSetter Event="MouseDoubleClick" Handler="ListBoxItem_MouseDoubleClick"/>
@@ -479,6 +562,8 @@
                                                    IsOpen="{Binding Tag.IsChecked, ElementName=ShelveDockPanel, Delay=100}"
                                                    DataContext="{x:Null}">
                         <Border Background="{DynamicResource PopupBackgroundBrush}" Padding="8" CornerRadius="8" MinWidth="260" MaxWidth="400">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height, Converter={StaticResource MultiplyConverter}, ConverterParameter=0.8}">
                             <StackPanel Grid.IsSharedSizeScope="True">
                                 <TextBox Text="{Binding ShelveProperties.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
                                 <TextBlock Text="Display style" Margin="2,8,2,2"/>
@@ -491,6 +576,77 @@
                                 <TextBlock Text="Card width (grid/list/wide styles)" Margin="2,6,2,2"/>
                                 <numeric:DoubleBox Value="{Binding ShelveProperties.CardWidth, UpdateSourceTrigger=PropertyChanged}" MinValue="80" MaxValue="500" Margin="2" Style="{StaticResource {x:Type TextBox}}"/>
 
+                                <Expander Header="Metadata and badges" Margin="2,8,2,4" Foreground="{DynamicResource TextBrush}">
+                                    <StackPanel>
+                                        <TextBlock Text="Info placement" Margin="0,4,0,2"/>
+                                        <ComboBox SelectedValue="{Binding ShelveProperties.MetadataPosition}" SelectedValuePath="Tag">
+                                            <ComboBoxItem Content="Below artwork" Tag="{x:Static lpm:ShelfMetadataPosition.BelowArtwork}"/>
+                                            <ComboBoxItem Content="Over artwork (card overlay)" Tag="{x:Static lpm:ShelfMetadataPosition.OverArtwork}"/>
+                                        </ComboBox>
+                                        <TextBlock Text="Compact lists keep info beside the image." TextWrapping="Wrap" Margin="0,3,0,6"/>
+                                        <Expander Header="Text style" Foreground="{DynamicResource TextBrush}" Margin="0,4,0,4">
+                                            <StackPanel>
+                                                <CheckBox Content="Customize metadata text" IsChecked="{Binding ShelveProperties.CustomizeMetadataText}" Margin="0,4,0,4"/>
+                                                <StackPanel IsEnabled="{Binding ShelveProperties.CustomizeMetadataText}">
+                                                    <TextBlock Text="Title color"/>
+                                                    <controls:ColorPicker SelectedColor="{Binding ShelveProperties.MetadataTitleColor, Mode=TwoWay}"/>
+                                                    <TextBlock Text="Info color" Margin="0,4,0,0"/>
+                                                    <controls:ColorPicker SelectedColor="{Binding ShelveProperties.MetadataTextColor, Mode=TwoWay}"/>
+                                                    <TextBlock Text="Title size" Margin="0,4,0,0"/>
+                                                    <numeric:DoubleBox Value="{Binding ShelveProperties.MetadataTitleSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="72" Style="{StaticResource {x:Type TextBox}}"/>
+                                                    <TextBlock Text="Info size" Margin="0,4,0,0"/>
+                                                    <numeric:DoubleBox Value="{Binding ShelveProperties.MetadataTextSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="72" Style="{StaticResource {x:Type TextBox}}"/>
+                                                    <TextBlock Text="Alignment" Margin="0,4,0,0"/>
+                                                    <ComboBox SelectedValue="{Binding ShelveProperties.MetadataTextAlignment}" SelectedValuePath="Tag">
+                                                        <ComboBoxItem Content="Left" Tag="{x:Static TextAlignment.Left}"/>
+                                                        <ComboBoxItem Content="Center" Tag="{x:Static TextAlignment.Center}"/>
+                                                        <ComboBoxItem Content="Right" Tag="{x:Static TextAlignment.Right}"/>
+                                                    </ComboBox>
+                                                    <CheckBox Content="Bold title" IsChecked="{Binding ShelveProperties.MetadataTitleBold}" Margin="0,4,0,0"/>
+                                                    <CheckBox Content="Bold info" IsChecked="{Binding ShelveProperties.MetadataTextBold}" Margin="0,4,0,0"/>
+                                                    <CheckBox Content="Italic" IsChecked="{Binding ShelveProperties.MetadataItalic}" Margin="0,4,0,0"/>
+                                                    <CheckBox Content="Wrap text" IsChecked="{Binding ShelveProperties.MetadataWrap}" Margin="0,4,0,0"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Expander>
+                                        <Expander Header="Translucent background" Foreground="{DynamicResource TextBrush}" Margin="0,4,0,4">
+                                            <StackPanel>
+                                                <CheckBox Content="Show overlay background" IsChecked="{Binding ShelveProperties.ShowMetadataBackground}" Margin="0,4,0,4"/>
+                                                <TextBlock Text="Background color"/>
+                                                <controls:ColorPicker SelectedColor="{Binding ShelveProperties.MetadataBackground, Mode=TwoWay}"/>
+                                                <TextBlock Text="Background opacity" Margin="0,4,0,0"/>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="65"/></Grid.ColumnDefinitions>
+                                                    <Slider Value="{Binding ShelveProperties.MetadataOpacity}" Minimum="0" Maximum="1" TickFrequency="0.01" SmallChange="0.01" LargeChange="0.1" IsSnapToTickEnabled="True" AutoToolTipPrecision="2" AutoToolTipPlacement="TopLeft"/>
+                                                    <numeric:DoubleBox Grid.Column="1" Value="{Binding ShelveProperties.MetadataOpacity, UpdateSourceTrigger=PropertyChanged}" MinValue="0" MaxValue="1" Margin="6,0,0,0" Style="{StaticResource {x:Type TextBox}}"/>
+                                                </Grid>
+                                                <TextBlock Text="Padding" Margin="0,4,0,0"/>
+                                                <numeric:DoubleBox Value="{Binding ShelveProperties.MetadataPadding, UpdateSourceTrigger=PropertyChanged}" MinValue="0" MaxValue="40" Style="{StaticResource {x:Type TextBox}}"/>
+                                                <TextBlock Text="Corner radius" Margin="0,4,0,0"/>
+                                                <numeric:DoubleBox Value="{Binding ShelveProperties.MetadataCornerRadius, UpdateSourceTrigger=PropertyChanged}" MinValue="0" MaxValue="40" Style="{StaticResource {x:Type TextBox}}"/>
+                                            </StackPanel>
+                                        </Expander>
+                                        <TextBlock Text="Game titles" Margin="0,4,0,2"/>
+                                        <ComboBox SelectedValue="{Binding ShelveProperties.TitleDisplay}" SelectedValuePath="Tag">
+                                            <ComboBoxItem Content="Default for this style" Tag="{x:Static lpm:ShelfTitleDisplay.Default}"/>
+                                            <ComboBoxItem Content="Show" Tag="{x:Static lpm:ShelfTitleDisplay.Show}"/>
+                                            <ComboBoxItem Content="Hide" Tag="{x:Static lpm:ShelfTitleDisplay.Hide}"/>
+                                        </ComboBox>
+                                        <CheckBox Content="Playtime" IsChecked="{Binding ShelveProperties.ShowPlaytime}" Margin="0,6,0,0"/>
+                                        <CheckBox Content="Last played date" IsChecked="{Binding ShelveProperties.ShowLastPlayed}" Margin="0,4,0,0"/>
+                                        <CheckBox Content="Source/library name (Steam, Epic, GOG...)" IsChecked="{Binding ShelveProperties.ShowSource}" Margin="0,4,0,0"/>
+                                        <CheckBox Content="Source/library icon" IsChecked="{Binding ShelveProperties.ShowSourceIcon}" Margin="0,4,0,0"/>
+                                        <CheckBox Content="Platform names" IsChecked="{Binding ShelveProperties.ShowPlatform}" Margin="0,4,0,0"/>
+                                        <CheckBox Content="Platform icons" IsChecked="{Binding ShelveProperties.ShowPlatformIcons}" Margin="0,4,0,0"/>
+                                        <TextBlock Text="Uses the icons configured for your platforms in Playnite. Missing icons display the platform name." TextWrapping="Wrap" Margin="0,3,0,4"/>
+                                        <CheckBox Content="Favorite badge" IsChecked="{Binding ShelveProperties.ShowFavoriteBadge}" Margin="0,4,0,0"/>
+                                        <CheckBox Content="Installation status" IsChecked="{Binding ShelveProperties.ShowInstallationStatus}" Margin="0,4,0,0"/>
+                                        <CheckBox Content="Achievement progress (when available)" IsChecked="{Binding ShelveProperties.ShowAchievementProgress}" Margin="0,4,0,0"/>
+                                        <CheckBox Content="Trophy beside achievement progress" IsChecked="{Binding ShelveProperties.ShowAchievementTrophy}" Margin="0,4,0,0"/>
+                                        <TextBlock Text="Metadata icon size" Margin="0,6,0,2"/>
+                                        <numeric:DoubleBox Value="{Binding ShelveProperties.MetadataIconSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
+                                    </StackPanel>
+                                </Expander>
                                 <CheckBox Content="{DynamicResource LOCGameIsGameInstalledTitle}" IsChecked="{Binding ShelveProperties.InstalledOnly}" Margin="2"/>
                                 <CheckBox Content="{DynamicResource LOCQuickFilterFavorites}" IsChecked="{Binding ShelveProperties.FavoritesOnly}" Margin="2"/>
                                 <CheckBox Content="{DynamicResource LOC_SPG_IgnoreHidden}" IsChecked="{Binding ShelveProperties.IgnoreHidden}" Margin="2"/>
@@ -683,6 +839,7 @@
                                     </Button>
                                 </Grid>
                             </StackPanel>
+                            </ScrollViewer>
                         </Border>
                     </Popup>
 

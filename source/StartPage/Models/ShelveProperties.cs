@@ -68,6 +68,10 @@ namespace LandingPage.Models
         CompletionStatus
     }
 
+    public enum ShelfMetadataPosition { BelowArtwork, OverArtwork }
+
+    public enum ShelfTitleDisplay { Default, Show, Hide }
+
     public enum ShelfDisplayStyle { CoverRow, CoverGrid, CompactList, WideCards }
 
     public class ShelveProperties : ObservableObject
@@ -77,6 +81,86 @@ namespace LandingPage.Models
         private double cardWidth = 160;
         public double CardWidth { get => cardWidth; set => SetValue(ref cardWidth,
             double.IsNaN(value) || double.IsInfinity(value) ? 160 : Math.Max(80, Math.Min(500, value))); }
+
+        private ShelfMetadataPosition metadataPosition;
+        public ShelfMetadataPosition MetadataPosition { get => metadataPosition; set => SetValue(ref metadataPosition, value); }
+        private string metadataBackground = "#000000";
+        public string MetadataBackground
+        {
+            get => metadataBackground;
+            set
+            {
+                try { System.Windows.Media.ColorConverter.ConvertFromString(value ?? string.Empty); }
+                catch (Exception) { throw new ArgumentException("Enter a valid color."); }
+                SetValue(ref metadataBackground, value);
+            }
+        }
+        private double metadataOpacity = 0.7;
+        public double MetadataOpacity { get => metadataOpacity; set => SetValue(ref metadataOpacity,
+            double.IsNaN(value) || double.IsInfinity(value) ? 0.7 : Math.Max(0, Math.Min(1, value))); }
+
+        private bool customizeMetadataText = false;
+        public bool CustomizeMetadataText { get => customizeMetadataText; set => SetValue(ref customizeMetadataText, value); }
+        private string metadataTextColor = "#FFFFFF";
+        public string MetadataTextColor { get => metadataTextColor; set
+            {
+                try { System.Windows.Media.ColorConverter.ConvertFromString(value ?? string.Empty); }
+                catch (Exception) { throw new ArgumentException("Enter a valid color."); }
+                SetValue(ref metadataTextColor, value);
+            } }
+        private string metadataTitleColor = "#FFFFFF";
+        public string MetadataTitleColor { get => metadataTitleColor; set
+            {
+                try { System.Windows.Media.ColorConverter.ConvertFromString(value ?? string.Empty); }
+                catch (Exception) { throw new ArgumentException("Enter a valid color."); }
+                SetValue(ref metadataTitleColor, value);
+            } }
+        private double metadataTextSize = 12;
+        public double MetadataTextSize { get => metadataTextSize; set => SetValue(ref metadataTextSize, double.IsNaN(value) || double.IsInfinity(value) ? 12 : Math.Max(8, Math.Min(72, value))); }
+        private double metadataTitleSize = 14;
+        public double MetadataTitleSize { get => metadataTitleSize; set => SetValue(ref metadataTitleSize, double.IsNaN(value) || double.IsInfinity(value) ? 14 : Math.Max(8, Math.Min(72, value))); }
+        private bool metadataTitleBold = true;
+        public bool MetadataTitleBold { get => metadataTitleBold; set => SetValue(ref metadataTitleBold, value); }
+        private bool metadataTextBold = false;
+        public bool MetadataTextBold { get => metadataTextBold; set => SetValue(ref metadataTextBold, value); }
+        private bool metadataItalic = false;
+        public bool MetadataItalic { get => metadataItalic; set => SetValue(ref metadataItalic, value); }
+        private bool metadataWrap = false;
+        public bool MetadataWrap { get => metadataWrap; set => SetValue(ref metadataWrap, value); }
+        private System.Windows.TextAlignment metadataTextAlignment = System.Windows.TextAlignment.Left;
+        public System.Windows.TextAlignment MetadataTextAlignment { get => metadataTextAlignment; set => SetValue(ref metadataTextAlignment, value); }
+        private bool showMetadataBackground = true;
+        public bool ShowMetadataBackground { get => showMetadataBackground; set => SetValue(ref showMetadataBackground, value); }
+        private double metadataPadding = 6;
+        public double MetadataPadding { get => metadataPadding; set => SetValue(ref metadataPadding, double.IsNaN(value) || double.IsInfinity(value) ? 6 : Math.Max(0, Math.Min(40, value))); }
+        private double metadataCornerRadius = 0;
+        public double MetadataCornerRadius { get => metadataCornerRadius; set => SetValue(ref metadataCornerRadius, double.IsNaN(value) || double.IsInfinity(value) ? 0 : Math.Max(0, Math.Min(40, value))); }
+
+        private ShelfTitleDisplay titleDisplay;
+        public ShelfTitleDisplay TitleDisplay { get => titleDisplay; set => SetValue(ref titleDisplay, value); }
+        private bool showPlaytime;
+        public bool ShowPlaytime { get => showPlaytime; set => SetValue(ref showPlaytime, value); }
+        private bool showLastPlayed;
+        public bool ShowLastPlayed { get => showLastPlayed; set => SetValue(ref showLastPlayed, value); }
+        private bool showPlatform;
+        public bool ShowPlatform { get => showPlatform; set => SetValue(ref showPlatform, value); }
+        private bool showSource;
+        public bool ShowSource { get => showSource; set => SetValue(ref showSource, value); }
+        private bool showSourceIcon;
+        public bool ShowSourceIcon { get => showSourceIcon; set => SetValue(ref showSourceIcon, value); }
+        private bool showPlatformIcons;
+        public bool ShowPlatformIcons { get => showPlatformIcons; set => SetValue(ref showPlatformIcons, value); }
+        private bool showAchievementTrophy;
+        public bool ShowAchievementTrophy { get => showAchievementTrophy; set => SetValue(ref showAchievementTrophy, value); }
+        private double metadataIconSize = 16;
+        public double MetadataIconSize { get => metadataIconSize; set => SetValue(ref metadataIconSize,
+            double.IsNaN(value) || double.IsInfinity(value) ? 16 : Math.Max(8, Math.Min(48, value))); }
+        private bool showFavoriteBadge;
+        public bool ShowFavoriteBadge { get => showFavoriteBadge; set => SetValue(ref showFavoriteBadge, value); }
+        private bool showInstallationStatus;
+        public bool ShowInstallationStatus { get => showInstallationStatus; set => SetValue(ref showInstallationStatus, value); }
+        private bool showAchievementProgress;
+        public bool ShowAchievementProgress { get => showAchievementProgress; set => SetValue(ref showAchievementProgress, value); }
 
         public static ShelveProperties RecentlyPlayed
             => new ShelveProperties { Order = Order.Descending, SortBy = SortingField.LastActivity, GroupBy = GroupingField.LastActivity, Name = ResourceProvider.GetString("LOCQuickFilterRecentlyPlayed") };
