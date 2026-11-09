@@ -28,6 +28,76 @@ namespace LandingPage.Views
         public ShelveView()
         {
             InitializeComponent();
+            Loaded += (sender, args) => ObserveShelf();
+            Unloaded += (sender, args) => StopObservingShelf();
+            DataContextChanged += (sender, args) => { StopObservingShelf(); if (IsLoaded) ObserveShelf(); };
+        }
+
+        private ShelveProperties observedShelf;
+        private ItemsPanelTemplate originalPanel;
+        private ItemsPanelTemplate originalGroupPanel;
+        private DataTemplate originalItemTemplate;
+
+        private void ObserveShelf()
+        {
+            StopObservingShelf();
+            observedShelf = (DataContext as ShelveViewModel)?.ShelveProperties;
+            if (observedShelf != null) observedShelf.PropertyChanged += ShelfLayoutChanged;
+            ApplyDisplayStyle();
+        }
+
+        private void StopObservingShelf()
+        {
+            if (observedShelf != null) observedShelf.PropertyChanged -= ShelfLayoutChanged;
+            observedShelf = null;
+        }
+
+        private void ShelfLayoutChanged(object sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == nameof(ShelveProperties.DisplayStyle)) ApplyDisplayStyle();
+        }
+
+        private void ApplyDisplayStyle()
+        {
+            if (GameListBox == null || !(DataContext is ShelveViewModel model)) return;
+            var style = model.ShelveProperties.DisplayStyle;
+            var original = style == ShelfDisplayStyle.CoverRow;
+            if (Template.FindName("ShelveDockPanel", this) is DockPanel dock)
+            {
+                dock.LastChildFill = !original;
+                dock.HorizontalAlignment = original ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+                dock.VerticalAlignment = original ? VerticalAlignment.Bottom : VerticalAlignment.Top;
+            }
+            GameListBox.VerticalAlignment = original ? VerticalAlignment.Bottom : VerticalAlignment.Stretch;
+            GameListBox.HorizontalAlignment = HorizontalAlignment.Stretch;
+            GameListBox.ClearValue(MaxWidthProperty);
+            if (original)
+            {
+                GameListBox.ItemsPanel = originalPanel;
+                GameListBox.ItemTemplate = originalItemTemplate;
+                if (GameListBox.GroupStyle.Count > 0) GameListBox.GroupStyle[0].Panel = originalGroupPanel;
+                GameListBox.ClearValue(ScrollViewer.HorizontalScrollBarVisibilityProperty);
+                GameListBox.ClearValue(ScrollViewer.VerticalScrollBarVisibilityProperty);
+                GameListBox.ClearValue(ScrollViewerHelper.UseHorizontalScrollingProperty);
+            }
+            else
+            {
+                var grid = style == ShelfDisplayStyle.CoverGrid;
+                var compact = style == ShelfDisplayStyle.CompactList;
+                var panel = new FrameworkElementFactory(grid ? typeof(WrapPanel) : typeof(StackPanel));
+                panel.SetValue(grid ? WrapPanel.OrientationProperty : StackPanel.OrientationProperty,
+                    compact ? Orientation.Vertical : Orientation.Horizontal);
+                var itemsPanel = new ItemsPanelTemplate(panel);
+                GameListBox.ItemsPanel = itemsPanel;
+                if (GameListBox.GroupStyle.Count > 0) GameListBox.GroupStyle[0].Panel = itemsPanel;
+                GameListBox.ItemTemplate = (DataTemplate)Resources[compact ? "ShelfCompactTemplate" : grid ? "ShelfGridTemplate" : "ShelfWideTemplate"];
+                GameListBox.MaxWidth = double.PositiveInfinity;
+                ScrollViewer.SetHorizontalScrollBarVisibility(GameListBox, grid || compact ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto);
+                ScrollViewer.SetVerticalScrollBarVisibility(GameListBox, grid || compact ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled);
+                GameListBox.SetValue(ScrollViewerHelper.UseHorizontalScrollingProperty, !grid && !compact);
+            }
+            lastContraint = null;
+            InvalidateMeasure();
         }
 
         private static DispatcherTimer dispatcherTimer = null;
@@ -61,6 +131,13 @@ namespace LandingPage.Views
         {
             base.OnApplyTemplate();
             GameListBox = Template?.FindName("PART_GamesListBox", this) as ListBox;
+            if (GameListBox != null)
+            {
+                originalPanel = GameListBox.ItemsPanel;
+                originalItemTemplate = GameListBox.ItemTemplate;
+                originalGroupPanel = GameListBox.GroupStyle.FirstOrDefault()?.Panel;
+                ApplyDisplayStyle();
+            }
         }
 
         protected Size? lastContraint = null;
@@ -80,6 +157,8 @@ namespace LandingPage.Views
 
         private bool ApplyWidthUpdate(object sender)
         {
+            if (DataContext is ShelveViewModel model && model.ShelveProperties.DisplayStyle != ShelfDisplayStyle.CoverRow)
+                return true;
             var updated = 0;
             var notUpdated = 0;
             var newWidth = ActualWidth;
@@ -108,11 +187,11 @@ namespace LandingPage.Views
                             // itemWidth = desiredWidth / itemCount;
                             var availableWidth = newWidth - 60;
                             FrameworkElement panel = VisualTreeHelper.GetParent(this) as FrameworkElement;
-                            while (!(panel is GridNodeView))
+                            while (panel != null && !(panel is GridNodeView))
                             {
                                 panel = VisualTreeHelper.GetParent(panel) as FrameworkElement;
                             }
-                            availableWidth = panel.ActualWidth - 60;
+                            if (panel != null) availableWidth = panel.ActualWidth - 60;
                             var newListWidth = Math.Floor(availableWidth / Math.Max(itemWidth, 1)) * itemWidth;
                             if (listBox.MaxWidth != newListWidth)
                             {
@@ -183,7 +262,8 @@ namespace LandingPage.Views
 
         private void ListBoxItem_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (sender is ListBoxItem item && !(e.OriginalSource is TextBlock))
+            if (sender is ListBoxItem item && (!(e.OriginalSource is TextBlock)
+                || (DataContext as ShelveViewModel)?.ShelveProperties.DisplayStyle != ShelfDisplayStyle.CoverRow))
             {
                 if (dispatcherTimer == null)
                 {

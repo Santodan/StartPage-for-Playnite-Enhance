@@ -270,6 +270,49 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <DataTemplate x:Key="ShelfGridTemplate">
+            <StackPanel MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave"
+                        Width="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}}">
+                <Grid x:Name="ImageGrid" ClipToBounds="True"
+                      Height="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource MultiplyConverter}, ConverterParameter=1.4}">
+                    <Image Source="{Binding Game.CoverImage, Converter={StaticResource ImageStringToImageConverter}, TargetNullValue={StaticResource DefaultGameCover}, FallbackValue={StaticResource DefaultGameCover}}" Stretch="UniformToFill"/>
+                </Grid>
+                <TextBlock Text="{Binding Game.Name}" TextTrimming="CharacterEllipsis" Margin="2,6,2,2" ToolTip="{Binding Game.Name}"/>
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="ShelfCompactTemplate">
+            <StackPanel Orientation="Horizontal" MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave">
+                <Grid x:Name="ImageGrid" Width="32" Height="44" ClipToBounds="True" Margin="0,0,10,0">
+                    <Image Source="{Binding Game.CoverImage, Converter={StaticResource ImageStringToImageConverter}, TargetNullValue={StaticResource DefaultGameCover}, FallbackValue={StaticResource DefaultGameCover}}" Stretch="UniformToFill"/>
+                </Grid>
+                <TextBlock Text="{Binding Game.Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Width="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}}" ToolTip="{Binding Game.Name}"/>
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="ShelfWideTemplate">
+            <StackPanel MouseEnter="StackPanel_MouseEnter" MouseLeave="StackPanel_MouseLeave"
+                        Width="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource MultiplyConverter}, ConverterParameter=1.6}">
+                <Grid x:Name="ImageGrid" ClipToBounds="True"
+                      Height="{Binding DataContext.ShelveProperties.CardWidth, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource MultiplyConverter}, ConverterParameter=0.9}">
+                    <Image Stretch="UniformToFill">
+                        <Image.Style>
+                            <Style TargetType="Image">
+                                <Setter Property="Source" Value="{Binding Game.BackgroundImage, Converter={StaticResource ImageStringToImageConverter}, TargetNullValue={StaticResource DefaultGameCover}, FallbackValue={StaticResource DefaultGameCover}}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Game.BackgroundImage}" Value="{x:Null}">
+                                        <Setter Property="Source" Value="{Binding Game.CoverImage, Converter={StaticResource ImageStringToImageConverter}, TargetNullValue={StaticResource DefaultGameCover}, FallbackValue={StaticResource DefaultGameCover}}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Game.BackgroundImage}" Value="">
+                                        <Setter Property="Source" Value="{Binding Game.CoverImage, Converter={StaticResource ImageStringToImageConverter}, TargetNullValue={StaticResource DefaultGameCover}, FallbackValue={StaticResource DefaultGameCover}}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Image.Style>
+                    </Image>
+                </Grid>
+                <TextBlock Text="{Binding Game.Name}" TextTrimming="CharacterEllipsis" Margin="2,6,2,2" ToolTip="{Binding Game.Name}"/>
+            </StackPanel>
+        </DataTemplate>
         <Style x:Key="GameListItem" TargetType="ListBoxItem">
             <EventSetter Event="MouseDoubleClick" Handler="ListBoxItem_MouseDoubleClick"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListBoxItem_MouseUp"/>
@@ -438,6 +481,16 @@
                         <Border Background="{DynamicResource PopupBackgroundBrush}" Padding="8" CornerRadius="8" MinWidth="260" MaxWidth="400">
                             <StackPanel Grid.IsSharedSizeScope="True">
                                 <TextBox Text="{Binding ShelveProperties.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
+                                <TextBlock Text="Display style" Margin="2,8,2,2"/>
+                                <ComboBox SelectedValue="{Binding ShelveProperties.DisplayStyle}" SelectedValuePath="Tag" Margin="2">
+                                    <ComboBoxItem Content="Horizontal cover row" Tag="{x:Static lpm:ShelfDisplayStyle.CoverRow}"/>
+                                    <ComboBoxItem Content="Wrapping cover grid" Tag="{x:Static lpm:ShelfDisplayStyle.CoverGrid}"/>
+                                    <ComboBoxItem Content="Compact list" Tag="{x:Static lpm:ShelfDisplayStyle.CompactList}"/>
+                                    <ComboBoxItem Content="Wide artwork cards" Tag="{x:Static lpm:ShelfDisplayStyle.WideCards}"/>
+                                </ComboBox>
+                                <TextBlock Text="Card width (grid/list/wide styles)" Margin="2,6,2,2"/>
+                                <numeric:DoubleBox Value="{Binding ShelveProperties.CardWidth, UpdateSourceTrigger=PropertyChanged}" MinValue="80" MaxValue="500" Margin="2" Style="{StaticResource {x:Type TextBox}}"/>
+
                                 <CheckBox Content="{DynamicResource LOCGameIsGameInstalledTitle}" IsChecked="{Binding ShelveProperties.InstalledOnly}" Margin="2"/>
                                 <CheckBox Content="{DynamicResource LOCQuickFilterFavorites}" IsChecked="{Binding ShelveProperties.FavoritesOnly}" Margin="2"/>
                                 <CheckBox Content="{DynamicResource LOC_SPG_IgnoreHidden}" IsChecked="{Binding ShelveProperties.IgnoreHidden}" Margin="2"/>

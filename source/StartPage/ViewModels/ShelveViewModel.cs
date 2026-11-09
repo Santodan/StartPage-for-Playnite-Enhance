@@ -129,7 +129,9 @@ namespace LandingPage.ViewModels
             if (sender is ShelveProperties shelveProperties)
             {
                 var cvs = CollectionViewSource;
-                if (e.PropertyName != nameof(ShelveProperties.Name))
+                if (e.PropertyName != nameof(ShelveProperties.Name)
+                    && e.PropertyName != nameof(ShelveProperties.DisplayStyle)
+                    && e.PropertyName != nameof(ShelveProperties.CardWidth))
                 {
                     await UpdateGamesAsync(shelveProperties, true);
                 }

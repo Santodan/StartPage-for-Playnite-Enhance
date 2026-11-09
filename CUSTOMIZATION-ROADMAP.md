@@ -6,7 +6,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 2. [x] **Customizable clock.** Size, color, alignment, date visibility/format, 12/24-hour time, optional seconds, and optional clock animation.
 3. [x] **Text widget.** Custom headings and notes with font size, color, alignment, and wrapping.
 4. [x] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
-5. [ ] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
+5. [x] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
 6. [ ] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
 7. [ ] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
 8. [ ] **Multiple dashboard pages.** Named pages with independent layouts/backgrounds and convenient page switching.
@@ -61,3 +61,13 @@ Build verification does not replace visual testing in Playnite. Rounded corners 
 - Test two independent image widgets and restart Playnite to verify persistence. Missing/corrupt files show a message; **Clear image** and **Reset image settings** are available.
 - Local files are referenced in place, not copied into settings or presets. Keep them available at their saved paths.
 - Release build and runtime checks passed; user testing completed and the user authorized the commit.
+
+## Fifth change: testing in Playnite
+
+- Open a Game Shelves widget. Open an individual shelf's existing settings popup (the button beside its shelf label).
+- Choose **Display style**: Horizontal cover row, Wrapping cover grid, Compact list, or Wide artwork cards.
+- The default cover row retains the existing appearance. Grid/list/wide styles have a per-shelf **Card width** setting; wide cards use landscape artwork and fall back to covers when no background is set.
+- Verify that each shelf can use its own style. Try resizing the panel, scrolling, grouping, filters, sorting, game details, selecting a game, and double-clicking to play.
+- Grid/list styles scroll vertically; cover rows and wide cards scroll horizontally. Settings persist when Playnite restarts.
+- Missing artwork uses the standard placeholder. Switching layouts does not refresh game data unnecessarily.
+- Release build and rendered-view checks passed, including grouped grids; user testing completed and the user authorized the commit.

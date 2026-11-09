@@ -22,8 +22,14 @@ namespace LandingPage
 
             if (itemsControl == null) throw new ArgumentException("Element is not an ItemsControl");
 
-            itemsControl.PreviewMouseWheel += delegate (object sender, MouseWheelEventArgs args)
-            {
+            itemsControl.PreviewMouseWheel -= HandleHorizontalMouseWheel;
+            if ((bool)dependencyPropertyChangedEventArgs.NewValue)
+                itemsControl.PreviewMouseWheel += HandleHorizontalMouseWheel;
+        }
+
+        private static void HandleHorizontalMouseWheel(object sender, MouseWheelEventArgs args)
+        {
+            if (!(sender is ItemsControl itemsControl) || !GetUseHorizontalScrolling(itemsControl)) return;
                 ScrollViewer scrollViewer = itemsControl.FindVisualChildren<ScrollViewer>().FirstOrDefault();
 
                 if (scrollViewer == null) return;
@@ -74,7 +80,6 @@ namespace LandingPage
                     parent.RaiseEvent(e2);
                 }
 
-            };
         }
 
 

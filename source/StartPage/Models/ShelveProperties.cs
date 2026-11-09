@@ -68,8 +68,16 @@ namespace LandingPage.Models
         CompletionStatus
     }
 
+    public enum ShelfDisplayStyle { CoverRow, CoverGrid, CompactList, WideCards }
+
     public class ShelveProperties : ObservableObject
     {
+        private ShelfDisplayStyle displayStyle;
+        public ShelfDisplayStyle DisplayStyle { get => displayStyle; set => SetValue(ref displayStyle, value); }
+        private double cardWidth = 160;
+        public double CardWidth { get => cardWidth; set => SetValue(ref cardWidth,
+            double.IsNaN(value) || double.IsInfinity(value) ? 160 : Math.Max(80, Math.Min(500, value))); }
+
         public static ShelveProperties RecentlyPlayed
             => new ShelveProperties { Order = Order.Descending, SortBy = SortingField.LastActivity, GroupBy = GroupingField.LastActivity, Name = ResourceProvider.GetString("LOCQuickFilterRecentlyPlayed") };
 
