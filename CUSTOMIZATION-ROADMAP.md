@@ -10,7 +10,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 6. [x] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
 7. [x] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
 8. [x] **Multiple dashboard pages and toolbar widget.** Named pages with independent layouts/backgrounds. A placeable toolbar supports configurable native Playnite toolbar items, a page selector, previous/next arrows, and page management.
-9. [ ] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
+9. [x] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
 10. [ ] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
 11. [ ] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
 12. [ ] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime.
@@ -151,3 +151,18 @@ Per-extension launch mode: Automatic retains the supported PlayniteAchievements 
 Sidebar coverage: toolbar choices now include native sidebar entries and SDK GetSidebarItems providers, not only GetTopPanelItems. Sidebar-only extensions such as Aniki Helper are selectable with their own icons and native navigation/action. The list uses Sidebar: labels and keeps top-toolbar actions separate; sidebar items always use their page/action. SDK metadata fills gaps in partially initialized native sidebars. Tests cover sidebar-only discovery/icons, direct native page routing, title-independent IDs, and persistence.
 
 Group sizing/appearance: each toolbar group now independently supports Fill/Fit contents/Fixed width and height, weighted fill shares, optional background with a color picker and opacity, border color picker/width, corner radius, internal padding, outer spacing, and appearance reset. Background opacity leaves icons/text unchanged. Tests cover pixel/auto/star sizing, rendered decoration, persistence/reset, and actual Playnite settings cloning.
+
+
+## Ninth change: complete dashboard profiles
+
+- Right-click the StartPage background and choose **Dashboard profiles...**, or add **Manage dashboard profiles** to a Toolbar widget.
+- **Save new profile** captures all pages, the selected page, layouts, panel appearance, clocks/text/images/toolbars (including group appearance and extension launch modes), page backgrounds, shared dashboard presentation settings, and referenced shelf settings/rules.
+- Each profile is an independent snapshot. Editing the current dashboard or an applied profile does not update the stored snapshot. Saving an existing layout preset now also clones its layout instead of retaining a live reference.
+- Import/export use a versioned JSON dashboard profile. Import validates the format and configuration before adding it, and does not apply it automatically. Rename and delete saved profiles from the manager; deleting a saved profile leaves the current dashboard intact.
+- **Apply selected profile** saves a named backup of the current dashboard first, then replaces dashboard pages. Select that backup to restore the previous dashboard. Application failures attempt to restore the saved backup automatically.
+- Built-in widget instance IDs are remapped together with shelf configuration so profiles are independent. Existing external widget identities and live controls are retained/reused where available; their private extension settings are not exported or changed.
+- Missing extensions/view types retain placeholders and saved layout/appearance data instead of clearing their view configuration. Enable/install them and restart Playnite to restore their controls. Local images/folders remain referenced in place and missing local assets are reported after applying.
+- Profile import includes only supported dashboard settings; startup preferences, operational settings, profile lists, and other extensions' configuration are excluded. Imported filter IDs refer to the originating library's metadata; reselect missing metadata when sharing across libraries.
+- Verify save, edit, apply, backup restore, import/export, missing extensions, local images, and restart persistence in Playnite. Tests cover immutable snapshots, all widget/shelf/page data, safe JSON validation, ID remapping, automatic backup, runtime apply, unavailable-provider placeholders, external lifecycle reuse, and Playnite's actual settings serializer.
+- Commands: `powershell.exe -STA -ExecutionPolicy Bypass -File tests/Test-DashboardProfiles.ps1`, `tests/Test-DashboardPages.ps1`, and `tests/Test-SettingsSerialization.ps1` after a Release build. Test fixtures use a temporary configuration directory and never overwrite installed settings.
+- Release build and regression tests passed; user testing completed and the user authorized the commit.

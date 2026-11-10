@@ -30,7 +30,7 @@ namespace LandingPage.ViewModels
                 var res = plugin.PlayniteApi.Dialogs.SelectString(ResourceProvider.GetString("LOC_SPG_SelectLayoutName"), string.Empty, "Layout");
                 if (res.Result)
                 {
-                    Presets.Add(new GridNodePreset { Name = res.SelectedString, Node = plugin.Settings.GridLayout });
+                    Presets.Add(new GridNodePreset { Name = res.SelectedString, Node = LandingPage.Models.DashboardProfiles.Clone(plugin.Settings.GridLayout) });
                 }
             });
 

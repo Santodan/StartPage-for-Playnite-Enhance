@@ -23,7 +23,7 @@ namespace LandingPage.Views
         public StartPageView()
         {
             InitializeComponent();
-            Unloaded += (sender, args) => { CloseAppearance(); ClosePages(); WatchPageModel(false); };
+            Unloaded += (sender, args) => { CloseAppearance(); ClosePages(); CloseProfiles(); WatchPageModel(false); };
             Loaded += (sender, args) => WatchPageModel(true);
             DataContextChanged += (sender, args) => WatchPageModel(true);
         }
@@ -75,6 +75,36 @@ namespace LandingPage.Views
         {
             if (e.OriginalSource == PagesOverlay) { ClosePages(); e.Handled = true; }
         }
+        private void ManageProfiles_Click(object sender, RoutedEventArgs e) => ShowProfiles();
+        public void ShowProfiles()
+        {
+            if (!(DataContext is ViewModels.StartPageViewModel model) || model.IsSwitchingPage) return;
+            if (AppearanceOverlay.Visibility == Visibility.Visible) CloseAppearance();
+            ClosePages();
+            ProfilesOverlay.Visibility = Visibility.Visible;
+            ProfilesOverlay.Focus();
+        }
+        private void CloseProfiles()
+        {
+            if (ProfilesOverlay.Visibility != Visibility.Visible) return;
+            ProfilesOverlay.Focus();
+            ProfilesOverlay.Visibility = Visibility.Collapsed;
+            if (DataContext is ViewModels.StartPageViewModel model)
+            {
+                model.ConfirmDeleteProfile = false;
+                if (model.CanChangePages) model.SaveCurrentPage();
+            }
+        }
+        private void CloseProfiles_Click(object sender, RoutedEventArgs e) => CloseProfiles();
+        private void ProfilesOverlay_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape) { CloseProfiles(); e.Handled = true; }
+        }
+        private void ProfilesOverlay_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource == ProfilesOverlay) { CloseProfiles(); e.Handled = true; }
+        }
+
         private void PageBackgroundPath_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
             if (sender is TextBox box) box.Tag = box.Text;

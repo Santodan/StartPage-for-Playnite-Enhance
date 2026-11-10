@@ -49,6 +49,7 @@ namespace LandingPage.ViewModels
         private void InitializePages()
         {
             selectedPage = DashboardPages.Ensure(Settings.Settings);
+            InitializeProfiles();
             selectedPage.Layout = RootNodeViewModel.GridNode;
             pageRoots[selectedPage.Id] = RootNodeViewModel;
             PropertyChanged += (sender, args) =>
@@ -225,6 +226,8 @@ namespace LandingPage.ViewModels
             CaptureCurrentPage();
             OnPropertyChanged(nameof(Pages));
             OnPropertyChanged(nameof(SelectedPage));
+            SelectedProfile = Profiles.FirstOrDefault(profile => profile.Id == SelectedProfile?.Id) ?? Profiles.FirstOrDefault();
+            OnPropertyChanged(nameof(Profiles));
         }
     }
 }

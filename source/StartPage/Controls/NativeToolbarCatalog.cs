@@ -402,6 +402,7 @@ namespace LandingPage.Controls
                 new ToolbarOption { Id = "page.select", Title = "Dashboard page selector", Kind = "pages" },
                 new ToolbarOption { Id = "page.next", Title = "Next dashboard page", Glyph = "\u25B6" },
                 new ToolbarOption { Id = "page.manage", Title = "Manage dashboard pages", Glyph = "\u25A4" },
+                new ToolbarOption { Id = "profile.manage", Title = "Manage dashboard profiles", Glyph = "\u25A3" },
                 new ToolbarOption { Id = "separator", Title = "Separator", Kind = "separator" }
             };
             var panel = ReadMember(topPanel, "PanelMainItems") as Panel;

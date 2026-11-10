@@ -242,14 +242,7 @@ namespace LandingPage
                     DataContext = startPageViewModel
                 };
 
-                if (Settings.EnableGlobalProgressBar && progressText is TextBlock && progressBar is ProgressBar && cancelButton is Button)
-                {
-                    view.ProgressbarGrid.SetBinding(FrameworkElement.VisibilityProperty, progressBar.GetBindingExpression(FrameworkElement.VisibilityProperty).ParentBinding);
-                    view.ProgressText.SetBinding(TextBlock.TextProperty, progressText.GetBindingExpression(TextBlock.TextProperty).ParentBinding);
-                    view.ProgressBar.SetBinding(ProgressBar.ValueProperty, progressBar.GetBindingExpression(ProgressBar.ValueProperty).ParentBinding);
-                    view.ProgressBar.SetBinding(ProgressBar.MaximumProperty, progressBar.GetBindingExpression(ProgressBar.MaximumProperty).ParentBinding);
-                    view.ProgressCancelButton.Command = cancelButton.Command;
-                }
+                BindDashboardProgress(view);
 
                 startPageView = view;
             }
@@ -516,6 +509,33 @@ namespace LandingPage
             {
                 UnsetGlobalBackground();
             }
+        }
+
+        private void BindDashboardProgress(StartPageView view)
+        {
+            if (!Settings.EnableGlobalProgressBar)
+            {
+                BindingOperations.ClearBinding(view.ProgressbarGrid, UIElement.VisibilityProperty);
+                view.ProgressbarGrid.Visibility = Visibility.Collapsed;
+                return;
+            }
+            if (progressText is TextBlock && progressBar is ProgressBar && cancelButton is Button)
+            {
+                view.ProgressbarGrid.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(progressBar.Visibility)) { Source = progressBar });
+                view.ProgressText.SetBinding(TextBlock.TextProperty, new Binding(nameof(progressText.Text)) { Source = progressText });
+                view.ProgressBar.SetBinding(ProgressBar.ValueProperty, new Binding(nameof(progressBar.Value)) { Source = progressBar });
+                view.ProgressBar.SetBinding(ProgressBar.MaximumProperty, new Binding(nameof(progressBar.Maximum)) { Source = progressBar });
+                view.ProgressCancelButton.Command = cancelButton.Command;
+            }
+        }
+
+        internal void RefreshDashboardPresentation()
+        {
+            if (Application.Current.Windows.OfType<Window>().Any(window => window.Name == "WindowMain"))
+            {
+                if (Settings.EnableGlobalBackground) SetGlobalBackground(); else UnsetGlobalBackground();
+            }
+            if (startPageView is StartPageView view) BindDashboardProgress(view);
         }
 
         private void SetGlobalBackground()

@@ -222,6 +222,7 @@ namespace LandingPage.Views
                     if (option.Id == "page.previous") button.Command = model?.PreviousPageCommand;
                     else if (option.Id == "page.next") button.Command = model?.NextPageCommand;
                     else if (option.Id == "page.manage") button.Click += (sender, args) => host?.ShowPages();
+                    else if (option.Id == "profile.manage") button.Click += (sender, args) => host?.ShowProfiles();
                     else if (!entry.IsExtension && option.NativeControl?.ContextMenu != null)
                         button.Click += (sender, args) => OpenMenu(option.NativeControl, button);
                     else if (option.Command != null) { button.Command = option.Command; button.CommandParameter = option.CommandParameter; }

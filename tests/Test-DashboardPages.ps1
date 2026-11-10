@@ -527,6 +527,56 @@ try {
     if ($sidebarCopy.Id -ne $sidebarEntry.Id) { throw 'Sidebar selection was not persisted' }
     $nativeModel.SidebarItems.Clear()
     [DashboardTestProxy]::ExtraPlugins.Clear()
+    # Runtime profile operations use this fixture's temporary settings directory.
+    $registry = [Collections.Generic.Dictionary[string,Collections.Generic.List[LandingPage.Models.Layout.StartPageViewArgs]]]::new()
+    $available = [Collections.Generic.List[LandingPage.Models.Layout.StartPageViewArgs]]::new()
+    foreach ($widgetId in @('ToolbarWidget','TextWidget','ImageWidget','DigitalClock')) {
+        $args = [LandingPage.Models.Layout.StartPageViewArgs]::new(); $args.ViewId = $widgetId; $args.Name = $widgetId; $args.PluginId = $plugin.Id; $args.AllowMultipleInstances = $true
+        $available.Add($args)
+    }
+    $registry.Add('StartPage',$available); $plugin.AllAvailableViews = $registry
+    Set-Field $plugin 'shelvesViewModels' ([Collections.Generic.Dictionary[guid,LandingPage.ViewModels.ShelvesViewModel]]::new())
+    $profileMainId = $vm.SelectedPage.Id
+    $toolbar.Settings.Groups[0].Name = 'Snapshot group'
+    $missingPage = [LandingPage.Models.DashboardPages]::Add($settingsModel.Settings,'Missing provider page')
+    $missingPage.Layout.ViewProperties = [LandingPage.Models.Layout.ViewProperties]::new()
+    $missingPage.Layout.ViewProperties.PluginId = [guid]::NewGuid(); $missingPage.Layout.ViewProperties.ViewId = 'UninstalledWidget'
+    $savedProfile = $vm.SaveDashboardProfile('Full profile fixture')
+    $toolbar.Settings.Groups[0].Name = 'Changed live group'
+    $rootBeforeImport = $vm.RootNodeViewModel
+    $importedProfile = $vm.ImportDashboardProfile([LandingPage.Models.DashboardProfiles]::Export($savedProfile))
+    if (![object]::ReferenceEquals($rootBeforeImport,$vm.RootNodeViewModel) -or $vm.Profiles.Count -ne 2) { throw 'Import must save a profile without applying it' }
+    $importedProfile.Snapshot.ActivePageId = $missingPage.Id
+    Wait-Task ($vm.ApplyDashboardProfileAsync($importedProfile))
+    if ($vm.Profiles.Count -ne 3 -or $vm.SelectedPage.Name -ne 'Missing provider page' -or !$vm.RootNodeViewModel.GridNode.ViewProperties) { throw 'Applying a complete profile failed or did not save a backup' }
+    $missingControl = $vm.RootNodeViewModel.GridNode.ViewProperties.GetType().GetField('view',$flags).GetValue($vm.RootNodeViewModel.GridNode.ViewProperties)
+    if ($missingControl.Tag -ne 'StartPage.MissingWidget') { throw 'Missing provider must retain a placeholder and saved widget data' }
+    $profileBackup = $vm.Profiles | Where-Object { $_.Name.StartsWith('Before applying') } | Select-Object -First 1
+    $backupToolbar = $profileBackup.Snapshot.Pages | ForEach-Object { $_.Layout.Enumerate() } | Where-Object { $_.ViewProperties.ViewId -eq 'ToolbarWidget' } | Select-Object -First 1
+    if ($backupToolbar.ViewProperties.ToolbarSettings.Groups[0].Name -ne 'Changed live group') { throw 'Automatic profile backup did not capture current edits' }
+    Wait-Task ($vm.ApplyDashboardProfileAsync($savedProfile))
+    if ($vm.RootNodeViewModel.GridNode.ViewProperties.ToolbarSettings.Groups[0].Name -ne 'Snapshot group') { throw 'Applying saved profile did not restore independent toolbar settings' }
+    $savedText = [LandingPage.Models.DashboardProfiles]::Export($savedProfile)
+    $vm.RootNodeViewModel.GridNode.ViewProperties.ToolbarSettings.Groups[0].Name = 'Edit after applying'
+    if ([LandingPage.Models.DashboardProfiles]::Export($savedProfile) -ne $savedText) { throw 'Runtime apply aliases saved profile snapshot objects' }
+    $vm.GetType().GetProperty('SelectedProfile').SetValue($vm,$savedProfile)
+    $view.ShowProfiles()
+    if ($view.FindName('ProfilesOverlay').Visibility -ne [Windows.Visibility]::Visible) { throw 'Profiles manager did not open inside StartPage' }
+    $view.GetType().GetMethod('CloseProfiles_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    if ($view.FindName('ProfilesOverlay').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Profiles manager did not close' }
+    $externalLivePage = [LandingPage.Models.DashboardPages]::Add($settingsModel.Settings,'Live external page')
+    $externalLive = [LandingPage.Models.Layout.ViewProperties]::new(); $externalLive.PluginId = [guid]::NewGuid(); $externalLive.ViewId = 'ExistingExternal'
+    $externalProbe = [DashboardTestWidget]::new(); [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($externalLive,$externalProbe)
+    $externalLivePage.Layout.ViewProperties = $externalLive
+    Wait-Task ($vm.SwitchPageAsync($externalLivePage))
+    $externalProfile = $vm.SaveDashboardProfile('External reuse fixture')
+    Wait-Task ($vm.ApplyDashboardProfileAsync($externalProfile))
+    $restoredExternal = [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).GetValue($vm.RootNodeViewModel.GridNode.ViewProperties)
+    if (![object]::ReferenceEquals($externalProbe,$restoredExternal) -or $externalProbe.OpenCount -lt 2 -or $externalProbe.CloseCount -lt 1) { throw 'Applying profile did not preserve/reopen an existing external widget instance' }
+    $profileCountBeforeInvalid = $vm.Profiles.Count; $invalidProfile = [LandingPage.Models.DashboardProfiles]::Clone($savedProfile); $invalidProfile.Version = 99
+    Wait-Task ($vm.ApplyDashboardProfileAsync($invalidProfile))
+    if ($vm.Profiles.Count -ne $profileCountBeforeInvalid -or ![object]::ReferenceEquals($externalProbe,[LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).GetValue($vm.RootNodeViewModel.GridNode.ViewProperties))) { throw 'Invalid profile changed the running dashboard' }
+    'PASS: runtime profile save/import/apply, automatic backups, independent snapshots, missing-provider placeholders, external instance reuse/lifecycle, invalid-profile isolation, and in-app manager.'
     $window.Close()
     'PASS: toolbar serialization, native catalog/commands/menus/toggles/search/progress/extensions, clickable page navigation, missing providers, menu-state restoration, and settings refresh.'
     'PASS: legacy migration, independent layout/backgrounds, save/reload/order, nested traversal, real page switching and widget callbacks, deletion, last-page protection, temporary-file persistence, context-menu navigation, and in-app manager open/close.'

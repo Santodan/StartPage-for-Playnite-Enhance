@@ -251,8 +251,11 @@ namespace LandingPage.ViewModels.Layout
                 IsLoading = true;
                 try
                 {
-                    InitializeView();
-                    await InitializeViewAsync();
+                    if (!(viewProperties.view is FrameworkElement))
+                    {
+                        InitializeView();
+                        await InitializeViewAsync();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -780,7 +783,7 @@ namespace LandingPage.ViewModels.Layout
                     }
                     else
                     {
-                        gridNode.ViewProperties = null;
+                        // Keep profile/layout data when the provider is unavailable.
                     }
                     HasView = hasView;
                     IsLeaf = node.Children.Count == 0;
@@ -789,6 +792,20 @@ namespace LandingPage.ViewModels.Layout
                 {
                     LandingPageExtension.logger.Error(ex, $"Failed to load view \"{viewProperties.ViewId}\" from Plugin with ID \"{viewProperties.PluginId}\".");
                 }
+            }
+            if (!hasView)
+            {
+                var message = new TextBlock
+                {
+                    Text = "Widget unavailable: " + viewProperties.ViewId + "\nEnable or install its extension to restore it. Its saved settings are retained.",
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(12), Tag = "StartPage.MissingWidget"
+                };
+                message.SetResourceReference(TextBlock.StyleProperty, "BaseTextBlockStyle");
+                message.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
+                viewProperties.view = message;
+                View.Children.Add(message);
+                HasView = true;
+                IsLeaf = node.Children.Count == 0;
             }
             IsInitializing = false;
         }

@@ -102,6 +102,7 @@
             </MenuItem>
             <Separator/>
             <MenuItem Header="Manage dashboard pages..." Click="ManagePages_Click"/>
+            <MenuItem Header="Dashboard profiles..." Click="ManageProfiles_Click"/>
             <MenuItem Header="Previous dashboard page" Command="{Binding PreviousPageCommand}"/>
             <MenuItem Header="Next dashboard page" Command="{Binding NextPageCommand}"/>
             <Separator/>
@@ -538,6 +539,53 @@
                             </Expander>
                         </StackPanel>
                         <Button Content="Done" Click="ClosePages_Click" Margin="0,16,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+        <Grid x:Name="ProfilesOverlay" Visibility="Collapsed" Panel.ZIndex="1200" Background="#66000000"
+              shell:WindowChrome.IsHitTestVisibleInChrome="True" Focusable="True" KeyboardNavigation.TabNavigation="Cycle"
+              PreviewKeyDown="ProfilesOverlay_PreviewKeyDown" MouseDown="ProfilesOverlay_MouseDown">
+            <Border HorizontalAlignment="Right" Width="480" MaxWidth="{Binding ActualWidth, ElementName=ProfilesOverlay}"
+                    Margin="16" Padding="16" CornerRadius="12" Background="{DynamicResource PopupBackgroundBrush}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Dashboard profiles" FontSize="20" Margin="0,0,0,12"/>
+                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Save all dashboard pages, backgrounds, widget appearance, StartPage widget settings, and shelf rules together." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <StackPanel IsEnabled="{Binding CanChangePages}">
+                            <Expander Header="Save current dashboard" IsExpanded="True">
+                                <StackPanel Margin="8,6,0,10">
+                                    <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Profile name"/>
+                                    <TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,6"/>
+                                    <Button Content="Save new profile" Command="{Binding SaveDashboardProfileCommand}"/>
+                                </StackPanel>
+                            </Expander>
+                            <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Saved profiles" Margin="0,6,0,4"/>
+                            <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" DisplayMemberPath="Name"/>
+                            <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Rename selected profile" Margin="0,8,0,4"/>
+                            <TextBox Text="{Binding SelectedProfile.Name, UpdateSourceTrigger=LostFocus}"/>
+                            <Button Content="Apply selected profile" Command="{Binding ApplyDashboardProfileCommand}" Margin="0,8,0,4"/>
+                            <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Applying replaces the current dashboard pages. An independent backup of the current dashboard is saved first." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                            <WrapPanel>
+                                <Button Content="Import JSON..." Command="{Binding ImportDashboardProfileCommand}" Margin="0,0,6,6"/>
+                                <Button Content="Export selected JSON..." Command="{Binding ExportDashboardProfileCommand}" Margin="0,0,0,6"/>
+                            </WrapPanel>
+                            <Expander Header="Delete saved profile" Margin="0,6,0,0">
+                                <StackPanel Margin="8,6,0,8">
+                                    <Button Content="Delete selected profile..." Command="{Binding RequestDeleteProfileCommand}"/>
+                                    <StackPanel Visibility="{Binding ConfirmDeleteProfile, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,6,0,0">
+                                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Delete this saved profile? The active dashboard is kept." TextWrapping="Wrap"/>
+                                        <WrapPanel Margin="0,4,0,0">
+                                            <Button Content="Delete" Command="{Binding DeleteDashboardProfileCommand}" Margin="0,0,6,0"/>
+                                            <Button Content="Cancel" Command="{Binding CancelDeleteProfileCommand}"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="{Binding ProfileStatus}" TextWrapping="Wrap" Margin="0,12,0,6"/>
+                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Local images are referenced, not embedded. Other extensions retain their own settings. Missing extensions keep placeholders and their layout data." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <Button Content="Done" Click="CloseProfiles_Click" Margin="0,8,0,0"/>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

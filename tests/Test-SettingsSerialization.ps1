@@ -35,6 +35,8 @@ try {
     $properties.ToolbarSettings.Groups[0].WidthSizing = [LandingPage.Settings.ToolbarGroupSizing]::Fixed; $properties.ToolbarSettings.Groups[0].Width = 280
     $properties.ToolbarSettings.Groups[0].ShowBackground = $true; $properties.ToolbarSettings.Groups[0].Background = '#123456'
     $page.Layout.ViewProperties = $properties
+    $completeProfile = [LandingPage.Models.DashboardProfiles]::Capture($settings,'Stored full dashboard')
+    [LandingPage.LandingPageSettings].GetProperty('DashboardProfiles').GetValue($settings).Add($completeProfile)
     $model = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageSettingsViewModel])
     $model.Settings = $settings
 
@@ -55,6 +57,10 @@ try {
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.Items.Count -ne 5 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Items[4].Id -ne 'native.sort') { throw 'Playnite settings clone duplicated or lost toolbar items' }
 
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.Groups.Count -ne 1 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Width -ne 280 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Background -ne '#123456') { throw 'Playnite clone lost or duplicated group sizing/appearance' }
+
+    $profiles = [LandingPage.LandingPageSettings].GetProperty('DashboardProfiles').GetValue($restored)
+    if ($profiles.Count -ne 1 -or $profiles[0].Snapshot.Pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Width -ne 280) { throw 'Actual Playnite settings clone lost stored profile data' }
+    [LandingPage.Models.DashboardProfiles]::Validate($profiles[0])
 
     $json = [Playnite.SDK.Data.Serialization]::ToJson($restored,$false)
     if ($json -match '"(Item|Error)"\s*:') { throw 'Validation-only properties must not be serialized' }

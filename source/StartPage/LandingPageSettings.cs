@@ -66,6 +66,8 @@ namespace LandingPage
         private double fixedGridHeight = 1080;
         public double FixedGridHeight { get => fixedGridHeight; set => SetValue(ref fixedGridHeight, value); }
 
+        private ObservableCollection<DashboardProfile> dashboardProfiles = new ObservableCollection<DashboardProfile>();
+        public ObservableCollection<DashboardProfile> DashboardProfiles { get => dashboardProfiles; set => SetValue(ref dashboardProfiles, value ?? new ObservableCollection<DashboardProfile>()); }
         private ObservableCollection<DashboardPage> dashboardPages = new ObservableCollection<DashboardPage>();
         public ObservableCollection<DashboardPage> DashboardPages { get => dashboardPages; set => SetValue(ref dashboardPages, value); }
         private Guid activeDashboardPageId;

@@ -70,6 +70,8 @@
     <Compile Include="Models\ShelfAchievementProgress.cs" />
     <Compile Include="Views\ShelfGameInfo.cs" />
     <Compile Include="Models\DashboardPage.cs" />
+    <Compile Include="Models\DashboardProfile.cs" />
+    <Compile Include="ViewModels\DashboardProfilesViewModel.cs" />
     <Compile Include="ViewModels\DashboardPagesViewModel.cs" />
     <Compile Include="Models\AdvancedShelfRules.cs" />
     <Compile Include="Views\AdvancedShelfRulesView.xaml.cs"><DependentUpon>AdvancedShelfRulesView.xaml</DependentUpon></Compile>
