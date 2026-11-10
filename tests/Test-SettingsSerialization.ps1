@@ -1,0 +1,67 @@
+# Use Playnite's actual serializer/resolver, rather than Json.NET defaults.
+# powershell.exe -STA -File tests/Test-SettingsSerialization.ps1
+param([string]$PlayniteDirectory = 'E:\Programs\Playnite')
+$ErrorActionPreference = 'Stop'
+# Playnite's desktop assembly targets x86. Use a matching process for this test.
+if ([Environment]::Is64BitProcess) {
+    & "$env:WINDIR\SysWOW64\WindowsPowerShell\v1.0\powershell.exe" -STA -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -PlayniteDirectory $PlayniteDirectory
+    exit $LASTEXITCODE
+}
+$root = Split-Path $PSScriptRoot -Parent
+$build = Join-Path $root 'source\StartPage\bin\Release'
+Add-Type -AssemblyName PresentationFramework
+foreach ($name in @('Gu.Wpf.NumericInput','Newtonsoft.Json','Playnite.SDK','StartPage.SDK','StartPage.SDK.Async','felixkmh.PlayniteCommon','StartPagePlugin')) {
+    [void][Reflection.Assembly]::LoadFrom((Join-Path $build ($name + '.dll')))
+}
+[void][Reflection.Assembly]::LoadFrom((Join-Path $PlayniteDirectory 'Playnite.dll'))
+$serializerField = [Playnite.SDK.Data.Serialization].GetField('serializer',[Reflection.BindingFlags]'Static,NonPublic')
+$previousSerializer = $serializerField.GetValue($null)
+try {
+    $serializerField.SetValue($null, [Playnite.Common.DataSerializer]::new())
+    $settings = [LandingPage.LandingPageSettings]::new()
+    $rules = [LandingPage.Models.ShelveProperties]::new()
+    $rules.IncludedNamePatterns = '*Quest*'; $rules.ExcludedInstallPathPatterns = 'D:\Games\Demos\*'
+    $rules.IncludedPublisherNamePatterns = 'glob:*[A-Z]*'
+    $rules.NeverPlayedOnly = $true
+    $shelves = [Collections.ObjectModel.ObservableCollection[LandingPage.Models.ShelveProperties]]::new(); $shelves.Add($rules)
+    [LandingPage.LandingPageSettings].GetProperty('ShelveProperties').SetValue($settings,$shelves)
+    $instanceSettings = [Collections.Generic.Dictionary[guid,LandingPage.Settings.ShelvesSettings]]::new()
+    $instance = [LandingPage.Settings.ShelvesSettings]::new(); $instance.ShelveProperties = $shelves
+    $instanceSettings.Add([guid]::NewGuid(),$instance)
+    [LandingPage.LandingPageSettings].GetProperty('ShelveInstanceSettings').SetValue($settings,$instanceSettings)
+    $page = [LandingPage.Models.DashboardPages]::Ensure($settings)
+    $properties = [LandingPage.Models.Layout.ViewProperties]::new(); $properties.TextSettings.Text = 'Preserve page widget'
+    $toolbarEntry = [LandingPage.Settings.ToolbarEntry]::new(); $toolbarEntry.Id = 'native.sort'; $properties.ToolbarSettings.Items.Add($toolbarEntry)
+    $properties.ToolbarSettings.Groups[0].WidthSizing = [LandingPage.Settings.ToolbarGroupSizing]::Fixed; $properties.ToolbarSettings.Groups[0].Width = 280
+    $properties.ToolbarSettings.Groups[0].ShowBackground = $true; $properties.ToolbarSettings.Groups[0].Background = '#123456'
+    $page.Layout.ViewProperties = $properties
+    $model = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageSettingsViewModel])
+    $model.Settings = $settings
+
+    # Reproduces the exact BeginEdit -> Serialization.GetClone path in the crash log.
+    $model.BeginEdit()
+    $rules.IncludedNamePatterns = '*Changed*'
+    $rules.NeverPlayedOnly = $false
+    $model.CancelEdit()
+    $restored = $model.Settings
+    $restoredRules = [LandingPage.LandingPageSettings].GetProperty('ShelveProperties').GetValue($restored)[0]
+    if ($restoredRules.IncludedNamePatterns -ne '*Quest*' -or !$restoredRules.NeverPlayedOnly -or [object]::ReferenceEquals($restoredRules,$rules)) { throw 'Cancel settings failed to restore an independent clone' }
+    $restoredInstances = [LandingPage.LandingPageSettings].GetProperty('ShelveInstanceSettings').GetValue($restored)
+    $modernRules = @($restoredInstances.Values)[0].ShelveProperties[0]
+    if ($modernRules.ExcludedInstallPathPatterns -ne 'D:\Games\Demos\*' -or $modernRules.IncludedPublisherNamePatterns -ne 'glob:*[A-Z]*') { throw 'Cloning lost per-widget shelf filters' }
+    $pages = [LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($restored)
+    if ($pages.Count -ne 1 -or $pages[0].Layout.ViewProperties.TextSettings.Text -ne 'Preserve page widget') { throw 'Settings cloning lost dashboard page data' }
+
+    if ($pages[0].Layout.ViewProperties.ToolbarSettings.Items.Count -ne 5 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Items[4].Id -ne 'native.sort') { throw 'Playnite settings clone duplicated or lost toolbar items' }
+
+    if ($pages[0].Layout.ViewProperties.ToolbarSettings.Groups.Count -ne 1 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Width -ne 280 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Background -ne '#123456') { throw 'Playnite clone lost or duplicated group sizing/appearance' }
+
+    $json = [Playnite.SDK.Data.Serialization]::ToJson($restored,$false)
+    if ($json -match '"(Item|Error)"\s*:') { throw 'Validation-only properties must not be serialized' }
+    if ($json -notmatch 'IncludedPublisherNamePatterns') { throw 'Pattern configuration must still be serialized' }
+    $restoredRules.IncludedNamePatterns = 'regex:('
+    if (!([ComponentModel.IDataErrorInfo]$restoredRules)['IncludedNamePatterns']) { throw 'Pattern validation stopped working' }
+    # Even invalid user input must be cloneable when opening settings.
+    $model.BeginEdit(); $model.CancelEdit()
+    'PASS: actual Playnite settings BeginEdit/CancelEdit clone, independent shelf rules, page data, validation-property exclusion, and invalid-pattern validation/persistence.'
+} finally { $serializerField.SetValue($null,$previousSerializer) }

@@ -9,7 +9,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 5. [x] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
 6. [x] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
 7. [x] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
-8. [ ] **Multiple dashboard pages.** Named pages with independent layouts/backgrounds and convenient page switching.
+8. [x] **Multiple dashboard pages and toolbar widget.** Named pages with independent layouts/backgrounds. A placeable toolbar supports configurable native Playnite toolbar items, a page selector, previous/next arrows, and page management.
 9. [ ] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
 10. [ ] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
 11. [ ] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
@@ -107,3 +107,47 @@ Build verification does not replace visual testing in Playnite. Rounded corners 
 Advanced shelf rules also support separate include/exclude wildcard patterns for game names and recorded installation directories. One pattern per line; `*` matches any characters, `?` one character; case is ignored. Path separators are normalized. These restrictions always apply independently of ID-group All/Any mode, exclusions win, and reset clears all patterns.
 
 Pattern filters now cover 21 fields, with independent include/exclude boxes, extended glob sets/ranges, optional regular expressions with timeout, literal/contains/starts/ends helpers, missing-value matching, and inline validation. See [the shelf pattern guide](docs/SHELF-PATTERNS.md). The pattern panel has a `?` button pointing to that guide on the fork?s GitHub master branch; publication awaits an explicitly requested commit/push.
+
+
+## Eighth change: testing in Playnite
+
+- Your existing layout becomes **Main**, retaining widget instance IDs and settings. The fixed top-left page bar has been replaced by a configurable widget.
+- Right-click the StartPage background and choose **Manage dashboard pages...**, or use the toolbar widget's page-management button, to open the page manager inside Playnite. Expand **Create a page**, enter a name, and choose **Create empty page**. The new page starts empty and copies the current page's background settings independently.
+- Add widgets using the existing Edit Mode. Each page retains its layout and per-widget appearance/settings. Clocks now support multiple independent instances; so do text, images, and game shelves.
+- In **Page name and order**, rename the current page and move it left/right in the selector. The most recently selected page is restored on restart.
+- Expand **Page background** to select game-artwork sources, a local image, or an image folder, and adjust blur, overlay opacity, noise, and refresh interval for that page. Existing background settings/context-menu controls also edit the current page. Clearing a background never retains another page's image.
+- Switch between two differently configured pages, then restart Playnite and verify layouts, backgrounds, shelf filters, and selection. Shelf settings on unvisited pages are retained.
+- Page switching ends Edit Mode and sends existing widget hidden/closed and shown/opened callbacks. Visited page controls are cached, without removing their settings. Providers that allow only one widget instance remain limited to one across all pages; remove it from its old page before adding it elsewhere.
+- Expand **Delete this page** and confirm deletion to remove the current page and its widget settings. At least one page remains. Page deletion does not delete games or local images.
+- Close the manager with **Done**, **Escape**, or a click outside it. Changes save when leaving the manager, switching pages, leaving Edit Mode/StartPage, or shutting down.
+- Automated checks: `powershell.exe -STA -ExecutionPolicy Bypass -File tests/Test-DashboardPages.ps1` after a Release build. Tests use an in-memory API and a unique temporary settings directory, never your installed Playnite configuration.
+- Release build, page migration/persistence/lifecycle/UI tests, and existing filter regressions passed. User testing completed and the user authorized the commit.
+
+
+Settings-opening crash fix: validation-only `ShelveProperties.Error` and its `IDataErrorInfo` indexer are excluded from both Playnite and Json.NET serialization. The reported `Item` cloning crash was reproduced with the installed Playnite serializer and verified fixed through `BeginEdit`/`CancelEdit`. Run `powershell.exe -STA -ExecutionPolicy Bypass -File tests/Test-SettingsSerialization.ps1` for this regression; it automatically uses an x86 process to load Playnite's assembly and does not touch installed settings.
+
+
+### Toolbar widget: added to step 8
+
+- Enter Edit Mode, select a panel, and choose **Add view > StartPage > Toolbar**. Multiple independent toolbars are supported. Leave Edit Mode to interact with the toolbar.
+- The default toolbar has **previous page**, **page selector**, **next page**, and **manage pages**. Arrows stop at the first/last page. Navigation controls explicitly allow hit testing in Playnite window chrome.
+- Open **Appearance > Toolbar settings > Toolbar items** to add/remove/reorder items and customize their labels. Choose native main menu, search/search box, view settings, filter presets, grouping, sorting, details/grid/list views, random selection, explorer, filters, notifications, updates, progress/status/cancel, and extension toolbar buttons exposed by Playnite.
+- **Toolbar layout** configures horizontal/vertical direction, icons/labels, text size, and spacing. **Appearance settings** supplies the existing colors/background/border customization. Resetting toolbar settings restores its default items without affecting panel appearance.
+- Native items reuse existing commands, bindings, and dropdown menus without moving the original controls. Unavailable controls/providers remain saved and disabled. Some native controls depend on the active Playnite theme/context; extension item IDs follow their supplied titles.
+- A new empty page does not force a toolbar into its layout. Right-click **Manage dashboard pages...**, **Previous dashboard page**, and **Next dashboard page** remain available without a widget.
+- Page initialization now clears loading flags in a finally block so failed loading does not permanently disable navigation. The previous settings-cloning crash fix remains included.
+- Tests cover native command forwarding/CanExecute, dropdown anchoring and restoration, search/filter/progress bindings, extension buttons, clickable page selection, settings refresh, independent serialization, and page lifecycle. See [dashboard and toolbar usage](docs/DASHBOARD-PAGES.md).
+
+Toolbar native-icon follow-up: both the item picker and widget now render actual native templates and extension font/image/vector icons. The editor refreshes previews in place without clearing selections; native toolbar discovery also searches other application windows when needed. Use Show icons on / Show labels off to match the native icon-only toolbar. Tests cover preserving an extension font icon and leaving its original control in place.
+
+Toolbar refinements: theme-colored labels, actual theme templates with Playnite icon-font fallbacks, a distinct page-management icon, independent horizontal/vertical alignment per configurable group, native filter/notification button behavior, and refresh-safe extension selections with provider-based IDs. Existing items start in the Main group. Regression tests cover theme colors/resources, groups/persistence, notification panel activation, temporary provider loss, and renamed extension titles.
+
+Toolbar follow-up: explicit theme style/foreground is applied to labels inside repeated item templates. Refresh native items now requests a render of the configured toolbar, and a loaded-only retry resolves saved native/extension entries when Playnite initializes its toolbar later. Tests realize the repeated Group/Custom label rows and simulate both explicit refresh and automatic late extension loading.
+
+Extension-icon fallback: the catalog now queries loaded extensions through the SDK GetTopPanelItems API when native visual buttons cannot be found. Provider metadata, the original activation callback, and Playnite?s icon resolver supply working icons/actions without a native toolbar control. Provider results are cached, empty/not-ready results can retry, and explicit refresh clears the cache. Unresolved selected extension IDs are logged with discovered IDs. Regression coverage removes native extension controls entirely and verifies the SDK-supplied icon and action in the rendered widget.
+
+Per-extension launch mode: Automatic retains the supported PlayniteAchievements native overlay action and routes other extensions to native pages when available. Extension page mode bypasses that overlay. Extensions without pages retain their native action. Toolbar Visible preferences no longer disable explicitly configured buttons. Tests cover hidden native icons with working actions, automatic fallback to a real page, explicit page selection, native-action fallback without a page, mode persistence, and both PlayniteAchievements modes using an isolated fixture assembly.
+
+Sidebar coverage: toolbar choices now include native sidebar entries and SDK GetSidebarItems providers, not only GetTopPanelItems. Sidebar-only extensions such as Aniki Helper are selectable with their own icons and native navigation/action. The list uses Sidebar: labels and keeps top-toolbar actions separate; sidebar items always use their page/action. SDK metadata fills gaps in partially initialized native sidebars. Tests cover sidebar-only discovery/icons, direct native page routing, title-independent IDs, and persistence.
+
+Group sizing/appearance: each toolbar group now independently supports Fill/Fit contents/Fixed width and height, weighted fill shares, optional background with a color picker and opacity, border color picker/width, corner radius, internal padding, outer spacing, and appearance reset. Background opacity leaves icons/text unchanged. Tests cover pixel/auto/star sizing, rendered decoration, persistence/reset, and actual Playnite settings cloning.

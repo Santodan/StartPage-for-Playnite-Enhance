@@ -228,6 +228,7 @@ namespace LandingPage
                     }
                 }
 
+                DashboardPages.Ensure(Settings);
                 startPageViewModel = new StartPageViewModel(PlayniteApi, this, SettingsViewModel, new GridNodeViewModel(Settings.GridLayout), BackgroundViewModel);
 
                 Application.Current.Dispatcher.BeginInvoke(new Action(async () =>
@@ -613,12 +614,17 @@ namespace LandingPage
                     Settings.RenderScale = lastBackgroundScale;
                     Settings.AnimationDuration = lastAnimationDuration;
                 }
+                startPageViewModel.CaptureCurrentPage();
                 Settings.GridLayout = startPageViewModel.RootNodeViewModel.GridNode;
                 foreach (var vm in shelvesViewModels)
                 {
                     vm.Value.Shelves.TTL = 5;
                     Settings.ShelveInstanceSettings[vm.Key] = vm.Value.Shelves;
                 }
+                foreach (var page in Settings.DashboardPages)
+                    foreach (var node in page.Layout.Enumerate())
+                        if (node.ViewProperties is ViewProperties properties
+                            && Settings.ShelveInstanceSettings.TryGetValue(properties.InstanceId, out var savedShelf)) savedShelf.TTL = 5;
                 if (shelvesViewModels.Count > 0)
                 {
                     Settings.ShelveInstanceSettings = Settings.ShelveInstanceSettings
@@ -704,12 +710,19 @@ namespace LandingPage
                 ViewId = "DigitalClock",
                 Name = ResourceProvider.GetString("LOC_SPG_ClockView"),
                 Description = ResourceProvider.GetString("LOC_SPG_ClockViewDescription"),
+                AllowMultipleInstances = true,
             });
             views.Add(new StartPageViewArgsBase
             {
                 ViewId = "TextWidget",
                 Name = "Text",
                 Description = "Custom headings and notes. Configure text and formatting in Appearance.",
+                AllowMultipleInstances = true
+            });
+            views.Add(new StartPageViewArgsBase
+            {
+                ViewId = "ToolbarWidget", Name = "Toolbar",
+                Description = "Configurable Playnite toolbar actions and dashboard page navigation. Configure in Appearance.",
                 AllowMultipleInstances = true
             });
             views.Add(new StartPageViewArgsBase
@@ -759,6 +772,7 @@ namespace LandingPage
                     return view;
                 }
             }
+            if (id == "ToolbarWidget") return new ToolbarWidgetView();
             if (id == "ImageWidget")
             {
                 return new ImageWidgetView();

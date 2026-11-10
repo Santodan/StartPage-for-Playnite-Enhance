@@ -23,7 +23,7 @@ using System.Windows.Controls;
 
 namespace LandingPage.ViewModels
 {
-    public class StartPageViewModel : ObservableObject
+    public partial class StartPageViewModel : ObservableObject
     {
         private static readonly Random rng = new Random();
 
@@ -81,6 +81,7 @@ namespace LandingPage.ViewModels
             this.settings = settings;
             this.rootNodeViewModel = root;
             this.backgroundViewModel = backgroundViewModel;
+            InitializePages();
 
             clock = new DispatcherTimer(
                 TimeSpan.FromSeconds(60 - (DateTime.Now.TimeOfDay.TotalSeconds % 60) + 0.01),
@@ -118,7 +119,7 @@ namespace LandingPage.ViewModels
             {
                 RootNodeViewModel.EditModeEnabled = false;
                 GridNode.Minimize(RootNodeViewModel.GridNode, null);
-                settings.Settings.GridLayout = RootNodeViewModel.GridNode;
+                CaptureCurrentPage();
                 landingPage.SavePluginSettings(settings.Settings);
                 GC.Collect();
             });
@@ -191,12 +192,19 @@ namespace LandingPage.ViewModels
         {
             IsLoading = true;
             IsInitializing = true;
-            // await BackgroundViewModel.UpdateBackgroundImagePathAsync(Settings.Settings.BackgroundRefreshInterval != 0);
-            await RootNodeViewModel.InititalizeGrid();
-            await Task.Delay(500);
-            await InitializeAndOpenViews();
-            IsInitializing = false;
-            IsLoading = false;
+            try
+            {
+                await RootNodeViewModel.InititalizeGrid();
+                await Task.Delay(500);
+                await InitializeAndOpenViews();
+                initializedPages.Add(SelectedPage.Id);
+            }
+            finally
+            {
+                // Loading failures must not leave navigation permanently disabled.
+                IsInitializing = false;
+                IsLoading = false;
+            }
         }
 
         private Task InitializeAndOpenViews()
@@ -210,7 +218,15 @@ namespace LandingPage.ViewModels
             return Task.WhenAll(tasks);
         }
 
+        private bool isPageVisible = true;
+
         public async Task Opened()
+        {
+            isPageVisible = true;
+            await OpenPageAsync();
+        }
+
+        private async Task OpenPageAsync()
         {
             var tasks = new List<Task>();
             foreach (var node in RootNodeViewModel.AllNodes.Where(n => n.HasView))
@@ -229,7 +245,15 @@ namespace LandingPage.ViewModels
 
         public async Task Closed()
         {
+            isPageVisible = false;
+            await HidePageAsync();
+            SaveCurrentPage();
+        }
+
+        private async Task HidePageAsync()
+        {
             RootNodeViewModel.EditModeEnabled = false;
+            CaptureCurrentPage();
             Unsubscribe();
             foreach (var view in RootNodeViewModel.ActiveViews)
             {

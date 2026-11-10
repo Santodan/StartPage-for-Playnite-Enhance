@@ -15,6 +15,10 @@ Each panel can have a view attached to it and views can be swapped in Edit Mode 
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C1C6CH5IN)
 
+## Dashboard pages
+
+Add **StartPage > Toolbar** to a panel in Edit Mode for configurable native Playnite toolbar items and dashboard page navigation. Configure it under **Appearance > Toolbar settings**. Each page has its own layout and background; your existing dashboard becomes **Main** automatically. **Manage dashboard pages...** is also available from StartPage's background right-click menu. See the [dashboard and toolbar guide](docs/DASHBOARD-PAGES.md).
+
 ## Shelf pattern filters
 
 See the [shelf pattern guide](docs/SHELF-PATTERNS.md) for wildcard syntax, supported fields, and examples. The **?** button under **Shelf settings ? Advanced rules ? Pattern filters** opens that guide on GitHub.

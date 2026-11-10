@@ -6,6 +6,18 @@
     xmlns:numeric="http://gu.se/NumericInput">
                                     <ScrollViewer  VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="16">
+                                            <Expander Header="Toolbar settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
+                                                <Expander.Style>
+                                                    <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers><DataTrigger Binding="{Binding GridNode.ViewProperties.ViewId}" Value="ToolbarWidget"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                                                    </Style>
+                                                </Expander.Style>
+                                                <StackPanel>
+                                                    <settingsViews:ToolbarSettingsView DataContext="{Binding GridNode.ViewProperties.ToolbarSettings}"/>
+                                                    <Button Content="Reset toolbar settings" Click="ResetToolbar_Click" Margin="0,8,0,0"/>
+                                                </StackPanel>
+                                            </Expander>
                                             <Expander IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
                                                 <Expander.Header>
                                                     <TextBlock Text="Image settings" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/>

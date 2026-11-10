@@ -23,7 +23,68 @@ namespace LandingPage.Views
         public StartPageView()
         {
             InitializeComponent();
-            Unloaded += (sender, args) => CloseAppearance();
+            Unloaded += (sender, args) => { CloseAppearance(); ClosePages(); WatchPageModel(false); };
+            Loaded += (sender, args) => WatchPageModel(true);
+            DataContextChanged += (sender, args) => WatchPageModel(true);
+        }
+
+        private ViewModels.StartPageViewModel observedPageModel;
+
+        private void WatchPageModel(bool watch)
+        {
+            if (observedPageModel != null) observedPageModel.PropertyChanged -= PageModelChanged;
+            observedPageModel = watch ? DataContext as ViewModels.StartPageViewModel : null;
+            if (observedPageModel != null) observedPageModel.PropertyChanged += PageModelChanged;
+        }
+
+        private void PageModelChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(ViewModels.StartPageViewModel.RootNodeViewModel)) return;
+            if (AppearanceOverlay.Visibility == Visibility.Visible) CloseAppearance();
+            StartPageScrollViewer.ScrollToTop();
+        }
+
+        private void ManagePages_Click(object sender, RoutedEventArgs e) => ShowPages();
+
+        public void ShowPages()
+        {
+            if (!(DataContext is ViewModels.StartPageViewModel model) || model.IsSwitchingPage) return;
+            if (AppearanceOverlay.Visibility == Visibility.Visible) CloseAppearance();
+            PagesOverlay.Visibility = Visibility.Visible;
+            PagesOverlay.Focus();
+        }
+
+        private void ClosePages()
+        {
+            if (PagesOverlay.Visibility != Visibility.Visible) return;
+            PagesOverlay.Focus(); // Commit any final name/path edit before saving.
+            PagesOverlay.Visibility = Visibility.Collapsed;
+            if (DataContext is ViewModels.StartPageViewModel model)
+            {
+                model.ConfirmPageDeletion = false;
+                if (model.CanChangePages) model.SaveCurrentPage();
+            }
+        }
+
+        private void ClosePages_Click(object sender, RoutedEventArgs e) => ClosePages();
+        private void PagesOverlay_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape) { ClosePages(); e.Handled = true; }
+        }
+        private void PagesOverlay_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource == PagesOverlay) { ClosePages(); e.Handled = true; }
+        }
+        private void PageBackgroundPath_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (sender is TextBox box) box.Tag = box.Text;
+        }
+        private void PageBackgroundPath_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is TextBox box) || string.Equals(box.Tag as string, box.Text, StringComparison.Ordinal) || !(DataContext is ViewModels.StartPageViewModel model)) return;
+            box.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            box.Tag = box.Text;
+            model.SetPageImage(box.Text);
         }
 
         private IInputElement appearancePreviousFocus;

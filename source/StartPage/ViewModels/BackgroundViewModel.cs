@@ -359,9 +359,16 @@ namespace LandingPage.ViewModels
             }
         }
 
-        internal async Task UpdateBackgroundImagePathAsync(bool updateRandomBackground = true)
+        internal Task UpdateBackgroundImagePathAsync(bool updateRandomBackground = true)
         {
-            await Task.Run(() => UpdateBackgroundImagePath(updateRandomBackground));
+            // Resolve and publish against the active settings on the UI thread. An older
+            // background task must not publish artwork after a dashboard page switch.
+            if (Application.Current.Dispatcher.CheckAccess())
+            {
+                UpdateBackgroundImagePath(updateRandomBackground);
+                return Task.CompletedTask;
+            }
+            return Application.Current.Dispatcher.InvokeAsync(() => UpdateBackgroundImagePath(updateRandomBackground)).Task;
         }
 
         private string GetFullFilePath(string path)
@@ -501,8 +508,23 @@ namespace LandingPage.ViewModels
                 UpdateBackgroundImagePath(false);
             }
         }
+        internal bool IsApplyingPage { get; set; }
+
+        internal void RefreshPageBackground()
+        {
+            backgroundImageTimer?.Stop();
+            BackgroundImageQueue.Clear();
+            backgroundImagePath = null;
+            OnPropertyChanged(nameof(BackgroundImagePath));
+            BackgroundSourceGame = null;
+            UpdateBackgroundTimer();
+            UpdateBackgroundImagePath(true);
+        }
+
         private void Settings_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
+            if (IsApplyingPage) return;
+            if (e.PropertyName == nameof(LandingPageSettings.BackgroundImagePath)) UpdateBackgroundImagePath(true);
             if (e.PropertyName == nameof(LandingPageSettings.BackgroundImageUri))
             {
                 UpdateBackgroundImagePath();

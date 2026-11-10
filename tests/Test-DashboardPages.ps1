@@ -1,0 +1,539 @@
+# Runs entirely against temporary settings and an in-memory Playnite API.
+# powershell.exe -STA -File tests/Test-DashboardPages.ps1
+$ErrorActionPreference = 'Stop'
+$root = Split-Path $PSScriptRoot -Parent
+$build = Join-Path $root 'source\StartPage\bin\Release'
+Add-Type -AssemblyName PresentationFramework
+foreach ($name in @('Gu.Wpf.NumericInput','Newtonsoft.Json','Playnite.SDK','StartPage.SDK','StartPage.SDK.Async','felixkmh.PlayniteCommon','StartPagePlugin')) {
+    [void][Reflection.Assembly]::LoadFrom((Join-Path $build ($name + '.dll')))
+}
+$app = [Windows.Application]::new()
+$flags = [Reflection.BindingFlags]'Instance,Public,NonPublic'
+function Set-Field($target, $name, $value) { $target.GetType().GetField($name, $flags).SetValue($target, $value) }
+function Get-Setting($settings, $name) { return ,([LandingPage.LandingPageSettings].GetProperty($name).GetValue($settings)) }
+function Set-Setting($settings, $name, $value) { [LandingPage.LandingPageSettings].GetProperty($name).SetValue($settings, $value) }
+function Wait-Task($task) {
+    $deadline = [datetime]::UtcNow.AddSeconds(15)
+    while (!$task.IsCompleted) {
+        if ([datetime]::UtcNow -gt $deadline) { throw 'Dashboard task timed out' }
+        $app.Dispatcher.Invoke([Action]{}, [Windows.Threading.DispatcherPriority]::Background)
+        Start-Sleep -Milliseconds 5
+    }
+    [void]$task.GetAwaiter().GetResult()
+}
+$tempRoot = Join-Path $env:TEMP ('StartPage-pages-test-' + [guid]::NewGuid())
+[void][IO.Directory]::CreateDirectory($tempRoot)
+Add-Type -ReferencedAssemblies @((Join-Path $build 'Playnite.SDK.dll'), (Join-Path $build 'StartPage.SDK.dll'), (Join-Path $build 'StartPagePlugin.dll'), (Join-Path $build 'StartPage.SDK.Async.dll'), (Join-Path $build 'Newtonsoft.Json.dll'), 'System.Core.dll','PresentationFramework','PresentationCore','WindowsBase','System.Xaml') -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Runtime.Remoting.Messaging;
+using System.Runtime.Remoting.Proxies;
+using System.Windows.Controls;
+using Playnite.SDK;
+using Playnite.SDK.Models;
+using Playnite.SDK.Plugins;
+using StartPage.SDK;
+public static class ToolbarTestVisuals
+{
+    public static IEnumerable<TextBlock> Text( System.Windows.DependencyObject root)
+    {
+        var text = root as TextBlock;
+        if (text != null) yield return text;
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); ++i)
+            foreach (var child in Text(System.Windows.Media.VisualTreeHelper.GetChild(root,i))) yield return child;
+    }
+}
+public class ToolbarTestSidebarWrapper
+{
+    public Playnite.SDK.Plugins.SidebarItem SideItem { get; set; }
+}
+public class ToolbarTestModel : System.ComponentModel.INotifyPropertyChanged
+{
+    public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+    private string searchText = "";
+    public string SearchText { get { return searchText; } set { searchText = value; if (PropertyChanged != null) PropertyChanged(this,new System.ComponentModel.PropertyChangedEventArgs("SearchText")); } }
+    private bool filters;
+    public bool FilterPanelVisible { get { return filters; } set { filters = value; if (PropertyChanged != null) PropertyChanged(this,new System.ComponentModel.PropertyChangedEventArgs("FilterPanelVisible")); } }
+    public bool NotificationPanelVisible { get; set; }
+    public int Searches, PluginClicks;
+    public List<ToolbarTestSidebarWrapper> SidebarItems = new List<ToolbarTestSidebarWrapper>();
+    public object LastPage;
+    public System.Windows.Input.ICommand SelectSidebarViewCommand { get; private set; }
+    public System.Windows.Input.ICommand OpenGlobalSearchCommand { get; private set; }
+    public System.Windows.Input.ICommand SwitchDetailsViewCommand { get; private set; }
+    public ToolbarTestModel()
+    {
+        SelectSidebarViewCommand = new RelayCommand<object>(page => LastPage = page);
+        OpenGlobalSearchCommand = new RelayCommand(() => ++Searches);
+        SwitchDetailsViewCommand = new RelayCommand(() => {}, () => false);
+    }
+}
+public class ToolbarTestWrapper
+{
+    public string Title { get; set; }
+    public object IconObject { get; set; }
+    public System.Windows.Input.ICommand Command { get; set; }
+    public Playnite.SDK.Plugins.TopPanelItem PanelItem { get; set; }
+    public ToolbarTestWrapper() { PanelItem = new Playnite.SDK.Plugins.TopPanelItem { Visible = true }; }
+}
+namespace Playnite.DesktopApp.Controls.Views
+{
+    public class TopPanel : ContentControl
+    {
+        public StackPanel PanelMainItems = new StackPanel();
+        public StackPanel PanelMainPluginItems = new StackPanel();
+        public ToolbarTestWrapper ButtonSearch, ButtonSortSettings;
+        public Border ElemMainMenu = new Border();
+        public TextBox TextMainSearch = new TextBox();
+        public CheckBox ToggleFilter = new CheckBox(), ToggleNotifications = new CheckBox();
+        public ProgressBar ProgressGlobal = new ProgressBar { Maximum = 100, Value = 25 };
+        public TextBlock TextProgressText = new TextBlock { Text = "Test operation" };
+        public Button ButtonProgressCancel = new Button();
+        public ContextMenu SortMenu;
+        public TopPanel(ToolbarTestModel model)
+        {
+            ButtonSearch = new ToolbarTestWrapper { Title = "Search", Command = model.OpenGlobalSearchCommand };
+            PanelMainItems.Children.Add(new Button { DataContext = ButtonSearch, Command = ButtonSearch.Command });
+            ButtonSortSettings = new ToolbarTestWrapper { Title = "Sort by" };
+            SortMenu = new ContextMenu { Opacity = 0 };
+            SortMenu.Items.Add(new MenuItem { Header = "Name" });
+            PanelMainItems.Children.Add(new Button { DataContext = ButtonSortSettings, ContextMenu = SortMenu });
+            ElemMainMenu.ContextMenu = new ContextMenu { Opacity = 0 };
+            var wrapper = new ToolbarTestWrapper { Title = "Test extension", Command = new RelayCommand(() => ++model.PluginClicks), IconObject = new TextBlock { Text = "\u2605", FontFamily = new System.Windows.Media.FontFamily("Segoe UI Symbol"), FontSize = 20 } };
+            wrapper.PanelItem.Activated = () => ++model.PluginClicks;
+            PanelMainPluginItems.Children.Add(new Button { DataContext = wrapper, Command = wrapper.Command, Content = wrapper.IconObject });
+            TextMainSearch.SetBinding(TextBox.TextProperty,new System.Windows.Data.Binding("SearchText") { Source = model, Mode = System.Windows.Data.BindingMode.TwoWay, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+            ToggleFilter.SetBinding(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty,new System.Windows.Data.Binding("FilterPanelVisible") { Source = model, Mode = System.Windows.Data.BindingMode.TwoWay });
+            ToggleNotifications.SetBinding(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty,new System.Windows.Data.Binding("NotificationPanelVisible") { Source = model, Mode = System.Windows.Data.BindingMode.TwoWay });
+            var panel = new StackPanel(); panel.Children.Add(PanelMainItems); panel.Children.Add(PanelMainPluginItems); Content = panel;
+        }
+    }
+}
+public class DashboardTestNullConverter : System.Windows.Data.IValueConverter
+{
+    public object Convert(object value, Type type, object parameter, System.Globalization.CultureInfo culture) { return value != null; }
+    public object ConvertBack(object value, Type type, object parameter, System.Globalization.CultureInfo culture) { throw new NotSupportedException(); }
+}
+public class DashboardTestWidget : Border, IStartPageControl, StartPage.SDK.Async.IAsyncStartPageControl
+{
+    public int OpenCount, CloseCount, ShownAsyncCount, HiddenAsyncCount;
+    public System.Threading.Tasks.Task InitializeAsync() { return System.Threading.Tasks.Task.FromResult(0); }
+    public System.Threading.Tasks.Task OnViewShownAsync() { ++ShownAsyncCount; return System.Threading.Tasks.Task.FromResult(0); }
+    public System.Threading.Tasks.Task OnViewHiddenAsync() { ++HiddenAsyncCount; return System.Threading.Tasks.Task.FromResult(0); }
+    public System.Threading.Tasks.Task OnDayChangedAsync(DateTime time) { return System.Threading.Tasks.Task.FromResult(0); }
+    public void OnStartPageOpened() { ++OpenCount; }
+    public void OnStartPageClosed() { ++CloseCount; }
+    public void OnDayChanged(DateTime time) { }
+}
+public class ToolbarTestProvider : Plugin
+{
+    public override Guid Id { get { return Guid.Parse("ddfd6f9a-f1d4-40ea-98af-76427616b27a"); } }
+    public List<Playnite.SDK.Plugins.TopPanelItem> Items = new List<Playnite.SDK.Plugins.TopPanelItem>();
+    public int Activations;
+    public List<SidebarItem> Pages = new List<SidebarItem>();
+    public override IEnumerable<SidebarItem> GetSidebarItems() { return Pages; }
+    public ToolbarTestProvider() : base(null)
+    {
+        Items.Add(new Playnite.SDK.Plugins.TopPanelItem { Title = "Direct SDK provider", Visible = true,
+            Icon = new TextBlock { Text = "\u2606", FontFamily = new System.Windows.Media.FontFamily("Segoe UI Symbol"), FontSize = 20 },
+            Activated = () => ++Activations });
+    }
+    public override IEnumerable<Playnite.SDK.Plugins.TopPanelItem> GetTopPanelItems() { return Items; }
+    public Control OpenPage() { return new UserControl(); }
+}
+public class DashboardTestProxy : RealProxy
+{
+    public static List<Plugin> ExtraPlugins = new List<Plugin>();
+    private readonly Func<IMethodCallMessage, object> handler;
+    public DashboardTestProxy(Type type, Func<IMethodCallMessage, object> handler) : base(type) { this.handler = handler; }
+    public override IMessage Invoke(IMessage message)
+    {
+        var call = (IMethodCallMessage)message;
+        try
+        {
+            object value;
+            if (call.MethodName == "ToString") value = "Dashboard test proxy";
+            else if (call.MethodName == "GetHashCode") value = 1;
+            else if (call.MethodName == "Equals") value = false;
+            else if (call.MethodName == "GetType") value = GetProxiedType();
+            else value = handler(call);
+            return new ReturnMessage(value, null, 0, call.LogicalCallContext, call);
+        }
+        catch (Exception ex) { return new ReturnMessage(ex, call); }
+    }
+    public static object CreateSerializer()
+    {
+        return new DashboardTestProxy(typeof(Playnite.SDK.Data.IDataSerializer), call => {
+            if (call.MethodName == "ToJson") return Newtonsoft.Json.JsonConvert.SerializeObject(call.Args[0]);
+            throw new NotSupportedException(call.MethodName);
+        }).GetTransparentProxy();
+    }
+    public static IPlayniteAPI Create(string directory, Plugin plugin)
+    {
+        var paths = new DashboardTestProxy(typeof(IPlaynitePathsAPI), call => directory).GetTransparentProxy();
+        var notificationsType = typeof(IPlayniteAPI).GetProperty("Notifications").PropertyType;
+        var notifications = new DashboardTestProxy(notificationsType, call => new ObservableCollection<NotificationMessage>()).GetTransparentProxy();
+        var addonsType = typeof(IPlayniteAPI).GetProperty("Addons").PropertyType;
+        var addons = new DashboardTestProxy(addonsType, call => { var loaded = new List<Plugin> { plugin }; loaded.AddRange(ExtraPlugins); return loaded; }).GetTransparentProxy();
+        var games = new DashboardTestProxy(typeof(IItemCollection<Game>), call =>
+        {
+            if (call.MethodName == "GetEnumerator") return ((IEnumerable<Game>)new List<Game>()).GetEnumerator();
+            if (call.MethodName == "get_Count") return 0;
+            if (call.MethodName == "get_IsReadOnly") return false;
+            return null;
+        }).GetTransparentProxy();
+        var database = new DashboardTestProxy(typeof(IGameDatabaseAPI), call =>
+        {
+            if (call.MethodName == "get_Games") return games;
+            if (call.MethodName == "GetFullFilePath") return call.Args[0];
+            return null;
+        }).GetTransparentProxy();
+        return (IPlayniteAPI)new DashboardTestProxy(typeof(IPlayniteAPI), call =>
+        {
+            switch (call.MethodName)
+            {
+                case "get_Paths": return paths;
+                case "get_Notifications": return notifications;
+                case "get_Addons": return addons;
+                case "get_Database": return database;
+                default: return null;
+            }
+        }).GetTransparentProxy();
+    }
+}
+'@
+$originalPlugin = [LandingPage.LandingPageExtension]::Instance
+$serializerField = [Playnite.SDK.Data.Serialization].GetField('serializer', [Reflection.BindingFlags]'Static,NonPublic')
+$originalSerializer = $serializerField.GetValue($null)
+$serializerField.SetValue($null, [DashboardTestProxy]::CreateSerializer())
+$vm = $null
+try {
+    # Legacy migration retains the original layout/widget instances and appearance.
+    $settings = [LandingPage.LandingPageSettings]::new()
+    $legacyLayout = [LandingPage.Models.Layout.GridNode]::new()
+    $widget = [LandingPage.Models.Layout.ViewProperties]::new(); $widget.ViewId = 'TextWidget'
+    $widget.TextSettings.Text = 'Keep my dashboard'; $widget.Appearance.Enabled = $true
+    $legacyLayout.ViewProperties = $widget
+    Set-Setting $settings 'GridLayout' $legacyLayout; Set-Setting $settings 'BlurAmount' ([double]37); Set-Setting $settings 'OverlayOpacity' ([double]0.42)
+    $first = [LandingPage.Models.DashboardPages]::Ensure($settings)
+    if ((Get-Setting $settings 'DashboardPages').Count -ne 1 -or $first.Name -ne 'Main' -or ![object]::ReferenceEquals($first.Layout, $legacyLayout) -or $first.Layout.ViewProperties.InstanceId -ne $widget.InstanceId) { throw 'Legacy layout migration failed' }
+    $second = [LandingPage.Models.DashboardPages]::Add($settings, 'Library')
+    $third = [LandingPage.Models.DashboardPages]::Add($settings, 'Library')
+    if ($third.Name -ne 'Library (2)' -or [object]::ReferenceEquals($first.Background, $second.Background) -or $second.Layout.ViewProperties) { throw 'New pages must have independent backgrounds and empty layouts' }
+    $second.Background.Blur = 4
+    if ($first.Background.Blur -ne 37) { throw 'Page backgrounds share mutable settings' }
+    (Get-Setting $settings 'DashboardPages').Move(2,0)
+    $copy = [Newtonsoft.Json.JsonConvert]::DeserializeObject([Newtonsoft.Json.JsonConvert]::SerializeObject($settings), [LandingPage.LandingPageSettings])
+    $restored = [LandingPage.Models.DashboardPages]::Ensure($copy)
+    if ($restored.Id -ne $first.Id -or (Get-Setting $copy 'DashboardPages')[0].Name -ne 'Library (2)' -or $restored.Layout.ViewProperties.TextSettings.Text -ne 'Keep my dashboard') { throw 'Page persistence/order/active layout failed' }
+    # Nested enumeration must reach grandchildren exactly once.
+    $nested = [LandingPage.Models.Layout.GridNode]::new(); $child = [LandingPage.Models.Layout.GridNode]::new(); $grandchild = [LandingPage.Models.Layout.GridNode]::new()
+    $child.Children.Add($grandchild); $nested.Children.Add($child)
+    $nodes = @($nested.Enumerate())
+    if ($nodes.Count -ne 3 -or ![object]::ReferenceEquals($nodes[2],$grandchild)) { throw 'Nested page traversal misses widgets' }
+
+    # A real StartPage view model saves only inside our unique temporary directory.
+    $plugin = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageExtension])
+    [LandingPage.LandingPageExtension].GetProperty('Instance').SetValue($null,$plugin)
+    $api = [DashboardTestProxy]::Create($tempRoot,$plugin)
+    [Playnite.SDK.Plugins.Plugin].GetField('PlayniteApi',$flags).SetValue($plugin,$api)
+    $settingsModel = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageSettingsViewModel])
+    $settingsModel.Settings = [LandingPage.LandingPageSettings]::new()
+    [LandingPage.LandingPageExtension].GetProperty('SettingsViewModel',$flags).SetValue($plugin,$settingsModel)
+    Set-Setting $settingsModel.Settings 'GridLayout' ([LandingPage.Models.Layout.GridNode]::new())
+    Set-Setting $settingsModel.Settings 'BackgroundImageUri' ([uri]('file:///' + $tempRoot.Replace('\','/') + '/A.png'))
+    Set-Setting $settingsModel.Settings 'BlurAmount' ([double]19)
+    $background = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.ViewModels.BackgroundViewModel])
+    $background.Settings = $settingsModel
+    Set-Field $background 'playniteAPI' $api; Set-Field $background 'plugin' $plugin
+    Set-Field $background 'backgroundImageQueue' ([Collections.ObjectModel.ObservableCollection[LandingPage.ViewModels.BackgroundQueueItem]]::new())
+    $rootModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new((Get-Setting $settingsModel.Settings 'GridLayout'))
+    $vm = [LandingPage.ViewModels.StartPageViewModel].GetConstructors()[0].Invoke([object[]]@($api,$plugin,$settingsModel,$rootModel,$background))
+    Wait-Task ($vm.Inititalize())
+    $pageA = $vm.SelectedPage
+    $probe = [DashboardTestWidget]::new(); $probeProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $probeProperties.ViewId = 'Probe'
+    [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($probeProperties,$probe)
+    $rootModel.GridNode.ViewProperties = $probeProperties
+    $rootModel.OpenView()
+    $pageB = [LandingPage.Models.DashboardPages]::Add($settingsModel.Settings,'Second')
+    $pageB.Background.Blur = 3; $pageB.Background.ImageUri = [uri]('file:///' + $tempRoot.Replace('\','/') + '/B.png')
+    Wait-Task ($vm.SwitchPageAsync($pageB))
+    if ($probe.CloseCount -ne 1 -or (Get-Setting $settingsModel.Settings 'BlurAmount') -ne 3 -or !$background.BackgroundImagePath.AbsoluteUri.EndsWith('B.png')) { throw 'Switch did not close outgoing widget/apply target background' }
+    Set-Setting $settingsModel.Settings 'BlurAmount' ([double]7)
+    Wait-Task ($vm.SwitchPageAsync($pageA))
+    if ($probe.OpenCount -ne 2 -or ![object]::ReferenceEquals($vm.RootNodeViewModel,$rootModel) -or $pageB.Background.Blur -ne 7 -or (Get-Setting $settingsModel.Settings 'BlurAmount') -ne 19) { throw 'Cached page/widget/background isolation failed' }
+    Wait-Task ($vm.SwitchPageAsync($pageB))
+    if ((Get-Setting $settingsModel.Settings 'BlurAmount') -ne 7) { throw 'Edited inactive background was lost' }
+    $vm.MovePageUpCommand.Execute($null)
+    if ($vm.Pages[0].Id -ne $pageB.Id) { throw 'Move page command failed' }
+    $vm.RequestDeletePageCommand.Execute($null); $vm.DeletePageCommand.Execute($null)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($vm.Pages.Count -ne 1 -or $vm.SelectedPage.Id -ne $pageA.Id -or $vm.RequestDeletePageCommand.CanExecute($null)) { throw 'Delete/last-page protection failed' }
+    $savedFile = Get-ChildItem -LiteralPath $tempRoot -Recurse -Filter config.json | Select-Object -First 1
+    if (!$savedFile) { throw 'Page operations did not persist settings' }
+    $saved = [Newtonsoft.Json.JsonConvert]::DeserializeObject([IO.File]::ReadAllText($savedFile.FullName), [LandingPage.LandingPageSettings])
+    if ((Get-Setting $saved 'ActiveDashboardPageId') -ne $pageA.Id -or (Get-Setting $saved 'DashboardPages').Count -ne 1) { throw 'Saved active page/deletion is incorrect' }
+    $imagePath = Join-Path $tempRoot 'page-image.png'
+    [IO.File]::Copy((Join-Path $root 'source/StartPage/icon.png'),$imagePath)
+    $vm.SetPageImage($imagePath)
+    if ($background.BackgroundImagePath.LocalPath -ne $imagePath) { throw 'Choosing a local page image did not display it' }
+    $vm.SetPageImage($tempRoot)
+    if ($background.BackgroundImagePath.LocalPath -ne $imagePath) { throw 'Choosing a page image folder did not select its image' }
+    $vm.SetPageImage($null)
+    if ($background.BackgroundImagePath -ne $null -or $background.BackgroundImageQueue.Count -ne 0) { throw 'Empty page background retained another page image' }
+    Wait-Task ($vm.Closed())
+    if ($probe.CloseCount -ne 3) { throw 'Closing StartPage did not hide current widget' }
+    Wait-Task ($vm.Opened())
+    if ($probe.OpenCount -ne 4 -or $probe.ShownAsyncCount -ne 3 -or $probe.HiddenAsyncCount -ne 3) { throw 'Returning to StartPage did not reopen current widget or async callbacks were missed' }
+    foreach ($type in @([Windows.Controls.TextBox],[Windows.Controls.ScrollViewer],[Windows.Controls.Button],[Windows.Controls.Border],[Windows.Controls.ComboBox],[Windows.Controls.Expander],[Windows.Controls.GridSplitter],[Windows.Controls.ListBox],[Windows.Controls.CheckBox],[Windows.Controls.ContextMenu],[Windows.Controls.Menu],[Windows.Controls.MenuItem],[Windows.Controls.Primitives.Popup])) {
+        [void]$app.Resources.Add($type,[Windows.Style]::new($type))
+    }
+    [void]$app.Resources.Add('TextBrush',[Windows.Media.Brushes]::Lime)
+    [void]$app.Resources.Add('BaseTextBlockStyle',[Windows.Style]::new([Windows.Controls.TextBlock]))
+    [void]$app.Resources.Add('GlyphTextBoxStyle',[Windows.Style]::new([Windows.Controls.TextBlock]))
+    [void]$app.Resources.Add('FontIcoFont',[Windows.Media.FontFamily]::new('Segoe UI'))
+    [void]$app.Resources.Add('BooleanToVisibilityConverter',[Windows.Controls.BooleanToVisibilityConverter]::new())
+    [void]$app.Resources.Add('InvertedBooleanToVisibilityConverter',[Windows.Controls.BooleanToVisibilityConverter]::new())
+    foreach ($key in @('NullToBoolConverter','InvertedObjectEqualityToBoolConverter','StringNullOrEmptyToBoolConverter')) { [void]$app.Resources.Add($key,[DashboardTestNullConverter]::new()) }
+    [void]$app.Resources.Add('NullToVisibilityConverter',[Windows.Controls.BooleanToVisibilityConverter]::new())
+    try { $view = [LandingPage.Views.StartPageView]::new() }
+    catch { $detail = $_.Exception; while ($detail.InnerException) { $detail = $detail.InnerException }; throw $detail.Message }
+    $view.DataContext = $vm
+    $view.Measure([Windows.Size]::new(1000,800)); $view.Arrange([Windows.Rect]::new(0,0,1000,800))
+    $view.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $manageMenu = @($view.ContextMenu.Items | Where-Object { $_ -is [Windows.Controls.MenuItem] -and $_.Header -eq 'Manage dashboard pages...' })
+    if ($manageMenu.Count -ne 1) { throw 'Page management must remain available without a toolbar widget' }
+    $view.GetType().GetMethod('ManagePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    if ($view.FindName('PagesOverlay').Visibility -ne [Windows.Visibility]::Visible) { throw 'Page manager did not open inside StartPage' }
+    $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    if ($view.FindName('PagesOverlay').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Page manager did not close' }
+    $toolbarSettings = [LandingPage.Settings.ToolbarWidgetSettings]::new()
+    $toolbarClone = [Newtonsoft.Json.JsonConvert]::DeserializeObject([Newtonsoft.Json.JsonConvert]::SerializeObject($toolbarSettings), [LandingPage.Settings.ToolbarWidgetSettings])
+    if ($toolbarClone.Items.Count -ne 4 -or [object]::ReferenceEquals($toolbarClone.Items,$toolbarSettings.Items)) { throw 'Toolbar defaults duplicated/shared after serialization' }
+    $nativeModel = [ToolbarTestModel]::new()
+    $native = [Playnite.DesktopApp.Controls.Views.TopPanel]::new($nativeModel)
+    $themeIconTemplate = [Windows.Markup.XamlReader]::Parse('<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><TextBlock Text="THEME"/></DataTemplate>')
+    [void]$native.Resources.Add('TopPanelGeneralViewSettingsTemplate',$themeIconTemplate)
+    $options = [LandingPage.Controls.NativeToolbarCatalog]::Discover($native,$nativeModel)
+    $viewSettingsOption = $options | Where-Object Id -eq 'native.view-settings'
+    $manageOption = $options | Where-Object Id -eq 'page.manage'
+    if (![object]::ReferenceEquals($viewSettingsOption.IconTemplate,$themeIconTemplate) -or $viewSettingsOption.Glyph -eq $manageOption.Glyph) { throw 'Theme icon resource or distinct page-management icon failed' }
+    if ($options.Count -lt 25 -or !($options | Where-Object Id -eq 'native.sort').NativeControl.ContextMenu) { throw 'Native toolbar catalog omitted buttons or dropdowns' }
+    $toolbar = [LandingPage.Views.ToolbarWidgetView]::new()
+    $toolbarProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $toolbarProperties.ViewId = 'ToolbarWidget'
+    [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($toolbarProperties,$toolbar)
+    $vm.RootNodeViewModel.GridNode.ViewProperties = $toolbarProperties
+    $layout = [Windows.Controls.Grid]::new(); [void]$layout.Children.Add($native); [void]$layout.Children.Add($view)
+    $window = [Windows.Window]::new(); $window.Content = $layout; $window.DataContext = $nativeModel
+    $window.Width = 1000; $window.Height = 800; $window.Opacity = 0; $window.ShowInTaskbar = $false; $window.ShowActivated = $false
+    $window.Show()
+    $window.UpdateLayout(); $view.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    $controls = $toolbar.Content.Content.Children[0].Child.Children
+    $pageSelector = $controls | Where-Object { $_ -is [Windows.Controls.ComboBox] }
+    if (!$pageSelector -or !$pageSelector.IsEnabled -or $pageSelector.SelectedItem.Id -ne $vm.SelectedPage.Id) { throw 'Toolbar page selector is not clickable/bound' }
+    if (![Windows.Shell.WindowChrome]::GetIsHitTestVisibleInChrome($pageSelector)) { throw 'Toolbar selector is swallowed by Playnite window chrome' }
+    if ($controls[0].Content.Children[0].Content.Child.Text -ne [string][char]0x25C0 -or $controls[2].Content.Children[0].Content.Child.Text -ne [string][char]0x25B6) { throw 'Page arrow glyphs are missing' }
+    $manage = $controls | Where-Object { $_ -is [Windows.Controls.Button] -and $_.ToolTip -eq 'Manage dashboard pages' }
+    $manage.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+    if ($view.FindName('PagesOverlay').Visibility -ne [Windows.Visibility]::Visible) { throw 'Toolbar manage-pages action failed' }
+    $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    $toolbar.Settings.Items.Clear()
+    foreach ($id in @('native.search','native.sort','native.details','native.filters','native.search-box','native.progress','native.progress-text',($options | Where-Object { $_.Title.StartsWith('Extension:') } | Select-Object -First 1).Id,'missing.extension','native.notifications')) {
+        $entry = [LandingPage.Settings.ToolbarEntry]::new(); $entry.Id = $id; $toolbar.Settings.Items.Add($entry)
+    }
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    $controls = $toolbar.Content.Content.Children[0].Child.Children
+    $controls[0].Command.Execute($controls[0].CommandParameter)
+    if ($nativeModel.Searches -ne 1) { throw 'Native search command was not forwarded' }
+    if ($controls[2].IsEnabled) { throw 'Native CanExecute=false was ignored' }
+    if ($controls[3] -is [Windows.Controls.CheckBox]) { throw 'Native panel action must not render as a checkbox' }
+    $controls[3].IsChecked = $true
+    $controls[3].RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+    if (!$nativeModel.FilterPanelVisible) { throw 'Native filter toggle binding failed' }
+    $controls[4].Text = 'Test query'; $controls[4].GetBindingExpression([Windows.Controls.TextBox]::TextProperty).UpdateSource()
+    if ($nativeModel.SearchText -ne 'Test query') { throw 'Native search-box binding failed' }
+    if ($controls[5].Value -ne 25 -or $controls[6].Text -ne 'Test operation') { throw 'Native progress/status bindings failed' }
+    $controls[7].Command.Execute($controls[7].CommandParameter)
+    if ($nativeModel.PluginClicks -ne 1) { throw 'Native extension command was not forwarded' }
+    $extensionIcon = $controls[7].Content.Children[0]
+    if ($extensionIcon.Content.Child.Text -ne [string][char]0x2605 -or $extensionIcon.Content.Child.FontFamily.Source -ne 'Segoe UI Symbol') { throw 'Actual extension font icon was replaced by a generic symbol' }
+    if (![object]::ReferenceEquals($native.PanelMainPluginItems.Children[0].Content,$native.PanelMainPluginItems.Children[0].DataContext.IconObject)) { throw 'Original native extension icon was moved out of the toolbar' }
+    if ($controls[8].IsEnabled) { throw 'Missing extension should be unavailable without losing its saved ID' }
+    if ($controls[9] -is [Windows.Controls.CheckBox]) { throw 'Notifications must render as a toolbar button' }
+    $controls[9].IsChecked = $true; $controls[9].RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+    if (!$nativeModel.NotificationPanelVisible) { throw 'Notifications toolbar button did not open the native panel' }
+    $oldTarget = $native.SortMenu.ReadLocalValue([Windows.Controls.ContextMenu]::PlacementTargetProperty)
+    $oldContext = $native.SortMenu.ReadLocalValue([Windows.FrameworkElement]::DataContextProperty)
+    $controls[1].RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+    if (!$native.SortMenu.IsOpen -or ![object]::ReferenceEquals($native.SortMenu.PlacementTarget,$controls[1])) { throw 'Native sort menu did not open at toolbar button' }
+    $native.SortMenu.IsOpen = $false
+    $restoreDeadline = [datetime]::UtcNow.AddSeconds(2)
+    while ($native.SortMenu.ReadLocalValue([Windows.Controls.ContextMenu]::PlacementTargetProperty) -ne $oldTarget -and [datetime]::UtcNow -lt $restoreDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 10 }
+    if ($native.SortMenu.ReadLocalValue([Windows.Controls.ContextMenu]::PlacementTargetProperty) -ne $oldTarget -or $native.SortMenu.ReadLocalValue([Windows.FrameworkElement]::DataContextProperty) -ne $oldContext) { throw ('Native menu state was not restored after closing. Target: ' + $native.SortMenu.ReadLocalValue([Windows.Controls.ContextMenu]::PlacementTargetProperty) + ' expected: ' + $oldTarget + ' context: ' + $native.SortMenu.ReadLocalValue([Windows.FrameworkElement]::DataContextProperty) + ' expected: ' + $oldContext) }
+    $editor = [LandingPage.Views.Settings.ToolbarSettingsView]::new(); $editor.DataContext = $toolbar.Settings
+    $editor.Measure([Windows.Size]::new(400,2000)); $editor.Arrange([Windows.Rect]::new(0,0,400,2000))
+    if ($editor.Content.Children[0].Foreground.ToString() -ne [Windows.Media.Brushes]::Lime.ToString()) { throw 'Toolbar editor text ignores the theme TextBrush' }
+    $idsBefore = @($toolbar.Settings.Items | ForEach-Object Id) -join '|'
+    $editor.RefreshOptions()
+    if (!$editor.FindName('OptionPicker').ItemTemplate) { throw 'Native item picker must preview toolbar icons' }
+    if ((@($toolbar.Settings.Items | ForEach-Object Id) -join '|') -ne $idsBefore) { throw 'Refreshing native items erased saved selections' }
+    $editor.Width = 400; [void]$layout.Children.Add($editor)
+    $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $rowLabels = @([ToolbarTestVisuals]::Text($editor) | Where-Object { $_.Text -eq 'Group' -or $_.Text -eq 'Custom label (blank = default)' })
+    if ($rowLabels.Count -lt 2) { throw 'Regression test did not realize the repeated toolbar item labels' }
+    foreach ($label in $rowLabels) {
+        if ($label.Foreground.ToString() -ne [Windows.Media.Brushes]::Lime.ToString()) { throw ('Repeated item label ignores the theme color: ' + $label.Text) }
+    }
+    $layout.Children.Remove($editor)
+    $lateSource = $native.PanelMainPluginItems.Children[0]
+    $native.PanelMainPluginItems.Children.Clear()
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    $missingButton = $toolbar.Content.Content.Children[0].Child.Children[7]
+    if ($missingButton.IsEnabled) { throw 'Missing late-loading extension should begin unavailable' }
+    [void]$native.PanelMainPluginItems.Children.Add($lateSource)
+    $editor.RefreshOptions()
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $resolvedButton = $toolbar.Content.Content.Children[0].Child.Children[7]
+    if (!$resolvedButton.IsEnabled -or $resolvedButton.Content.Children[0].Content.Child.Text -ne [string][char]0x2605) { throw 'Refresh native items did not refresh the actual toolbar extension icon' }
+    $native.PanelMainPluginItems.Children.Clear()
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    [void]$native.PanelMainPluginItems.Children.Add($lateSource)
+    $toolbar.GetType().GetMethod('RefreshPendingNative',$flags).Invoke($toolbar,@())
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $resolvedButton = $toolbar.Content.Content.Children[0].Child.Children[7]
+    if (!$resolvedButton.IsEnabled -or $resolvedButton.Content.Children[0].Content.Child.Text -ne [string][char]0x2605) { throw 'Late native toolbar initialization did not automatically resolve extension icons' }
+
+    $pageC = [LandingPage.Models.DashboardPages]::Add($settingsModel.Settings,'Arrow target')
+    $vm.NextPageCommand.Execute($null)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($vm.SelectedPage.Id -ne $pageC.Id -or $vm.NextPageCommand.CanExecute($null)) { throw 'Next-page navigation or final-page boundary failed' }
+    $vm.PreviousPageCommand.Execute($null)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($vm.SelectedPage.Id -ne $pageA.Id -or $vm.PreviousPageCommand.CanExecute($null)) { throw 'Previous-page navigation or first-page boundary failed' }
+    $toolbar.Settings.Groups[0].Alignment = [Windows.HorizontalAlignment]::Center
+    $rightGroup = [LandingPage.Settings.ToolbarGroup]::new(); $rightGroup.Name = 'Extensions'; $rightGroup.Alignment = [Windows.HorizontalAlignment]::Right
+    $toolbar.Settings.Groups.Add($rightGroup); $toolbar.Settings.Items[7].GroupId = $rightGroup.Id
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    $groupsGrid = $toolbar.Content.Content
+    if ($groupsGrid.ColumnDefinitions.Count -ne 2 -or $groupsGrid.Children[0].Child.HorizontalAlignment -ne [Windows.HorizontalAlignment]::Center -or $groupsGrid.Children[1].Child.HorizontalAlignment -ne [Windows.HorizontalAlignment]::Right) { throw 'Independent toolbar group alignment failed' }
+    $styled = $toolbar.Settings.Groups[0]
+    $styled.WidthSizing = [LandingPage.Settings.ToolbarGroupSizing]::Fixed; $styled.Width = 220
+    $styled.HeightSizing = [LandingPage.Settings.ToolbarGroupSizing]::Fixed; $styled.Height = 70
+    $styled.ShowBackground = $true; $styled.Background = '#336699'; $styled.BackgroundOpacity = 0.35
+    $styled.BorderColor = '#112233'; $styled.BorderWidth = 2; $styled.CornerRadius = 12; $styled.Padding = 8; $styled.Margin = 3
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    $sizingGrid = $toolbar.Content.Content; $groupBorder = $sizingGrid.Children[0]
+    if ($sizingGrid.ColumnDefinitions[0].Width.Value -ne 226 -or $sizingGrid.ColumnDefinitions[0].Width.GridUnitType -ne [Windows.GridUnitType]::Pixel -or $groupBorder.Width -ne 220 -or $groupBorder.Height -ne 70) { throw 'Fixed group sizing/margins failed' }
+    if ($groupBorder.Background.Color.ToString() -ne '#FF336699' -or $groupBorder.Background.Opacity -ne 0.35 -or $groupBorder.BorderThickness.Left -ne 2 -or $groupBorder.Padding.Left -ne 8 -or $groupBorder.CornerRadius.TopLeft -ne 12) { throw 'Per-group background/border/padding rendering failed' }
+    $styled.WidthSizing = [LandingPage.Settings.ToolbarGroupSizing]::Content
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    if (!$toolbar.Content.Content.ColumnDefinitions[0].Width.IsAuto) { throw 'Fit-content group sizing failed' }
+    $styled.WidthSizing = [LandingPage.Settings.ToolbarGroupSizing]::Fill; $styled.Weight = 2.5
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    if (!$toolbar.Content.Content.ColumnDefinitions[0].Width.IsStar -or $toolbar.Content.Content.ColumnDefinitions[0].Width.Value -ne 2.5) { throw 'Proportional group sizing failed' }
+    $groupCopy = [Newtonsoft.Json.JsonConvert]::DeserializeObject([Newtonsoft.Json.JsonConvert]::SerializeObject($toolbar.Settings), [LandingPage.Settings.ToolbarWidgetSettings])
+    if ($groupCopy.Groups.Count -ne 2 -or $groupCopy.Items[7].GroupId -ne $rightGroup.Id -or $groupCopy.Groups[0].Alignment -ne [Windows.HorizontalAlignment]::Center) { throw 'Toolbar groups did not persist independently' }
+    if ($groupCopy.Groups[0].BackgroundOpacity -ne 0.35 -or $groupCopy.Groups[0].BorderWidth -ne 2 -or $groupCopy.Groups[0].Weight -ne 2.5) { throw 'Group appearance/sizing did not persist' }
+    $styled.ResetAppearance()
+    if ($styled.ShowBackground -or $styled.BorderWidth -ne 0 -or $styled.Padding -ne 0 -or $styled.Weight -ne 2.5) { throw 'Group appearance reset must preserve sizing' }
+    $extensionOption = $editor.AvailableOptions | Where-Object { $_.Id -eq $toolbar.Settings.Items[7].Id }
+    $extensionTitle = $extensionOption.Title
+    $pluginSource = $native.PanelMainPluginItems.Children[0]
+    $native.PanelMainPluginItems.Children.Clear(); $editor.RefreshOptions()
+    if ($toolbar.Settings.Items[7].Id -ne $extensionOption.Id -or $extensionOption.Title -ne $extensionTitle -or !$extensionOption.NativeControl) { throw 'Refresh lost a selected temporarily unavailable extension icon' }
+    [void]$native.PanelMainPluginItems.Children.Add($pluginSource)
+    $pluginSource.DataContext.Title = 'Renamed extension'; $editor.RefreshOptions()
+    if ($toolbar.Settings.Items[7].Id -ne $extensionOption.Id -or $extensionOption.Title -ne 'Extension: Renamed extension') { throw 'Provider-based extension ID changed after renaming the title' }
+    $directProvider = [ToolbarTestProvider]::new()
+    [DashboardTestProxy]::ExtraPlugins.Add($directProvider)
+    $directOptions = [LandingPage.Controls.NativeToolbarCatalog]::Discover($null,$nativeModel)
+    $directOption = $directOptions | Where-Object { $_.Title -eq 'Extension: Direct SDK provider' }
+    if (!$directOption -or !$directOption.Command.CanExecute($null)) { throw 'Extension SDK toolbar API must work without a native toolbar panel' }
+    $directIcon = [LandingPage.Controls.ToolbarIcon]::new(); $directIcon.Option = $directOption
+    if ($directIcon.Content.Child.Text -ne [string][char]0x2606) { throw 'Direct extension provider icon was not rendered' }
+    $directOption.Command.Execute($null)
+    if ($directProvider.Activations -ne 1) { throw 'Direct extension provider action was not invoked' }
+    $native.PanelMainPluginItems.Children.Clear()
+    $toolbar.Settings.Items[7].Id = $directOption.Id
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    $directButton = $toolbar.Content.Content.Children[1].Child.Children[0]
+    if (!$directButton.IsEnabled -or $directButton.Content.Children[0].Content.Child.Text -ne [string][char]0x2606) { throw 'Actual toolbar did not fall back to the SDK extension provider when native buttons were absent' }
+    $directProvider.Items[0].Visible = $false
+    $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
+    $directButton = $toolbar.Content.Content.Children[1].Child.Children[0]
+    if (!$directButton.IsEnabled) { throw 'Native toolbar visibility preference must not disable a configured extension action' }
+    $sideWrapper = [ToolbarTestSidebarWrapper]::new(); $sideWrapper.SideItem = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([Playnite.SDK.Plugins.SidebarItem])
+    $sideWrapper.SideItem.Opened = [Func[Windows.Controls.Control]][Delegate]::CreateDelegate([Func[Windows.Controls.Control]],$directProvider,$directProvider.GetType().GetMethod('OpenPage'))
+    $nativeModel.SidebarItems.Add($sideWrapper); $directOption.NativeModel = $nativeModel
+    $activationCount = $directProvider.Activations
+    $pageCommand = [LandingPage.Controls.NativeToolbarCatalog]::ExtensionCommand($directOption,[LandingPage.Settings.ExtensionOpenMode]::Automatic)
+    $pageCommand.Execute($null)
+    if (![object]::ReferenceEquals($nativeModel.LastPage,$sideWrapper) -or $directProvider.Activations -ne $activationCount) { throw 'An extension without overlay support must open its real page' }
+    $nativeModel.LastPage = $null
+    ([LandingPage.Controls.NativeToolbarCatalog]::ExtensionCommand($directOption,[LandingPage.Settings.ExtensionOpenMode]::ExtensionPage)).Execute($null)
+    if (![object]::ReferenceEquals($nativeModel.LastPage,$sideWrapper)) { throw 'Explicit extension-page mode did not use native page navigation' }
+    $nativeModel.SidebarItems.Clear()
+    ([LandingPage.Controls.NativeToolbarCatalog]::ExtensionCommand($directOption,[LandingPage.Settings.ExtensionOpenMode]::ExtensionPage)).Execute($null)
+    if ($directProvider.Activations -ne $activationCount + 1) { throw 'Provider with no page must retain its native action' }
+    $toolbar.Settings.Items[7].OpenMode = [LandingPage.Settings.ExtensionOpenMode]::ExtensionPage
+    $modeCopy = [Newtonsoft.Json.JsonConvert]::DeserializeObject([Newtonsoft.Json.JsonConvert]::SerializeObject($toolbar.Settings),[LandingPage.Settings.ToolbarWidgetSettings])
+    if ($modeCopy.Items[7].OpenMode -ne [LandingPage.Settings.ExtensionOpenMode]::ExtensionPage) { throw 'Per-item extension launch mode did not persist' }
+    # A separate assembly with the real integration's identity verifies the supported
+    # overlay route without loading or invoking the user's installed extension.
+    $overlayFixturePath = Join-Path $tempRoot 'PlayniteAchievements.dll'
+    Add-Type -OutputAssembly $overlayFixturePath -ReferencedAssemblies @('PresentationFramework','PresentationCore','WindowsBase','System.Xaml') -TypeDefinition 'public static class StartPageOverlayTestCallbacks { public static int Calls; public static void OpenOverlay() { ++Calls; } public static System.Windows.Controls.Control OpenPage() { return new System.Windows.Controls.UserControl(); } }'
+    $overlayAssembly = [Reflection.Assembly]::LoadFrom($overlayFixturePath)
+    $overlayType = $overlayAssembly.GetType('StartPageOverlayTestCallbacks')
+    $overlayItem = [Playnite.SDK.Plugins.TopPanelItem]::new(); $overlayItem.Visible = $true
+    $overlayItem.Activated = [Action][Delegate]::CreateDelegate([Action],$overlayType.GetMethod('OpenOverlay'))
+    $overlaySource = [LandingPage.Controls.ToolbarExtensionSource]::new($overlayItem)
+    $overlayOption = [LandingPage.Controls.ToolbarOption]::new(); $overlayOption.Id = 'extension.PlayniteAchievements.0'
+    $overlayOption.Command = $overlaySource.Command; $overlayOption.NativeControl = [Windows.Controls.Button]::new(); $overlayOption.NativeControl.DataContext = $overlaySource
+    $overlayOption.NativeModel = $nativeModel
+    $overlayPage = [ToolbarTestSidebarWrapper]::new(); $overlayPage.SideItem = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([Playnite.SDK.Plugins.SidebarItem])
+    $overlayPage.SideItem.Opened = [Func[Windows.Controls.Control]][Delegate]::CreateDelegate([Func[Windows.Controls.Control]],$overlayType.GetMethod('OpenPage'))
+    $nativeModel.SidebarItems.Add($overlayPage); $nativeModel.LastPage = $null
+    ([LandingPage.Controls.NativeToolbarCatalog]::ExtensionCommand($overlayOption,[LandingPage.Settings.ExtensionOpenMode]::Automatic)).Execute($null)
+    if ($overlayType.GetField('Calls').GetValue($null) -ne 1 -or $nativeModel.LastPage) { throw 'Supported PlayniteAchievements overlay must retain its original action in automatic mode' }
+    ([LandingPage.Controls.NativeToolbarCatalog]::ExtensionCommand($overlayOption,[LandingPage.Settings.ExtensionOpenMode]::ExtensionPage)).Execute($null)
+    if ($overlayType.GetField('Calls').GetValue($null) -ne 1 -or ![object]::ReferenceEquals($nativeModel.LastPage,$overlayPage)) { throw 'PlayniteAchievements explicit page mode must bypass its overlay action' }
+    $nativeModel.SidebarItems.Clear()
+    $anikiPage = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([Playnite.SDK.Plugins.SidebarItem])
+    $anikiPage.Title = 'Aniki Helper'; $anikiPage.Icon = [Windows.Controls.TextBlock]::new(); $anikiPage.Icon.Text = [string][char]0x2605
+    $anikiPage.Opened = [Func[Windows.Controls.Control]][Delegate]::CreateDelegate([Func[Windows.Controls.Control]],$directProvider,$directProvider.GetType().GetMethod('OpenPage'))
+    $directProvider.Pages.Add($anikiPage)
+    [LandingPage.Controls.NativeToolbarCatalog]::RefreshProviders()
+    $earlyWrapper = [ToolbarTestSidebarWrapper]::new(); $earlyWrapper.SideItem = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([Playnite.SDK.Plugins.SidebarItem]); $earlyWrapper.SideItem.Title = 'Early native entry'
+    $nativeModel.SidebarItems.Add($earlyWrapper)
+    $sidebarOptions = [LandingPage.Controls.NativeToolbarCatalog]::Discover($null,$nativeModel)
+    $anikiOption = $sidebarOptions | Where-Object Title -eq 'Sidebar: Aniki Helper'
+    if (!$anikiOption -or !$anikiOption.SidebarItem) { throw 'Sidebar-only extensions must appear even without a top-toolbar action' }
+    $anikiIcon = [LandingPage.Controls.ToolbarIcon]::new(); $anikiIcon.Option = $anikiOption
+    if ($anikiIcon.Content.Child.Text -ne [string][char]0x2605) { throw 'Sidebar-only extension icon was not rendered' }
+    $nativeModel.SidebarItems.Clear()
+    $nativeAniki = [ToolbarTestSidebarWrapper]::new(); $nativeAniki.SideItem = $anikiPage; $nativeModel.SidebarItems.Add($nativeAniki)
+    $anikiOption.Command.Execute($null)
+    if (![object]::ReferenceEquals($nativeModel.LastPage,$nativeAniki)) { throw 'Sidebar toolbar entry did not select its real extension page' }
+    $nativeModel.LastPage = $null
+    $nativeAniki.SideItem.Title = 'Renamed Aniki Helper'
+    $updatedSidebarOptions = [LandingPage.Controls.NativeToolbarCatalog]::Discover($null,$nativeModel)
+    $updatedAniki = $updatedSidebarOptions | Where-Object Id -eq $anikiOption.Id
+    if (!$updatedAniki -or $updatedAniki.Title -ne 'Sidebar: Renamed Aniki Helper') { throw 'Sidebar entry ID changed when its title changed' }
+    $sidebarEntry = [LandingPage.Settings.ToolbarEntry]::new(); $sidebarEntry.Id = $anikiOption.Id
+    if (!$sidebarEntry.IsExtension -or $sidebarEntry.CanChooseOpenMode) { throw 'Sidebar entries should always use their native page/action route' }
+    $sidebarCopy = [Newtonsoft.Json.JsonConvert]::DeserializeObject([Newtonsoft.Json.JsonConvert]::SerializeObject($sidebarEntry),[LandingPage.Settings.ToolbarEntry])
+    if ($sidebarCopy.Id -ne $sidebarEntry.Id) { throw 'Sidebar selection was not persisted' }
+    $nativeModel.SidebarItems.Clear()
+    [DashboardTestProxy]::ExtraPlugins.Clear()
+    $window.Close()
+    'PASS: toolbar serialization, native catalog/commands/menus/toggles/search/progress/extensions, clickable page navigation, missing providers, menu-state restoration, and settings refresh.'
+    'PASS: legacy migration, independent layout/backgrounds, save/reload/order, nested traversal, real page switching and widget callbacks, deletion, last-page protection, temporary-file persistence, context-menu navigation, and in-app manager open/close.'
+} finally {
+    if ($vm) { $vm.GetType().GetField('clock',$flags).GetValue($vm).Stop() }
+    [LandingPage.LandingPageExtension].GetProperty('Instance').SetValue($null,$originalPlugin)
+    $serializerField.SetValue($null, $originalSerializer)
+    $app.Shutdown()
+    # All created test files remain in this uniquely named temp directory for inspection.
+}

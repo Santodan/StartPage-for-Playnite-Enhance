@@ -4,6 +4,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:LandingPage.Views"
+             xmlns:lp="clr-namespace:LandingPage"
+             xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+             xmlns:numeric="http://gu.se/NumericInput"
              xmlns:viewModels="clr-namespace:LandingPage.ViewModels"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:conv="clr-namespace:LandingPage.Converters"
@@ -97,6 +100,10 @@
                     </Grid>
                 </MenuItem.Header>
             </MenuItem>
+            <Separator/>
+            <MenuItem Header="Manage dashboard pages..." Click="ManagePages_Click"/>
+            <MenuItem Header="Previous dashboard page" Command="{Binding PreviousPageCommand}"/>
+            <MenuItem Header="Next dashboard page" Command="{Binding NextPageCommand}"/>
             <Separator/>
             <MenuItem Command="{Binding OpenSettingsCommand}" Header="{DynamicResource LOCMenuPlayniteSettingsTitle}"/>
             <Separator/>
@@ -460,6 +467,81 @@
                 </ControlTemplate>
             </Button.Template>
         </Button>
+        <Grid x:Name="PagesOverlay" shell:WindowChrome.IsHitTestVisibleInChrome="True" Visibility="Collapsed" Panel.ZIndex="1100" Background="#66000000"
+              Focusable="True" KeyboardNavigation.TabNavigation="Cycle" PreviewKeyDown="PagesOverlay_PreviewKeyDown" MouseDown="PagesOverlay_MouseDown">
+            <Border HorizontalAlignment="Right" Width="440" MaxWidth="{Binding ActualWidth, ElementName=PagesOverlay}"
+                    Margin="16" Padding="16" CornerRadius="12" Background="{DynamicResource PopupBackgroundBrush}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Text="Dashboard pages" FontSize="20" Margin="0,0,0,12"/>
+                        <StackPanel IsEnabled="{Binding CanChangePages}">
+                            <TextBlock Text="Current page"/>
+                            <ComboBox ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage, Mode=TwoWay}" DisplayMemberPath="Name" Margin="0,4,0,8"/>
+                            <Expander Header="Page name and order" IsExpanded="True">
+                                <StackPanel Margin="8,6,0,8">
+                                    <TextBlock Text="Page name"/>
+                                    <TextBox Text="{Binding SelectedPage.Name, UpdateSourceTrigger=LostFocus}" Margin="0,4,0,6"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Move left" Command="{Binding MovePageUpCommand}" Margin="0,0,6,0"/>
+                                        <Button Content="Move right" Command="{Binding MovePageDownCommand}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Create a page" Margin="0,6,0,0">
+                                <StackPanel Margin="8,6,0,8">
+                                    <TextBox Text="{Binding NewPageName, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Button Content="Create empty page" Command="{Binding AddPageCommand}" Margin="0,6,0,0"/>
+                                    <TextBlock Text="Starts with an empty layout and a copy of this page's background settings. Add widgets in Edit Mode." TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Page background" Margin="0,6,0,0">
+                                <StackPanel Margin="8,6,0,8">
+                                    <TextBlock Text="These background settings belong to the current page." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Game artwork source (when no image/folder is set)" TextWrapping="Wrap"/>
+                                    <ComboBox SelectedValue="{Binding Settings.Settings.BackgroundImageSource}" SelectedValuePath="Tag" Margin="0,4,0,8">
+                                        <ComboBoxItem Content="Last played" Tag="{x:Static lp:BackgroundImageSource.LastPlayed}"/>
+                                        <ComboBoxItem Content="Last added" Tag="{x:Static lp:BackgroundImageSource.LastAdded}"/>
+                                        <ComboBoxItem Content="Most played" Tag="{x:Static lp:BackgroundImageSource.MostPlayed}"/>
+                                        <ComboBoxItem Content="Random game" Tag="{x:Static lp:BackgroundImageSource.Random}"/>
+                                        <ComboBoxItem Content="Last selected" Tag="{x:Static lp:BackgroundImageSource.LastSelected}"/>
+                                        <ComboBoxItem Content="Last hovered" Tag="{x:Static lp:BackgroundImageSource.LastHovered}"/>
+                                    </ComboBox>
+                                    <TextBlock Text="Local image or image folder"/>
+                                    <TextBox Text="{Binding Settings.Settings.BackgroundImagePath, UpdateSourceTrigger=LostFocus}" GotKeyboardFocus="PageBackgroundPath_GotKeyboardFocus" LostFocus="PageBackgroundPath_LostFocus" Margin="0,4,0,6"/>
+                                    <WrapPanel>
+                                        <Button Content="Image..." Command="{Binding BrowsePageImageCommand}" Margin="0,0,6,6"/>
+                                        <Button Content="Folder..." Command="{Binding BrowsePageFolderCommand}" Margin="0,0,6,6"/>
+                                        <Button Content="Clear image/folder" Command="{Binding ClearPageImageCommand}" Margin="0,0,0,6"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="Blur"/>
+                                    <Slider Value="{Binding Settings.Settings.BlurAmount}" Minimum="0" Maximum="100"/>
+                                    <TextBlock Text="Dark overlay opacity" Margin="0,6,0,0"/>
+                                    <Slider Value="{Binding Settings.Settings.OverlayOpacity}" Minimum="0" Maximum="1" TickFrequency="0.01" SmallChange="0.01"/>
+                                    <TextBlock Text="Noise opacity" Margin="0,6,0,0"/>
+                                    <Slider Value="{Binding Settings.Settings.NoiseOpacity}" Minimum="0" Maximum="1" TickFrequency="0.01" SmallChange="0.01"/>
+                                    <TextBlock Text="Refresh interval in minutes (0 = disabled)" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                    <numeric:IntBox Value="{Binding Settings.Settings.BackgroundRefreshInterval}" MinValue="0" Style="{StaticResource {x:Type TextBox}}"/>
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Delete this page" Margin="0,6,0,0">
+                                <StackPanel Margin="8,6,0,8">
+                                    <TextBlock Text="Deleting a page removes its layout and widget settings. At least one page must remain." TextWrapping="Wrap"/>
+                                    <Button Content="Delete page..." Command="{Binding RequestDeletePageCommand}" Margin="0,6,0,0"/>
+                                    <StackPanel Visibility="{Binding ConfirmPageDeletion, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,8,0,0">
+                                        <TextBlock Text="Delete the current page?"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                            <Button Content="Delete" Command="{Binding DeletePageCommand}" Margin="0,0,6,0"/>
+                                            <Button Content="Cancel" Command="{Binding CancelDeletePageCommand}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                        <Button Content="Done" Click="ClosePages_Click" Margin="0,16,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
         <Grid x:Name="AppearanceOverlay" Visibility="Collapsed" Panel.ZIndex="1000"
               Background="#66000000" Focusable="True" KeyboardNavigation.TabNavigation="Cycle"
               PreviewKeyDown="AppearanceOverlay_PreviewKeyDown" MouseDown="AppearanceOverlay_MouseDown">

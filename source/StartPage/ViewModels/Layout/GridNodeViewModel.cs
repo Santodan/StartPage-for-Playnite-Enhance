@@ -182,7 +182,9 @@ namespace LandingPage.ViewModels.Layout
                 },
                 v =>
                 {
-                    return v.ViewArgs.AllowMultipleInstances || !v.Model.ActiveViews.Any(vp => vp.PluginId == v.ViewArgs.PluginId && vp.ViewId == v.ViewArgs.ViewId);
+                    return v.ViewArgs.AllowMultipleInstances || !LandingPageExtension.Instance.Settings.DashboardPages.SelectMany(page => page.Layout.Enumerate())
+                        .Select(node => node.ViewProperties).Where(properties => properties != null)
+                        .Any(vp => vp.PluginId == v.ViewArgs.PluginId && vp.ViewId == v.ViewArgs.ViewId);
                 });
 
             public AvailableView(GridNodeViewModel model, StartPageViewArgs args)

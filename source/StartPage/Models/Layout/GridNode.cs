@@ -81,7 +81,7 @@ namespace LandingPage.Models.Layout
             {
                 foreach(var node in child.Enumerate())
                 {
-                    yield return child;
+                    yield return node;
                 }
             }
         }

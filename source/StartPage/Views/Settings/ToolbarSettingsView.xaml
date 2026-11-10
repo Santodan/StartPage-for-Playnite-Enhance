@@ -1,0 +1,149 @@
+﻿<UserControl x:Class="LandingPage.Views.Settings.ToolbarSettingsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:local="clr-namespace:LandingPage.Views.Settings"
+ xmlns:controls="clr-namespace:LandingPage.Controls"
+ xmlns:settings="clr-namespace:LandingPage.Settings"
+ xmlns:numeric="http://gu.se/NumericInput">
+ <UserControl.Resources>
+  <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+  <DataTemplate x:Key="ToolbarOptionTemplate">
+   <StackPanel Orientation="Horizontal">
+    <controls:ToolbarIcon Option="{Binding}" Margin="0,0,8,0"/>
+    <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="{Binding Title}" VerticalAlignment="Center"/>
+   </StackPanel>
+  </DataTemplate>
+ </UserControl.Resources>
+ <StackPanel>
+  <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Add page navigation or native Playnite toolbar items, then choose their order. Native commands keep Playnite's own availability rules." TextWrapping="Wrap" Margin="0,0,0,8"/>
+  <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="The picker includes native toolbar buttons, extension actions, and Sidebar entries such as Aniki Helper. Turn off Show labels for an icon-only toolbar." TextWrapping="Wrap" Margin="0,0,0,8"/>
+  <Expander Header="Toolbar items" IsExpanded="True">
+   <StackPanel Margin="8,6,0,8">
+    <ComboBox x:Name="OptionPicker" ItemsSource="{Binding AvailableOptions, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}" ItemTemplate="{StaticResource ToolbarOptionTemplate}" SelectedValuePath="Id" MaxDropDownHeight="320"/>
+    <Button Content="Add item" Click="AddItem_Click" Margin="0,6,0,6"/>
+    <Button Content="Refresh native items" Click="RefreshItems_Click" Margin="0,0,0,8"/>
+    <ItemsControl ItemsSource="{Binding Items}">
+     <ItemsControl.ItemTemplate>
+      <DataTemplate>
+       <Border BorderBrush="{DynamicResource NormalBrush}" BorderThickness="0,0,0,1" Padding="0,6">
+        <StackPanel>
+         <ComboBox ItemsSource="{Binding AvailableOptions, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}" SelectedValue="{Binding Id, Mode=OneWay}" SelectionChanged="EntrySelectionChanged" SelectedValuePath="Id" ItemTemplate="{StaticResource ToolbarOptionTemplate}" MaxDropDownHeight="320"/>
+         <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Group" Margin="0,4,0,2"/>
+         <ComboBox ItemsSource="{Binding DataContext.Groups, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}" SelectedValue="{Binding GroupId}" SelectedValuePath="Id" DisplayMemberPath="Name"/>
+         <StackPanel Margin="0,6,0,0">
+          <StackPanel.Style>
+           <Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding CanChooseOpenMode}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style>
+          </StackPanel.Style>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Open extension" Margin="0,0,0,2"/>
+          <ComboBox SelectedValue="{Binding OpenMode}" SelectedValuePath="Tag">
+           <ComboBoxItem Content="Automatic (overlay when supported)" Tag="{x:Static settings:ExtensionOpenMode.Automatic}"/>
+           <ComboBoxItem Content="Extension page (when available)" Tag="{x:Static settings:ExtensionOpenMode.ExtensionPage}"/>
+          </ComboBox>
+         </StackPanel>
+         <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Custom label (blank = default)" Margin="0,4,0,2"/>
+         <TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged, Delay=300}"/>
+         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+          <Button Content="&#x2191;" ToolTip="Move earlier" Click="MoveEarlier_Click" Padding="8,2"/>
+          <Button Content="&#x2193;" ToolTip="Move later" Click="MoveLater_Click" Margin="4,0" Padding="8,2"/>
+          <Button Content="Remove" Click="RemoveItem_Click" Padding="8,2"/>
+         </StackPanel>
+        </StackPanel>
+       </Border>
+      </DataTemplate>
+     </ItemsControl.ItemTemplate>
+    </ItemsControl>
+   </StackPanel>
+  </Expander>
+  <Expander Header="Groups and alignment" Margin="0,6,0,0">
+   <StackPanel Margin="8,6,0,8">
+    <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Assign items to groups above. Choose Fill, Fit contents, or Fixed size, then customize each group independently." TextWrapping="Wrap" Margin="0,0,0,6"/>
+    <Button Content="Add group" Click="AddGroup_Click" Margin="0,0,0,6"/>
+    <ItemsControl ItemsSource="{Binding Groups}">
+     <ItemsControl.ItemTemplate>
+      <DataTemplate>
+       <StackPanel Margin="0,4,0,8">
+        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}"/>
+        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Horizontal alignment" Margin="0,4,0,2"/>
+        <ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag">
+         <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/>
+         <ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/>
+         <ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/>
+        </ComboBox>
+        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Vertical alignment" Margin="0,4,0,2"/>
+        <ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
+         <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/>
+         <ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/>
+         <ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
+        </ComboBox>
+        <Expander Header="Group size" Margin="0,6,0,0">
+         <StackPanel Margin="8,6,0,8">
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Width sizing"/>
+          <ComboBox SelectedValue="{Binding WidthSizing}" SelectedValuePath="Tag">
+           <ComboBoxItem Content="Fill available space" Tag="{x:Static settings:ToolbarGroupSizing.Fill}"/>
+           <ComboBoxItem Content="Fit contents" Tag="{x:Static settings:ToolbarGroupSizing.Content}"/>
+           <ComboBoxItem Content="Fixed size" Tag="{x:Static settings:ToolbarGroupSizing.Fixed}"/>
+          </ComboBox>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Fixed width (pixels)" Margin="0,4,0,2"/>
+          <numeric:DoubleBox Value="{Binding Width}" MinValue="24" MaxValue="4000" Style="{StaticResource {x:Type TextBox}}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Height sizing"/>
+          <ComboBox SelectedValue="{Binding HeightSizing}" SelectedValuePath="Tag">
+           <ComboBoxItem Content="Fill available space" Tag="{x:Static settings:ToolbarGroupSizing.Fill}"/>
+           <ComboBoxItem Content="Fit contents" Tag="{x:Static settings:ToolbarGroupSizing.Content}"/>
+           <ComboBoxItem Content="Fixed size" Tag="{x:Static settings:ToolbarGroupSizing.Fixed}"/>
+          </ComboBox>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Fixed height (pixels)" Margin="0,4,0,2"/>
+          <numeric:DoubleBox Value="{Binding Height}" MinValue="24" MaxValue="4000" Style="{StaticResource {x:Type TextBox}}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Share of remaining space (Fill groups)" TextWrapping="Wrap" Margin="0,6,0,2"/>
+          <numeric:DoubleBox Value="{Binding Weight}" MinValue="0.1" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+         </StackPanel>
+        </Expander>
+        <Expander Header="Group appearance" Margin="0,6,0,0">
+         <StackPanel Margin="8,6,0,8">
+          <CheckBox Content="Show background" IsChecked="{Binding ShowBackground}" Foreground="{DynamicResource TextBrush}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Background color" Margin="0,4,0,2"/>
+          <controls:ColorPicker SelectedColor="{Binding Background, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Background opacity" Margin="0,4,0,2"/>
+          <Slider Value="{Binding BackgroundOpacity}" Minimum="0" Maximum="1" SmallChange="0.01" TickFrequency="0.01"/>
+          <numeric:DoubleBox Value="{Binding BackgroundOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Border color" Margin="0,4,0,2"/>
+          <controls:ColorPicker SelectedColor="{Binding BorderColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Border width" Margin="0,4,0,2"/>
+          <numeric:DoubleBox Value="{Binding BorderWidth}" MinValue="0" MaxValue="20" Style="{StaticResource {x:Type TextBox}}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Corner radius" Margin="0,4,0,2"/>
+          <numeric:DoubleBox Value="{Binding CornerRadius}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Internal padding" Margin="0,4,0,2"/>
+          <numeric:DoubleBox Value="{Binding Padding}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Outer spacing" Margin="0,4,0,2"/>
+          <numeric:DoubleBox Value="{Binding Margin}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+          <Button Content="Reset group appearance" Click="ResetGroupAppearance_Click" Margin="0,8,0,0"/>
+         </StackPanel>
+        </Expander>
+        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+         <Button Content="Move earlier" Click="MoveGroupEarlier_Click"/>
+         <Button Content="Move later" Click="MoveGroupLater_Click" Margin="4,0"/>
+         <Button Content="Remove group" Click="RemoveGroup_Click"/>
+        </StackPanel>
+       </StackPanel>
+      </DataTemplate>
+     </ItemsControl.ItemTemplate>
+    </ItemsControl>
+   </StackPanel>
+  </Expander>
+  <Expander Header="Toolbar layout" Margin="0,6,0,0">
+   <StackPanel Margin="8,6,0,8">
+    <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Direction"/>
+    <ComboBox SelectedValue="{Binding Orientation}" SelectedValuePath="Tag">
+     <ComboBoxItem Content="Horizontal" Tag="{x:Static Orientation.Horizontal}"/>
+     <ComboBoxItem Content="Vertical" Tag="{x:Static Orientation.Vertical}"/>
+    </ComboBox>
+    <CheckBox Content="Show icons" IsChecked="{Binding ShowIcons}" Margin="0,6,0,0"/>
+    <CheckBox Content="Show labels" IsChecked="{Binding ShowLabels}" Margin="0,4,0,6"/>
+    <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Text size"/>
+    <numeric:DoubleBox Value="{Binding FontSize}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
+    <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Item spacing" Margin="0,6,0,0"/>
+    <numeric:DoubleBox Value="{Binding Spacing}" MinValue="0" MaxValue="40" Style="{StaticResource {x:Type TextBox}}"/>
+   </StackPanel>
+  </Expander>
+  <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Native dropdowns reuse Playnite's existing menus. A theme that omits a native control may make its item unavailable. Extension buttons appear when supplied by the native toolbar. Manage pages is also available from StartPage's right-click menu." TextWrapping="Wrap" Margin="0,8,0,0"/>
+ </StackPanel>
+</UserControl>

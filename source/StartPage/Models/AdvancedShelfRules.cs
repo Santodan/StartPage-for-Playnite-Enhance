@@ -16,8 +16,12 @@ namespace LandingPage.Models
     public partial class ShelveProperties : IDataErrorInfo
     {
         // WPF displays invalid pattern errors without discarding the user's input.
+        [Playnite.SDK.Data.DontSerialize]
         [Newtonsoft.Json.JsonIgnore]
         public string Error => null;
+        // Playnite's custom resolver includes public indexers unless explicitly excluded.
+        [Playnite.SDK.Data.DontSerialize]
+        [Newtonsoft.Json.JsonIgnore]
         public string this[string columnName]
         {
             get
