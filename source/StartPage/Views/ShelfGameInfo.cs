@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.IO;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -161,7 +162,7 @@ namespace LandingPage.Views
             if (Settings.ShowAchievementTrophy)
             {
                 var row = new DockPanel { Margin = new Thickness(2, 2, 2, 0), ToolTip = label.Text };
-                var trophy = new Path
+                var trophy = new System.Windows.Shapes.Path
                 {
                     Data = Geometry.Parse("M4,2 L16,2 16,7 C16,11 13,14 10,14 C7,14 4,11 4,7 Z M4,4 L1,4 1,7 C1,10 3,11 6,11 L6,9 C4,9 3,8 3,6 L4,6 Z M16,4 L19,4 19,7 C19,10 17,11 14,11 L14,9 C16,9 17,8 17,6 L16,6 Z M9,14 L11,14 11,17 15,17 15,19 5,19 5,17 9,17 Z"),
                     Width = Settings.MetadataIconSize, Height = Settings.MetadataIconSize, Stretch = Stretch.Uniform,
@@ -203,6 +204,8 @@ namespace LandingPage.Views
         private void AddSourceBadge(string name, ImageSource icon)
         {
             if (string.IsNullOrWhiteSpace(name)) return;
+            if (icon == null && Settings.ShowSourceIcon && string.Equals(name, "Playnite", StringComparison.OrdinalIgnoreCase))
+                icon = LoadPlayniteIcon(LandingPageExtension.Instance?.PlayniteApi?.Paths.ApplicationPath);
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(2, 2, 2, 0), ToolTip = name };
             if (Settings.CustomizeMetadataText)
                 row.HorizontalAlignment = Settings.MetadataTextAlignment == TextAlignment.Center ? HorizontalAlignment.Center
@@ -220,6 +223,28 @@ namespace LandingPage.Views
             }
             panel.Children.Add(row);
             Visibility = Visibility.Visible;
+        }
+
+        private static ImageSource playniteIcon;
+        internal static ImageSource LoadPlayniteIcon(string applicationPath)
+        {
+            if (playniteIcon != null) return playniteIcon;
+            if (string.IsNullOrWhiteSpace(applicationPath)) return null;
+            try
+            {
+                var executable = Directory.Exists(applicationPath) ? System.IO.Path.Combine(applicationPath, "Playnite.DesktopApp.exe") : applicationPath;
+                if (!File.Exists(executable)) return null;
+                using (var icon = System.Drawing.Icon.ExtractAssociatedIcon(executable))
+                {
+                    if (icon == null) return null;
+                    var source = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(icon.Handle,
+                        Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+                    source.Freeze();
+                    playniteIcon = source;
+                    return source;
+                }
+            }
+            catch (Exception ex) { LandingPageExtension.logger.Debug(ex, "Unable to load the default Playnite source icon."); return null; }
         }
 
         private async void Refresh()

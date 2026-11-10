@@ -35,6 +35,7 @@
     <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -63,6 +64,8 @@
     <Compile Include="Views\Settings\ImageWidgetSettingsView.xaml.cs"><DependentUpon>ImageWidgetSettingsView.xaml</DependentUpon></Compile>
     <Compile Include="Models\ShelfAchievementProgress.cs" />
     <Compile Include="Views\ShelfGameInfo.cs" />
+    <Compile Include="Models\AdvancedShelfRules.cs" />
+    <Compile Include="Views\AdvancedShelfRulesView.xaml.cs"><DependentUpon>AdvancedShelfRulesView.xaml</DependentUpon></Compile>
     <Compile Include="BusyObservableObject.cs" />
     <Compile Include="Controls\GroupListBox.xaml.cs">
       <DependentUpon>GroupListBox.xaml</DependentUpon>
@@ -326,6 +329,7 @@
     <Page Include="Views\Settings\TextWidgetSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Views\ImageWidgetView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Views\Settings\ImageWidgetSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Views\AdvancedShelfRulesView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Page Include="Controls\GroupListBox.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

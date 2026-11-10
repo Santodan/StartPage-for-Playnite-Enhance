@@ -11,6 +11,7 @@
              xmlns:controls="clr-namespace:LandingPage.Controls"
              xmlns:numeric="http://gu.se/NumericInput"
              xmlns:lp="clr-namespace:LandingPage"
+             xmlns:utils="clr-namespace:LandingPage.Utils"
              xmlns:ext="clr-namespace:PlayniteCommon.Extensions;assembly=felixkmh.PlayniteCommon" 
              xmlns:system="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
@@ -558,13 +559,20 @@
                             <TextBlock Text="" FontFamily="{DynamicResource FontIcoFont}"/>
                         </ToggleButton.Content>
                     </ToggleButton>
-                    <Popup StaysOpen="False" Placement="Right" PlacementTarget="{Binding ElementName=ShelveDockPanel, Path=Tag}" x:Name="SettingsPopup"
-                                                   IsOpen="{Binding Tag.IsChecked, ElementName=ShelveDockPanel, Delay=100}"
+                    <Popup StaysOpen="True" utils:PopupHelper.IsNotTopmost="True" Placement="Right" PlacementTarget="{Binding ElementName=ShelveDockPanel, Path=Tag}" x:Name="SettingsPopup" Opened="ShelfSettings_Opened" Closed="ShelfSettings_Closed"
+                                                   IsOpen="{Binding Tag.IsChecked, ElementName=ShelveDockPanel, Mode=TwoWay, Delay=100}"
                                                    DataContext="{x:Null}">
-                        <Border Background="{DynamicResource PopupBackgroundBrush}" Padding="8" CornerRadius="8" MinWidth="260" MaxWidth="400">
+                        <Border Background="{DynamicResource PopupBackgroundBrush}" Padding="8" CornerRadius="8" MinWidth="260" MaxWidth="400" PreviewKeyDown="ShelfSettings_PreviewKeyDown">
                             <ScrollViewer VerticalScrollBarVisibility="Auto"
                                           MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height, Converter={StaticResource MultiplyConverter}, ConverterParameter=0.8}">
                             <StackPanel Grid.IsSharedSizeScope="True">
+                                <DockPanel Margin="2,2,2,8">
+                                    <Button Content="Close" DockPanel.Dock="Right" Click="CloseShelfSettings_Click" Padding="10,3"/>
+                                    <TextBlock Text="Shelf settings" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="Shelf appearance" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
                                 <TextBox Text="{Binding ShelveProperties.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
                                 <TextBlock Text="Display style" Margin="2,8,2,2"/>
                                 <ComboBox SelectedValue="{Binding ShelveProperties.DisplayStyle}" SelectedValuePath="Tag" Margin="2">
@@ -576,6 +584,8 @@
                                 <TextBlock Text="Card width (grid/list/wide styles)" Margin="2,6,2,2"/>
                                 <numeric:DoubleBox Value="{Binding ShelveProperties.CardWidth, UpdateSourceTrigger=PropertyChanged}" MinValue="80" MaxValue="500" Margin="2" Style="{StaticResource {x:Type TextBox}}"/>
 
+                                    </StackPanel>
+                                </Expander>
                                 <Expander Header="Metadata and badges" Margin="2,8,2,4" Foreground="{DynamicResource TextBrush}">
                                     <StackPanel>
                                         <TextBlock Text="Info placement" Margin="0,4,0,2"/>
@@ -647,15 +657,30 @@
                                         <numeric:DoubleBox Value="{Binding ShelveProperties.MetadataIconSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
                                     </StackPanel>
                                 </Expander>
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,6,2,6">
+                                    <Expander.Header><TextBlock Text="Advanced rules" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <local:AdvancedShelfRulesView DataContext="{Binding ShelveProperties}"/>
+                                </Expander>
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="Filters" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="Availability" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
                                 <CheckBox Content="{DynamicResource LOCGameIsGameInstalledTitle}" IsChecked="{Binding ShelveProperties.InstalledOnly}" Margin="2"/>
                                 <CheckBox Content="{DynamicResource LOCQuickFilterFavorites}" IsChecked="{Binding ShelveProperties.FavoritesOnly}" Margin="2"/>
                                 <CheckBox Content="{DynamicResource LOC_SPG_IgnoreHidden}" IsChecked="{Binding ShelveProperties.IgnoreHidden}" Margin="2"/>
+                                    </StackPanel>
+                                </Expander>
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="{DynamicResource LOCPlatformsTitle}" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{DynamicResource LOCPlatformsTitle}" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Platforms}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
@@ -672,7 +697,30 @@
                                         <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{DynamicResource LOCGenresLabel}" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <ComboBox ItemsSource="{Binding ExcludedPlatforms}" Margin="2" Grid.Column="1"
+                                                                      StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
+                                                                      TextSearch.TextPath="Name">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="{DynamicResource LOCGenresLabel}" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Genres}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
@@ -689,7 +737,30 @@
                                         <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{DynamicResource LOCCategoriesLabel}" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <ComboBox ItemsSource="{Binding ExcludedGenres}" Margin="2" Grid.Column="1"
+                                                                      StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
+                                                                      TextSearch.TextPath="Name">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="{DynamicResource LOCCategoriesLabel}" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Categories}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
@@ -706,7 +777,30 @@
                                         <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{DynamicResource LOCTagsLabel}" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <ComboBox ItemsSource="{Binding ExcludedCategories}" Margin="2" Grid.Column="1"
+                                                                      StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
+                                                                      TextSearch.TextPath="Name">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="{DynamicResource LOCTagsLabel}" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Tags}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
@@ -723,7 +817,30 @@
                                         <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{DynamicResource LOCFeaturesLabel}" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <ComboBox ItemsSource="{Binding ExcludedTags}" Margin="2" Grid.Column="1"
+                                                                      StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
+                                                                      TextSearch.TextPath="Name">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="{DynamicResource LOCFeaturesLabel}" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Features}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
@@ -740,7 +857,30 @@
                                         <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{DynamicResource LOCCompletionStatus}" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <ComboBox ItemsSource="{Binding ExcludedFeatures}" Margin="2" Grid.Column="1"
+                                                                      StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
+                                                                      TextSearch.TextPath="Name">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="{DynamicResource LOCCompletionStatus}" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding CompletionStatus}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
@@ -757,7 +897,30 @@
                                         <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{DynamicResource LOCSourcesLabel}" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <ComboBox ItemsSource="{Binding ExcludedCompletionStatus}" Margin="2" Grid.Column="1"
+                                                                      StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
+                                                                      TextSearch.TextPath="Name">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                    </StackPanel>
+                                </Expander>
+
+                                <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
+                                    <Expander.Header><TextBlock Text="{DynamicResource LOCSourcesLabel}" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Sources}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
@@ -769,12 +932,36 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition SharedSizeGroup="FilterLabelWidht"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
+                                    <ComboBox ItemsSource="{Binding ExcludedSources}" Margin="2" Grid.Column="1"
+                                                                      StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
+                                                                      TextSearch.TextPath="Name">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+                                    </StackPanel>
+                                </Expander>
+
                                 <Button Margin="2" Content="{DynamicResource LOCClearFilters}" Command="{Binding ResetFiltersCommand}" Padding="2"/>
+                                    </StackPanel>
+                                </Expander>
+                                <TextBlock Text="Game count and sorting" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Margin="2,8,2,3"/>
+                                    <StackPanel Margin="0,5,0,0">
+                                <CheckBox Content="Show all matching games" IsChecked="{Binding ShelveProperties.UnlimitedGames}" Margin="2,4,2,6"/>
                                 <DockPanel LastChildFill="False">
                                     <TextBlock Text="{DynamicResource LOC_SPG_NumberOfGames}" VerticalAlignment="Center" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <numeric:IntBox Value="{Binding ShelveProperties.NumberOfGames, UpdateSourceTrigger=PropertyChanged}" Margin="2"
                                                                             MinValue="0"
-                                                                            MaxValue="30"
                                                                             MinWidth="30"
                                                                             ValidationTrigger="PropertyChanged"
                                                                             Style="{StaticResource {x:Type TextBox}}"
@@ -783,7 +970,6 @@
                                     <TextBlock Text="{DynamicResource LOC_SPG_SkippedGames}" VerticalAlignment="Center" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <numeric:IntBox Value="{Binding ShelveProperties.SkippedGames, UpdateSourceTrigger=PropertyChanged}" Margin="2"
                                                                             MinValue="0"
-                                                                            MaxValue="30"
                                                                             MinWidth="30"
                                                                             ValidationTrigger="PropertyChanged"
                                                                             Style="{StaticResource {x:Type TextBox}}"
@@ -803,6 +989,9 @@
                                     <TextBlock Margin="2" Text="{DynamicResource LOCMenuGroupByTitle}" DockPanel.Dock="Left" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
                                     <ComboBox Margin="2" ItemsSource="{Binding Source={ext:EnumBindingSource {x:Type lpm:GroupingField}}}" SelectedItem="{Binding ShelveProperties.GroupBy}" Text="Grouping" DockPanel.Dock="Right"/>
                                 </DockPanel>
+                                    </StackPanel>
+                                <TextBlock Text="Shelf actions" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Margin="2,8,2,3"/>
+                                    <StackPanel Margin="0,5,0,0">
                                 <Button Margin="2" Padding="2"
                                                                 Command="{Binding RelativeSource={RelativeSource AncestorType=local:ShelvesView, Mode=FindAncestor}, Path=DataContext.ExtendShelveCommand}"
                                                                 CommandParameter="{Binding .}">
@@ -838,6 +1027,7 @@
                                         </Button.Content>
                                     </Button>
                                 </Grid>
+                                    </StackPanel>
                             </StackPanel>
                             </ScrollViewer>
                         </Border>

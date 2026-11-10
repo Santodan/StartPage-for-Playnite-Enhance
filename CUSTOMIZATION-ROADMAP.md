@@ -8,7 +8,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 4. [x] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
 5. [x] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
 6. [x] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
-7. [ ] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
+7. [x] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
 8. [ ] **Multiple dashboard pages.** Named pages with independent layouts/backgrounds and convenient page switching.
 9. [ ] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
 10. [ ] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
@@ -17,6 +17,8 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 13. [ ] **Achievement dashboard.** Per-game completion, recently completed games, closest-to-completion games, and pinned goals, using available achievement-provider data.
 14. [ ] **Shortcut widget.** Configurable game, application, folder, and website buttons with labels and icons.
 15. [ ] **Divider/spacer widget.** Configurable separator lines and empty space for composing sections.
+16. [ ] **Remove limit from game shelves and achievements.** Shelf count/skip caps removed; unlimited shelf option added. Achievement limits remain pending.
+17. [ ] **Background options**
 
 ## First change: testing in Playnite
 
@@ -87,3 +89,21 @@ Build verification does not replace visual testing in Playnite. Rounded corners 
 - Try changing a game's favorite/installation status, restart Playnite, and check the options persist. Use the appearance palette to recolor text and progress highlights.
 - Shelf settings can scroll when the expanded options exceed the available height.
 - Release build and rendered-view/provider checks passed; user testing completed and the user authorized the commit.
+
+## Seventh change: testing in Playnite
+
+- Open an individual shelf's settings popup and expand **Advanced rules**.
+- Enable **Never played only**, set a minimum inactivity age, or set minimum/maximum days since added. Date endpoints are inclusive calendar days; zero means today. Missing dates do not match enabled date rules.
+- Inactivity omits never-played games unless **Include never-played games in inactivity rule** is enabled. Never played means zero recorded playtime and no last played date.
+- Under **Filters**, expand a group (categories, tags, genres, platforms, sources, features, or completion statuses) and use its separate **Include** and **Exclude** pickers. Both lists can be populated at once; exclusions always win. Existing selections saved with the earlier exclude mode are preserved as separate exclusions.
+- Choose **All groups** or **Any group** for active include groups. Optionally require all selected values within multi-value groups. Exclusions always veto matches; date/activity and installed/favorite/hidden rules always apply.
+- Example: to find installed games you have not played for 90 days, enable Installed only and minimum inactivity 90. To combine tag rules, choose a required tag under Tags > Include and an unwanted tag under Tags > Exclude.
+- Empty selections remain unrestricted. Existing shelves keep their previous all-groups/any-value behavior until these options change. Reset filters also resets advanced rules and clears separate exclusions.
+- Shelf settings use collapsible sections except **Game count and sorting** and **Shelf actions**, which stay visible. The popup follows Playnite behind other applications when focus changes. Close it with an outside click inside Playnite, **Close**, **Escape**, or its shelf toggle. **Game count and sorting** accepts counts/skips above 30 and offers **Show all matching games**; the skipped-game count still applies.
+- The Playnite source badge now uses the default icon embedded in the Playnite executable when no library icon is available.
+- Automated checks: `powershell.exe -STA -ExecutionPolicy Bypass -File tests/Test-AdvancedShelfRules.ps1` after a Release build.
+- Release build, rule tests, pattern tests, and rendered shelf regression checks passed; user testing completed and the user authorized the commit.
+
+Advanced shelf rules also support separate include/exclude wildcard patterns for game names and recorded installation directories. One pattern per line; `*` matches any characters, `?` one character; case is ignored. Path separators are normalized. These restrictions always apply independently of ID-group All/Any mode, exclusions win, and reset clears all patterns.
+
+Pattern filters now cover 21 fields, with independent include/exclude boxes, extended glob sets/ranges, optional regular expressions with timeout, literal/contains/starts/ends helpers, missing-value matching, and inline validation. See [the shelf pattern guide](docs/SHELF-PATTERNS.md). The pattern panel has a `?` button pointing to that guide on the fork?s GitHub master branch; publication awaits an explicitly requested commit/push.

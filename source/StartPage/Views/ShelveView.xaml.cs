@@ -29,11 +29,55 @@ namespace LandingPage.Views
         {
             InitializeComponent();
             Loaded += (sender, args) => ObserveShelf();
-            Unloaded += (sender, args) => StopObservingShelf();
+            Unloaded += (sender, args) => { CloseShelfSettings(); StopObservingShelf(); };
             DataContextChanged += (sender, args) => { StopObservingShelf(); if (IsLoaded) ObserveShelf(); };
         }
 
         private ShelveProperties observedShelf;
+
+        private void CloseShelfSettings()
+        {
+            if (Template?.FindName("ShelveDockPanel", this) is DockPanel dock
+                && dock.Tag is System.Windows.Controls.Primitives.ToggleButton toggle)
+                toggle.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, false);
+            if (Template?.FindName("SettingsPopup", this) is System.Windows.Controls.Primitives.Popup popup)
+                popup.SetCurrentValue(System.Windows.Controls.Primitives.Popup.IsOpenProperty, false);
+        }
+
+        private Window settingsOwner;
+
+        private void ShelfSettings_Opened(object sender, EventArgs e)
+        {
+            ShelfSettings_Closed(sender, e);
+            settingsOwner = Window.GetWindow(this);
+            settingsOwner?.AddHandler(Mouse.PreviewMouseDownEvent,
+                new MouseButtonEventHandler(SettingsOwner_PreviewMouseDown), true);
+        }
+
+        private void ShelfSettings_Closed(object sender, EventArgs e)
+        {
+            settingsOwner?.RemoveHandler(Mouse.PreviewMouseDownEvent,
+                new MouseButtonEventHandler(SettingsOwner_PreviewMouseDown));
+            settingsOwner = null;
+        }
+
+        private void SettingsOwner_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!(Template?.FindName("SettingsPopup", this) is System.Windows.Controls.Primitives.Popup popup)
+                || !popup.IsOpen) return;
+            // Popup content has its own presentation source; only dismiss clicks in the owner.
+            if (e.OriginalSource is Visual visual
+                && PresentationSource.FromVisual(visual) == PresentationSource.FromVisual(settingsOwner)
+                && !(popup.PlacementTarget?.IsMouseOver ?? false))
+                CloseShelfSettings();
+        }
+
+        private void CloseShelfSettings_Click(object sender, RoutedEventArgs e) => CloseShelfSettings();
+
+        private void ShelfSettings_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape) { CloseShelfSettings(); e.Handled = true; }
+        }
         private ItemsPanelTemplate originalPanel;
         private ItemsPanelTemplate originalGroupPanel;
         private DataTemplate originalItemTemplate;

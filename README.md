@@ -15,6 +15,10 @@ Each panel can have a view attached to it and views can be swapped in Edit Mode 
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C1C6CH5IN)
 
+## Shelf pattern filters
+
+See the [shelf pattern guide](docs/SHELF-PATTERNS.md) for wildcard syntax, supported fields, and examples. The **?** button under **Shelf settings ? Advanced rules ? Pattern filters** opens that guide on GitHub.
+
 ## Features
 
 - Open StartPage when Playnite launches

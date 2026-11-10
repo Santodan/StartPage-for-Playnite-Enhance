@@ -74,7 +74,7 @@ namespace LandingPage.Models
 
     public enum ShelfDisplayStyle { CoverRow, CoverGrid, CompactList, WideCards }
 
-    public class ShelveProperties : ObservableObject
+    public partial class ShelveProperties : ObservableObject
     {
         private ShelfDisplayStyle displayStyle;
         public ShelfDisplayStyle DisplayStyle { get => displayStyle; set => SetValue(ref displayStyle, value); }
@@ -171,8 +171,11 @@ namespace LandingPage.Models
         private string name = string.Empty;
         public string Name { get => name; set => SetValue(ref name, value); }
 
+        private bool unlimitedGames;
+        public bool UnlimitedGames { get => unlimitedGames; set => SetValue(ref unlimitedGames, value); }
+
         private int numberOfGames = 11;
-        public int NumberOfGames { get => numberOfGames; set => SetValue(ref numberOfGames, value); }
+        public int NumberOfGames { get => numberOfGames; set => SetValue(ref numberOfGames, Math.Max(0, value)); }
 
         private int skippedGames = 0;
         public int SkippedGames { get => Math.Max(0, skippedGames); set => SetValue(ref skippedGames, Math.Max(0, value)); }
