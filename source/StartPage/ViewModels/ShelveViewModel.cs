@@ -515,12 +515,12 @@ namespace LandingPage.ViewModels
             IsBusy = false;
         }
 
-        public async Task UpdateGamesAsync(ShelveProperties shelveProperties, bool manualUpdate = false)
+        public async Task UpdateGamesAsync(ShelveProperties shelveProperties, bool manualUpdate = false, IReadOnlyList<Game> librarySnapshot = null)
         {
             var needsUpdate = manualUpdate;
             needsUpdate |= Games.Count == 0;
             needsUpdate |= ShelveProperties.SortBy != SortingField.Random;
-            if (Games.Any(g => playniteAPI.Database.Games.Get(g.Game.Id) == null))
+            if (!needsUpdate && Games.Any(g => playniteAPI.Database.Games.Get(g.Game.Id) == null))
             {
                 needsUpdate |= true;
             }
@@ -531,8 +531,12 @@ namespace LandingPage.ViewModels
             IsBusy = true;
             try
             {
-                var gameSelection = await GetGamesAsync(shelveProperties);
+                var selectionWatch = System.Diagnostics.Stopwatch.StartNew();
+                var gameSelection = await GetGamesAsync(shelveProperties, librarySnapshot);
+                ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Shelf selection available: widget {ParentViewModel?.InstanceId}, sort {shelveProperties.SortBy}, {selectionWatch.ElapsedMilliseconds} ms (includes scheduling/UI wait).");
+                var applyWatch = System.Diagnostics.Stopwatch.StartNew();
                 ApplyGameSelection(gameSelection);
+                ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Shelf models applied: widget {ParentViewModel?.InstanceId}, {gameSelection.Count} games, {applyWatch.ElapsedMilliseconds} ms.");
             }
             finally { IsBusy = false; }
         }
@@ -575,15 +579,21 @@ namespace LandingPage.ViewModels
             finally { IsBusy = false; }
         }
 
-        private Task<List<Game>> GetGamesAsync(ShelveProperties shelveProperties)
+        private Task<List<Game>> GetGamesAsync(ShelveProperties shelveProperties, IReadOnlyList<Game> librarySnapshot = null)
         {
-            return Task.Run(() => GetGames(shelveProperties));
+            return Task.Run(() =>
+            {
+                var worker = System.Diagnostics.Stopwatch.StartNew();
+                var selected = GetGames(shelveProperties, librarySnapshot);
+                ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Shelf query worker: widget {ParentViewModel?.InstanceId}, sort {shelveProperties.SortBy}, {worker.ElapsedMilliseconds} ms.");
+                return selected;
+            });
         }
 
-        private List<Game> GetGames(ShelveProperties shelveProperties)
+        private List<Game> GetGames(ShelveProperties shelveProperties, IReadOnlyList<Game> librarySnapshot = null)
         {
             var now = DateTime.Now;
-            IEnumerable<Game> games = playniteAPI.Database.Games.ToList().AsParallel()
+            IEnumerable<Game> games = (librarySnapshot ?? playniteAPI.Database.Games.ToList()).AsParallel()
                 .Where(g => (!g.TagIds?.Contains(LandingPageExtension.Instance.SettingsViewModel.Settings.IgnoreTagId)) ?? true)
                 .Where(g => ShelfFilterRules.Matches(g, shelveProperties, now));
 

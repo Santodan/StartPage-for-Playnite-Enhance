@@ -13,8 +13,16 @@ using Playnite.SDK;
 
 namespace LandingPage.ViewModels
 {
+    public sealed class DashboardTransitionEventArgs : EventArgs
+    {
+        public bool Forward { get; set; }
+    }
+
     public partial class StartPageViewModel
     {
+        public event EventHandler<DashboardTransitionEventArgs> PageTransitionStarting;
+        public event Func<Task> PageTransitionFinishing;
+
         private readonly Dictionary<Guid, GridNodeViewModel> pageRoots = new Dictionary<Guid, GridNodeViewModel>();
         private readonly HashSet<Guid> initializedPages = new HashSet<Guid>();
         private DashboardPage selectedPage;
@@ -23,6 +31,15 @@ namespace LandingPage.ViewModels
         {
             get => selectedPage;
             set { if (value != null && value != selectedPage) _ = SwitchPageAsync(value); }
+        }
+        public Guid SelectedPageId
+        {
+            get => selectedPage?.Id ?? Guid.Empty;
+            set
+            {
+                var page = Pages.FirstOrDefault(item => item.Id == value);
+                if (page != null && page != selectedPage) SelectedPage = page;
+            }
         }
         private bool isSwitchingPage;
         public bool IsSwitchingPage
@@ -56,6 +73,7 @@ namespace LandingPage.ViewModels
             PropertyChanged += (sender, args) =>
             {
                 if (args.PropertyName == nameof(IsLoading)) OnPropertyChanged(nameof(CanChangePages));
+                if (args.PropertyName == nameof(SelectedPage)) OnPropertyChanged(nameof(SelectedPageId));
                 // WPF otherwise waits for mouse/keyboard input to requery RelayCommand.
                 // Re-enable navigation as soon as switching/loading completes.
                 if (args.PropertyName == nameof(CanChangePages) || args.PropertyName == nameof(SelectedPage)
@@ -196,22 +214,28 @@ namespace LandingPage.ViewModels
         {
             if (page == null || page == SelectedPage || !Pages.Contains(page) || !CanChangePages)
             { OnPropertyChanged(nameof(SelectedPage)); return; }
+            navigationSaveTimer?.Stop();
             IsSwitchingPage = true;
             IsLoading = true;
             var previous = SelectedPage;
             var previousRoot = RootNodeViewModel;
             var switchWatch = System.Diagnostics.Stopwatch.StartNew();
+            ExtensionDiagnostics.Record(plugin, $"Switch start: '{previous?.Name}' -> '{page.Name}', cached layout: {initializedPages.Contains(page.Id)}.");
             long backgroundMilliseconds = 0;
             try
             {
+                PageTransitionStarting?.Invoke(this, new DashboardTransitionEventArgs { Forward = Pages.IndexOf(page) > Pages.IndexOf(previous) });
                 // Capture the outgoing projection before installing the next background.
                 // Neither widget shutdown nor settings serialization should hold the old
                 // page's artwork on screen while the destination is loading.
                 CaptureCurrentPage();
                 ApplyPageBackground(page);
                 backgroundMilliseconds = switchWatch.ElapsedMilliseconds;
-                await Dispatcher.Yield(DispatcherPriority.Background);
+                // Do not wait at Background priority with the old dashboard attached:
+                // rendering/input from that page can starve the switch continuation.
+                ExtensionDiagnostics.Record(plugin, $"Background applied: {switchWatch.ElapsedMilliseconds} ms.");
                 await HidePageAsync(false);
+                ExtensionDiagnostics.Record(plugin, $"Outgoing widgets hidden: {switchWatch.ElapsedMilliseconds} ms.");
                 ConfirmPageDeletion = false;
                 selectedPage = page;
                 Settings.Settings.ActiveDashboardPageId = page.Id;
@@ -220,6 +244,7 @@ namespace LandingPage.ViewModels
                     pageRoots[page.Id] = root = new GridNodeViewModel(page.Layout);
                 RootNodeViewModel = root;
                 OnPropertyChanged(nameof(SelectedPage));
+                ExtensionDiagnostics.Record(plugin, $"Destination layout attached: {switchWatch.ElapsedMilliseconds} ms.");
                 if (initializedPages.Contains(page.Id))
                 {
                     if (isPageVisible) await OpenPageAsync();
@@ -227,14 +252,15 @@ namespace LandingPage.ViewModels
                 else
                 {
                     await root.InititalizeGrid();
+                    ExtensionDiagnostics.Record(plugin, $"Destination layout initialized: {switchWatch.ElapsedMilliseconds} ms.");
                     await InitializeAndOpenViews();
                     initializedPages.Add(page.Id);
                     if (!isPageVisible) await HidePageAsync();
                 }
                 // Let the destination render before serializing profiles/settings;
                 // rapid navigation only needs to persist the final active page.
-                QueueNavigationSave();
-                LandingPageExtension.logger?.Debug($"Dashboard switch '{page.Name}': background selected {backgroundMilliseconds} ms; ready {switchWatch.ElapsedMilliseconds} ms.");
+                var timing = $"Dashboard switch '{page.Name}': background selected {backgroundMilliseconds} ms; ready {switchWatch.ElapsedMilliseconds} ms.";
+                LandingPageExtension.logger?.Debug(timing);
             }
             catch (Exception ex)
             {
@@ -248,7 +274,20 @@ namespace LandingPage.ViewModels
                 if (isPageVisible) await OpenPageAsync();
                 playniteAPI.Dialogs.ShowErrorMessage("Unable to switch dashboard page. Your previous page has been restored.", "Dashboard pages");
             }
-            finally { IsLoading = false; IsSwitchingPage = false; }
+            finally
+            {
+                try
+                {
+                    if (PageTransitionFinishing != null)
+                        foreach (Func<Task> finish in PageTransitionFinishing.GetInvocationList()) await finish();
+                }
+                finally
+                {
+                    IsLoading = false; IsSwitchingPage = false;
+                    ExtensionDiagnostics.Record(plugin, $"Switch complete (including transition): {switchWatch.ElapsedMilliseconds} ms.");
+                    QueueNavigationSave();
+                }
+            }
         }
 
         private LandingPageSettings observedPageSettings;

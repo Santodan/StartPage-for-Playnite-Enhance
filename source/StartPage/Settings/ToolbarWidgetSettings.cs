@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Windows.Controls;
 using System.Windows;
@@ -73,6 +73,8 @@ namespace LandingPage.Settings
         public VerticalAlignment VerticalAlignment { get => verticalAlignment; set => SetValue(ref verticalAlignment, value); }
     }
 
+    public enum NotificationBadgeStyle { Count, Dot }
+
     public class ToolbarWidgetSettings : ObservableObjectExt
     {
         public event EventHandler NativeRefreshRequested;
@@ -85,6 +87,8 @@ namespace LandingPage.Settings
         public ObservableCollection<ToolbarEntry> Items { get => items; set => SetValue(ref items, value ?? Defaults()); }
         private Orientation orientation = Orientation.Horizontal;
         public Orientation Orientation { get => orientation; set => SetValue(ref orientation, value); }
+        private NotificationBadgeStyle notificationBadgeStyle = NotificationBadgeStyle.Dot;
+        public NotificationBadgeStyle NotificationBadgeStyle { get => notificationBadgeStyle; set => SetValue(ref notificationBadgeStyle, value); }
         private bool showLabels = true;
         public bool ShowLabels { get => showLabels; set => SetValue(ref showLabels, value); }
         private bool showIcons = true;

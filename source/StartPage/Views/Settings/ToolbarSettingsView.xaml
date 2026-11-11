@@ -17,6 +17,12 @@
  <StackPanel>
   <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Add page navigation or native Playnite toolbar items, then choose their order. Native commands keep Playnite's own availability rules." TextWrapping="Wrap" Margin="0,0,0,8"/>
   <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="The picker includes native toolbar buttons, extension actions, and Sidebar entries such as Aniki Helper. Turn off Show labels for an icon-only toolbar." TextWrapping="Wrap" Margin="0,0,0,8"/>
+  <TextBlock Text="Notification badge" Margin="0,4,0,4"/>
+  <ComboBox SelectedValue="{Binding NotificationBadgeStyle}" SelectedValuePath="Tag" Margin="0,0,0,8">
+   <ComboBoxItem Content="Dot" Tag="{x:Static settings:NotificationBadgeStyle.Dot}"/>
+   <ComboBoxItem Content="Count" Tag="{x:Static settings:NotificationBadgeStyle.Count}"/>
+  </ComboBox>
+  <TextBlock Text="The badge is hidden when there are no notifications." TextWrapping="Wrap" Margin="0,0,0,8"/>
   <Expander Header="Toolbar items" IsExpanded="True">
    <StackPanel Margin="8,6,0,8">
     <ComboBox x:Name="OptionPicker" ItemsSource="{Binding AvailableOptions, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}" ItemTemplate="{StaticResource ToolbarOptionTemplate}" SelectedValuePath="Id" MaxDropDownHeight="320"/>

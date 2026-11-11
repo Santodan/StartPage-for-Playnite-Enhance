@@ -1,4 +1,4 @@
-using LandingPage.Converters;
+﻿using LandingPage.Converters;
 using PlayniteCommon.Extensions;
 using LandingPage.Models;
 using LandingPage.Models.GameActivity;
@@ -107,7 +107,7 @@ namespace LandingPage.ViewModels.GameActivity
                 BindSettings();
                 await RefreshSafelyAsync();
             }
-            else if (e.PropertyName == nameof(LandingPageSettings.SkipGamesInPreviousMostPlayed) || e.PropertyName == nameof(LandingPageSettings.ShowHiddenInMostPlayed))
+            else if (e.PropertyName == nameof(LandingPageSettings.SkipGamesInPreviousMostPlayed) || e.PropertyName == nameof(LandingPageSettings.ShowHiddenInMostPlayed) || e.PropertyName == nameof(LandingPageSettings.IgnoreMostPlayedTagId))
             {
                 ++settingsRevision;
                 await RefreshSafelyAsync();

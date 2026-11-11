@@ -253,8 +253,10 @@ namespace LandingPage.ViewModels.Layout
                 {
                     if (!(viewProperties.view is FrameworkElement))
                     {
+                        var initializeWatch = System.Diagnostics.Stopwatch.StartNew();
                         InitializeView();
                         await InitializeViewAsync();
+                        ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Dashboard widget '{viewProperties.ViewId}' initialize: {initializeWatch.ElapsedMilliseconds} ms.");
                     }
                 }
                 catch (Exception ex)
@@ -279,6 +281,7 @@ namespace LandingPage.ViewModels.Layout
 
         public async Task OpenViewAsync()
         {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             if (GridNode?.ViewProperties?.view is IAsyncStartPageControl asyncControl)
             {
                 await asyncControl.OnViewShownAsync();
@@ -287,6 +290,9 @@ namespace LandingPage.ViewModels.Layout
             {
                 await asyncContext.OnViewShownAsync();
             }
+            var timing = $"Dashboard widget '{GridNode?.ViewProperties?.ViewId}' open: {watch.ElapsedMilliseconds} ms.";
+            if (watch.ElapsedMilliseconds >= 100) LandingPageExtension.logger?.Debug(timing);
+            else ExtensionDiagnostics.Record(LandingPageExtension.Instance, timing);
         }
 
         public void OpenView()

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -159,7 +159,8 @@ namespace LandingPage.Views
                     if (model != null)
                     {
                         box.SetBinding(ItemsControl.ItemsSourceProperty, new Binding(nameof(model.Pages)) { Source = model });
-                        box.SetBinding(Selector.SelectedItemProperty, new Binding(nameof(model.SelectedPage)) { Source = model, Mode = BindingMode.TwoWay });
+                        box.SelectedValuePath = "Id";
+                        box.SetBinding(Selector.SelectedValueProperty, new Binding(nameof(model.SelectedPageId)) { Source = model, Mode = BindingMode.TwoWay });
                         box.SetBinding(IsEnabledProperty, new Binding(nameof(model.CanChangePages)) { Source = model });
                     }
                     else box.IsEnabled = false;
@@ -173,6 +174,27 @@ namespace LandingPage.Views
                     var binding = property == null ? null : BindingOperations.GetBindingBase(source, property);
                     if (binding != null) box.SetBinding(TextBox.TextProperty, binding); else box.IsEnabled = false;
                     control = box;
+                }
+                else if (option.Id == "native.notifications" && model != null)
+                {
+                    var content = new StackPanel { Orientation = Orientation.Horizontal };
+                    content.Children.Add((UIElement)ButtonContent(option, title));
+                    var count = new TextBlock { Margin = new Thickness(5,0,0,0), VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.Bold };
+                    count.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
+                    count.SetBinding(TextBlock.TextProperty, new Binding(nameof(model.NotificationCount)) { Source = model,
+                        Converter = new NotificationBadgeTextConverter { BadgeStyle = Settings.NotificationBadgeStyle } });
+                    var badgeStyle = new Style(typeof(TextBlock));
+                    var emptyBadge = new DataTrigger { Binding = new Binding(nameof(model.NotificationCount)) { Source = model }, Value = 0 };
+                    emptyBadge.Setters.Add(new Setter(VisibilityProperty, Visibility.Collapsed));
+                    badgeStyle.Triggers.Add(emptyBadge);
+                    count.Style = badgeStyle;
+                    content.Children.Add(count);
+                    var bell = new ToggleButton { Content = content, ToolTip = title, Padding = new Thickness(8,4,8,4) };
+                    bell.Command = new Playnite.SDK.RelayCommand(() => host.ToggleNotificationsAt(bell));
+                    host.RegisterNotificationAnchor(bell);
+                    bell.Loaded += (sender, args) => host.RegisterNotificationAnchor(bell);
+                    bell.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(model.NotificationsOpen)) { Source = model, Mode = BindingMode.OneWay });
+                    control = bell;
                 }
                 else if (option.Kind == "toggle")
                 {
@@ -277,6 +299,15 @@ namespace LandingPage.Views
             Content = new ScrollViewer { Content = layout, HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0) };
+        }
+
+        private sealed class NotificationBadgeTextConverter : IValueConverter
+        {
+            public NotificationBadgeStyle BadgeStyle { get; set; }
+            public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+                => BadgeStyle == NotificationBadgeStyle.Dot ? "\u25CF" : value?.ToString();
+            public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+                => Binding.DoNothing;
         }
 
         private object ButtonContent(ToolbarOption option, string title)

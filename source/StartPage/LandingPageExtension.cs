@@ -28,7 +28,7 @@ namespace LandingPage
     public class LandingPageExtension : GenericPlugin, IStartPageExtension
     {
 #pragma warning disable IDE0052 // Ungelesene private Member entfernen
-        internal static readonly ILogger logger = LogManager.GetLogger();
+        internal static readonly ILogger logger = new ExtensionDebugLogger(LogManager.GetLogger());
 #pragma warning restore IDE0052 // Ungelesene private Member entfernen
 
         public static LandingPageExtension Instance { get; private set; } = null;
@@ -287,6 +287,7 @@ namespace LandingPage
 
         public override void OnGameSelected(OnGameSelectedEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnGameSelected");
             if (viewModel != null)
             {
                 if (args.NewValue?.FirstOrDefault() is Game last)
@@ -305,11 +306,13 @@ namespace LandingPage
 
         public override void OnGameInstalled(OnGameInstalledEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnGameInstalled");
             // Add code to be executed when game is finished installing.
         }
 
         public override void OnGameStarted(OnGameStartedEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnGameStarted");
             if (RunningGames.Count == 0)
             {
                 if (startPageViewModel != null && Settings.ShowCurrentlyPlayedBackground)
@@ -335,11 +338,13 @@ namespace LandingPage
 
         public override void OnGameStarting(OnGameStartingEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnGameStarting");
             // Add code to be executed when game is preparing to be started.
         }
 
         public override void OnGameStopped(OnGameStoppedEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnGameStopped");
             RunningGames.Remove(args.Game);
             if (startPageViewModel == null)
             {
@@ -367,11 +372,13 @@ namespace LandingPage
 
         public override void OnGameUninstalled(OnGameUninstalledEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnGameUninstalled");
             // Add code to be executed when game is uninstalled.
         }
 
         public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnApplicationStarted");
             Application.Current.Deactivated += OnApplicattionDeactivated;
             // set cover path
             var extensionPath = typeof(LandingPageExtension).Assembly.Location;
@@ -501,6 +508,7 @@ namespace LandingPage
 
         private void SettingsViewModel_SettingsChanged(object sender, LandingPageSettings e)
         {
+            ExtensionDiagnostics.Record(this, "Settings saved.");
             if (e.EnableGlobalBackground)
             {
                 SetGlobalBackground();
@@ -619,6 +627,7 @@ namespace LandingPage
 
         public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnApplicationStopped");
             // Add code to be executed when Playnite is shutting down.
             if (viewModel is LandingPageViewModel)
             {
@@ -668,6 +677,7 @@ namespace LandingPage
 
         public override void OnLibraryUpdated(OnLibraryUpdatedEventArgs args)
         {
+            ExtensionDiagnostics.Record(this, "Lifecycle: OnLibraryUpdated");
             // Add code to be executed when library is updated.
         }
 
@@ -678,6 +688,7 @@ namespace LandingPage
 
         public override UserControl GetSettingsView(bool firstRunSettings)
         {
+            ExtensionDiagnostics.Record(this, "Settings view opened.");
             return new LandingPageSettingsView();
         }
 
@@ -757,6 +768,7 @@ namespace LandingPage
 
         private Task gameActivityTask = Task.CompletedTask;
         private BackgroundView globalBackground;
+        internal BackgroundView GlobalBackgroundView => globalBackground as BackgroundView;
         private bool isViewOpen;
 
         public object GetStartPageView(string id, Guid instanceId)

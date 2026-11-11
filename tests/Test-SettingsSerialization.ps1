@@ -26,6 +26,15 @@ try {
         $mostOptions.Add($option)
     }
     [LandingPage.LandingPageSettings].GetProperty('MostPlayedOptions').SetValue($settings,$mostOptions)
+    [LandingPage.LandingPageSettings].GetProperty('DashboardTransition').SetValue($settings,[LandingPage.DashboardTransition]::Slide)
+    [LandingPage.LandingPageSettings].GetProperty('DashboardSlideDirection').SetValue($settings,[LandingPage.DashboardSlideDirection]::Up)
+    [LandingPage.LandingPageSettings].GetProperty('DashboardTransitionMilliseconds').SetValue($settings,350)
+    [LandingPage.LandingPageSettings].GetProperty('EnableDashboardDiagnostics').SetValue($settings,$true)
+    $customMotion = [LandingPage.Models.DashboardTransitionPreset]::new(); $customMotion.Name = 'Persisted custom transition'
+    $customMotion.Incoming.StartX = 17; $customMotion.Outgoing.DelayMs = 30
+    [LandingPage.LandingPageSettings].GetProperty('DashboardCustomTransition').SetValue($settings,$customMotion)
+    [LandingPage.LandingPageSettings].GetProperty('DashboardTransitionPresets').GetValue($settings).Add([LandingPage.Models.TransitionPresets]::Clone($customMotion))
+
     $rules = [LandingPage.Models.ShelveProperties]::new()
     $rules.IncludedNamePatterns = '*Quest*'; $rules.ExcludedInstallPathPatterns = 'D:\Games\Demos\*'
     $rules.IncludedPublisherNamePatterns = 'glob:*[A-Z]*'
@@ -38,6 +47,7 @@ try {
     [LandingPage.LandingPageSettings].GetProperty('ShelveInstanceSettings').SetValue($settings,$instanceSettings)
     $page = [LandingPage.Models.DashboardPages]::Ensure($settings)
     $properties = [LandingPage.Models.Layout.ViewProperties]::new(); $properties.TextSettings.Text = 'Preserve page widget'
+    $properties.ToolbarSettings.NotificationBadgeStyle = [LandingPage.Settings.NotificationBadgeStyle]::Count
     $toolbarEntry = [LandingPage.Settings.ToolbarEntry]::new(); $toolbarEntry.Id = 'native.sort'; $properties.ToolbarSettings.Items.Add($toolbarEntry)
     $properties.ToolbarSettings.Groups[0].WidthSizing = [LandingPage.Settings.ToolbarGroupSizing]::Fixed; $properties.ToolbarSettings.Groups[0].Width = 280
     $properties.ToolbarSettings.Groups[0].ShowBackground = $true; $properties.ToolbarSettings.Groups[0].Background = '#123456'
@@ -53,6 +63,13 @@ try {
     $rules.NeverPlayedOnly = $false
     $model.CancelEdit()
     $restored = $model.Settings
+    $restoredMotion = [LandingPage.LandingPageSettings].GetProperty('DashboardCustomTransition').GetValue($restored)
+    $savedMotions = [LandingPage.LandingPageSettings].GetProperty('DashboardTransitionPresets').GetValue($restored)
+    if ($restoredMotion.Incoming.StartX -ne 17 -or $savedMotions.Count -ne 1 -or $savedMotions[0].Outgoing.DelayMs -ne 30 -or [object]::ReferenceEquals($restoredMotion,$customMotion)) { throw 'Playnite settings clone lost custom transition data or independence' }
+
+    if (![LandingPage.LandingPageSettings].GetProperty('EnableDashboardDiagnostics').GetValue($restored)) { throw 'Playnite settings clone lost extension debug preference' }
+    if ([LandingPage.LandingPageSettings].GetProperty('DashboardTransition').GetValue($restored) -ne [LandingPage.DashboardTransition]::Slide -or [LandingPage.LandingPageSettings].GetProperty('DashboardSlideDirection').GetValue($restored) -ne [LandingPage.DashboardSlideDirection]::Up -or [LandingPage.LandingPageSettings].GetProperty('DashboardTransitionMilliseconds').GetValue($restored) -ne 350) { throw 'Playnite settings clone lost dashboard transition preferences' }
+
     $mostRestored = [LandingPage.LandingPageSettings].GetProperty('MostPlayedOptions').GetValue($restored)
     if (($mostRestored | ForEach-Object { $_.Timeframe.ToString() }) -join ',' -ne 'Last14Days,Last3Month,Last6Month,LastYear') { throw 'Most Played options duplicated or changed during Playnite settings clone' }
     for ($iteration = 0; $iteration -lt 4; ++$iteration) {
@@ -69,6 +86,7 @@ try {
     $pages = [LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($restored)
     if ($pages.Count -ne 1 -or $pages[0].Layout.ViewProperties.TextSettings.Text -ne 'Preserve page widget') { throw 'Settings cloning lost dashboard page data' }
 
+    if ($pages[0].Layout.ViewProperties.ToolbarSettings.NotificationBadgeStyle -ne [LandingPage.Settings.NotificationBadgeStyle]::Count) { throw 'Playnite settings clone lost notification badge preference' }
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.Items.Count -ne 5 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Items[4].Id -ne 'native.sort') { throw 'Playnite settings clone duplicated or lost toolbar items' }
 
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.Groups.Count -ne 1 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Width -ne 280 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Background -ne '#123456') { throw 'Playnite clone lost or duplicated group sizing/appearance' }
@@ -84,5 +102,10 @@ try {
     if (!([ComponentModel.IDataErrorInfo]$restoredRules)['IncludedNamePatterns']) { throw 'Pattern validation stopped working' }
     # Even invalid user input must be cloneable when opening settings.
     $model.BeginEdit(); $model.CancelEdit()
+    $unchanged = $model.Settings
+    $model.BeginEdit(); $model.CancelEdit()
+    if (![object]::ReferenceEquals($unchanged,$model.Settings)) { throw 'Closing unchanged settings replaced the live dashboard settings' }
+    $model.BeginEdit(); $model.EndEdit()
+    if (![object]::ReferenceEquals($unchanged,$model.Settings)) { throw 'Accepting unchanged settings replaced the live dashboard settings' }
     'PASS: actual Playnite settings BeginEdit/CancelEdit clone, independent shelf rules, page data, validation-property exclusion, and invalid-pattern validation/persistence.'
 } finally { $serializerField.SetValue($null,$previousSerializer) }

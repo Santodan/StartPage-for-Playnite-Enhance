@@ -105,6 +105,8 @@ namespace LandingPage.ViewModels
 
             //Settings.Settings.PropertyChanged += Settings_PropertyChangedAsync;
             Settings.PropertyChanged += Settings_PropertyChanged1Async;
+            observedGlobalSettings = Settings.Settings;
+            observedGlobalSettings.PropertyChanged += GlobalShelfSettingsChanged;
 
             if (!Settings.Settings.ShelveInstanceSettings.ContainsKey(InstanceId))
             {
@@ -193,20 +195,58 @@ namespace LandingPage.ViewModels
             });
         }
 
+        private bool closed;
+        private DateTime refreshedDate;
+        private LandingPageSettings observedGlobalSettings;
+        private bool isVisible;
+        private bool subscribed;
+        private bool hasLoaded;
+        private long libraryRevision;
+        private long refreshedRevision = -1;
+        private readonly System.Threading.SemaphoreSlim refreshGate = new System.Threading.SemaphoreSlim(1, 1);
+
         public async Task UpdateShelvesAsync()
         {
+            if (closed) return;
+            var requestRevision = System.Threading.Interlocked.Increment(ref libraryRevision);
+            await refreshGate.WaitAsync();
             IsBusy = true;
-            foreach (var shelve in ShelveViewModels)
+            var revision = System.Threading.Interlocked.Read(ref libraryRevision);
+            var refreshWatch = System.Diagnostics.Stopwatch.StartNew();
+            try
             {
-                 await shelve.UpdateGamesAsync(shelve.ShelveProperties);
+                if (closed) return;
+                if (hasLoaded && refreshedRevision >= requestRevision)
+                {
+                    ExtensionDiagnostics.Record(plugin, $"Shelf refresh coalesced: widget {InstanceId}.");
+                    return;
+                }
+                var snapshotWatch = System.Diagnostics.Stopwatch.StartNew();
+                var library = await Task.Run(() =>
+                {
+                    var worker = System.Diagnostics.Stopwatch.StartNew();
+                    var snapshot = playniteAPI.Database.Games.ToList();
+                    ExtensionDiagnostics.Record(plugin, $"Library snapshot worker: widget {InstanceId}, {worker.ElapsedMilliseconds} ms.");
+                    return snapshot;
+                });
+                ExtensionDiagnostics.Record(plugin, $"Library snapshot available: widget {InstanceId}, {snapshotWatch.ElapsedMilliseconds} ms (includes scheduling/UI wait).");
+                foreach (var shelve in ShelveViewModels.ToArray())
+                {
+                    if (closed) return;
+                    await shelve.UpdateGamesAsync(shelve.ShelveProperties, false, library);
+                }
+                hasLoaded = true; refreshedRevision = revision; refreshedDate = DateTime.Today;
+                ExtensionDiagnostics.Record(plugin, $"Shelves refreshed: {ShelveViewModels.Count} shelves, {library.Count} library games, {refreshWatch.ElapsedMilliseconds} ms.");
             }
-            IsBusy = false;
+            finally { IsBusy = false; refreshGate.Release(); }
         }
 
         private async void Games_ItemUpdatedAsync(object sender, ItemUpdatedEventArgs<Game> e)
         {
-            if (e.UpdatedItems.Any(u => IsRelevantUpdate(u)))
+            if (e.UpdatedItems.Count > 0)
             {
+                System.Threading.Interlocked.Increment(ref libraryRevision);
+                if (!isVisible) return;
                 dispatcherTimer.Stop();
                 if(e.UpdatedItems.Any(u => u.NewData.LastActivity != u.OldData.LastActivity))
                 {
@@ -233,6 +273,8 @@ namespace LandingPage.ViewModels
         {
             if (e.RemovedItems.Count + e.AddedItems.Count > 0)
             {
+                System.Threading.Interlocked.Increment(ref libraryRevision);
+                if (!isVisible) return;
                 dispatcherTimer.Stop();
                 dispatcherTimer.Start();
             }
@@ -261,6 +303,8 @@ namespace LandingPage.ViewModels
 
         public void Subscribe()
         {
+            if (subscribed) return;
+            subscribed = true;
             playniteAPI.Database.Games.ItemUpdated += Games_ItemUpdatedAsync;
             playniteAPI.Database.Games.ItemCollectionChanged += Games_ItemCollectionChanged;
             Application.Current.MainWindow.Deactivated += MainWindow_Deactivated;
@@ -268,6 +312,8 @@ namespace LandingPage.ViewModels
 
         public void Unsubscribe()
         {
+            if (!subscribed) return;
+            subscribed = false;
             playniteAPI.Database.Games.ItemUpdated -= Games_ItemUpdatedAsync;
             playniteAPI.Database.Games.ItemCollectionChanged -= Games_ItemCollectionChanged;
             Application.Current.MainWindow.Deactivated -= MainWindow_Deactivated;
@@ -277,6 +323,14 @@ namespace LandingPage.ViewModels
         {
             Settings.PropertyChanged -= Settings_PropertyChanged1Async;
             if (Shelves != null) Shelves.PropertyChanged -= Settings_PropertyChangedAsync;
+            if (observedGlobalSettings != null) observedGlobalSettings.PropertyChanged -= GlobalShelfSettingsChanged;
+        }
+
+        private async void GlobalShelfSettingsChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (closed || e.PropertyName != nameof(LandingPageSettings.IgnoreTagId)) return;
+            System.Threading.Interlocked.Increment(ref libraryRevision);
+            if (isVisible) await UpdateShelvesAsync();
         }
 
         private void MainWindow_Deactivated(object sender, EventArgs e)
@@ -289,7 +343,8 @@ namespace LandingPage.ViewModels
         {
             if (e.PropertyName == nameof(LandingPage.Settings.ShelvesSettings.SkipGamesInPreviousShelves))
             {
-                await UpdateShelvesAsync();
+                System.Threading.Interlocked.Increment(ref libraryRevision);
+                if (isVisible) await UpdateShelvesAsync();
             }
         }
 
@@ -297,6 +352,10 @@ namespace LandingPage.ViewModels
         {
             if (e.PropertyName == nameof(LandingPageSettingsViewModel.Settings))
             {
+                if (observedGlobalSettings != null) observedGlobalSettings.PropertyChanged -= GlobalShelfSettingsChanged;
+                observedGlobalSettings = Settings.Settings;
+                observedGlobalSettings.PropertyChanged += GlobalShelfSettingsChanged;
+                System.Threading.Interlocked.Increment(ref libraryRevision);
                 if (Settings.Settings.ShelveInstanceSettings.ContainsKey(InstanceId))
                 {
                     Shelves = Settings.Settings.ShelveInstanceSettings[InstanceId];
@@ -305,7 +364,7 @@ namespace LandingPage.ViewModels
                         ShelveViewModels[i].ShelveProperties = Shelves.ShelveProperties[i];
                         ShelveViewModels[i].ShelveSettings = Shelves;
                     }
-                    await UpdateShelvesAsync();
+                    if (isVisible) await UpdateShelvesAsync();
                 } else
                 {
                     Settings.Settings.ShelveInstanceSettings.Add(InstanceId, Shelves);
@@ -316,8 +375,11 @@ namespace LandingPage.ViewModels
 
         public async Task OnViewShownAsync()
         {
-            await UpdateShelvesAsync();
+            if (closed) return;
+            isVisible = true;
             Subscribe();
+            if (!hasLoaded || refreshedRevision != System.Threading.Interlocked.Read(ref libraryRevision) || refreshedDate != DateTime.Today) await UpdateShelvesAsync();
+            else ExtensionDiagnostics.Record(plugin, $"Shelves cache hit: {ShelveViewModels.Count} shelves.");
         }
 
         public Task InitializeAsync()
@@ -327,12 +389,18 @@ namespace LandingPage.ViewModels
 
         public Task OnViewHiddenAsync()
         {
-            Unsubscribe();
+            isVisible = false;
+            dispatcherTimer.Stop();
+            ShowDetails = false;
+            // Keep lightweight database notifications: hidden pages only become dirty,
+            // and returning to an unchanged page reuses its already loaded shelves.
             return Task.CompletedTask;
         }
 
         public async Task OnDayChangedAsync(DateTime newTime)
         {
+            System.Threading.Interlocked.Increment(ref libraryRevision);
+            if (!isVisible) return;
             await UpdateShelvesAsync();
             foreach(var shelve in ShelveViewModels)
             {
@@ -342,6 +410,9 @@ namespace LandingPage.ViewModels
 
         public void OnViewClosed()
         {
+            closed = true;
+            isVisible = false;
+            dispatcherTimer.Stop();
             Unsubscribe();
             UnsubscribeSettings();
             ShelveViewModels.ForEach(m => m.Games.Clear());

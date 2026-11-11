@@ -1,4 +1,4 @@
-using LandingPage.Converters;
+﻿using LandingPage.Converters;
 using LandingPage.Models;
 using LandingPage.Models.GameActivity;
 using LandingPage.Models.Layout;
@@ -18,6 +18,9 @@ using LandingPage.Settings;
 
 namespace LandingPage
 {
+    public enum DashboardTransition { None, Fade, Slide, SlideFade, ZoomIn, ZoomOut, Wipe, Custom }
+    public enum DashboardSlideDirection { Automatic, Left, Right, Up, Down }
+
     [TypeConverter(typeof(EnumDescriptionTypeConverter))]
     public enum BackgroundImageSource
     {
@@ -65,6 +68,22 @@ namespace LandingPage
 
         private double fixedGridHeight = 1080;
         public double FixedGridHeight { get => fixedGridHeight; set => SetValue(ref fixedGridHeight, value); }
+
+        private DashboardTransitionPreset dashboardCustomTransition = new DashboardTransitionPreset();
+        public DashboardTransitionPreset DashboardCustomTransition { get => dashboardCustomTransition; set => SetValue(ref dashboardCustomTransition, value ?? new DashboardTransitionPreset()); }
+        private ObservableCollection<DashboardTransitionPreset> dashboardTransitionPresets = new ObservableCollection<DashboardTransitionPreset>();
+        [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
+        public ObservableCollection<DashboardTransitionPreset> DashboardTransitionPresets { get => dashboardTransitionPresets; set => SetValue(ref dashboardTransitionPresets, value ?? new ObservableCollection<DashboardTransitionPreset>()); }
+        private DashboardTransition dashboardTransition = DashboardTransition.Fade;
+        public DashboardTransition DashboardTransition { get => dashboardTransition; set => SetValue(ref dashboardTransition, value); }
+        private DashboardSlideDirection dashboardSlideDirection = DashboardSlideDirection.Automatic;
+        public DashboardSlideDirection DashboardSlideDirection { get => dashboardSlideDirection; set => SetValue(ref dashboardSlideDirection, value); }
+        private bool enableDashboardDiagnostics;
+        public bool EnableDashboardDiagnostics { get => enableDashboardDiagnostics; set => SetValue(ref enableDashboardDiagnostics, value); }
+        private bool dashboardRespectWindowsAnimations = true;
+        public bool DashboardRespectWindowsAnimations { get => dashboardRespectWindowsAnimations; set => SetValue(ref dashboardRespectWindowsAnimations, value); }
+        private int dashboardTransitionMilliseconds = 200;
+        public int DashboardTransitionMilliseconds { get => dashboardTransitionMilliseconds; set => SetValue(ref dashboardTransitionMilliseconds, Math.Max(50, Math.Min(1000, value))); }
 
         private ObservableCollection<DashboardProfile> dashboardProfiles = new ObservableCollection<DashboardProfile>();
         public ObservableCollection<DashboardProfile> DashboardProfiles { get => dashboardProfiles; set => SetValue(ref dashboardProfiles, value ?? new ObservableCollection<DashboardProfile>()); }
@@ -248,14 +267,14 @@ namespace LandingPage
         public Guid IgnoreTagId
         {
             get => ignoreTagId;
-            set => ignoreTagId = value;
+            set => SetValue(ref ignoreTagId, value);
         }
 
         private Guid ignoreMostPlayedTagId = Guid.Empty;
         public Guid IgnoreMostPlayedTagId
         {
             get => ignoreMostPlayedTagId;
-            set => ignoreMostPlayedTagId = value;
+            set => SetValue(ref ignoreMostPlayedTagId, value);
         }
 
         private bool showHiddenInMostPlayed = false;
@@ -286,6 +305,7 @@ namespace LandingPage
         public event EventHandler<LandingPageSettings> SettingsChanged;
 
         private readonly LandingPageExtension plugin;
+        public string DebugLogPath => ExtensionDiagnostics.GetPath(plugin ?? LandingPageExtension.Instance);
         private LandingPageSettings editingClone { get; set; }
 
         private LandingPageSettings settings;
@@ -401,25 +421,38 @@ namespace LandingPage
             });
         }
 
+        private string editingSnapshot;
+        private bool SettingsUnchanged() => editingSnapshot != null && Newtonsoft.Json.Linq.JToken.DeepEquals(
+            Newtonsoft.Json.Linq.JToken.Parse(editingSnapshot),
+            Newtonsoft.Json.Linq.JToken.Parse(Serialization.ToJson(Settings, false)));
+
         public void BeginEdit()
         {
             // Code executed when settings view is opened and user starts editing values.
             editingClone = Serialization.GetClone(Settings);
+            editingSnapshot = Serialization.ToJson(Settings, false);
         }
 
         public void CancelEdit()
         {
             // Code executed when user decides to cancel any changes made since BeginEdit was called.
             // This method should revert any changes made to Option1 and Option2.
-            Settings = editingClone;
+            if (editingClone != null && !SettingsUnchanged()) Settings = editingClone;
+            else LandingPageExtension.logger.Debug("Settings closed unchanged; preserving live dashboard and caches.");
+            editingClone = null; editingSnapshot = null;
         }
 
         public void EndEdit()
         {
             // Code executed when user decides to confirm changes made since BeginEdit was called.
             // This method should save settings made to Option1 and Option2.
-            plugin.SavePluginSettings(Settings);
-            SettingsChanged?.Invoke(this, Settings);
+            if (!SettingsUnchanged())
+            {
+                plugin.SavePluginSettings(Settings);
+                SettingsChanged?.Invoke(this, Settings);
+            }
+            else LandingPageExtension.logger.Debug("Settings accepted unchanged; preserving live dashboard and caches.");
+            editingClone = null; editingSnapshot = null;
         }
 
         public bool VerifySettings(out List<string> errors)

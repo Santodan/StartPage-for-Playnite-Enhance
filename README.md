@@ -1,4 +1,4 @@
-# StartPage-for-Playnite
+﻿# StartPage-for-Playnite
 
 [Playnite Add-ons Page](https://playnite.link/addons.html#felixkmh_StartPage_Plugin)
 
@@ -90,3 +90,8 @@ Shows recent achievements. Requires the [SuccessStory](https://github.com/Lacro5
 ![grafik](https://user-images.githubusercontent.com/24227002/166331100-90e1e535-74b1-4618-9cce-03dac4b26fdd.png)
 
 
+
+
+Dashboard page transitions are configurable under **Manage dashboard pages... > Dashboard transitions**. Choose None, Fade or Slide, duration and slide direction. The current dashboard remains visible while the next one prepares. Windows animation preferences are respected by default and can be overridden there.
+
+Custom transition presets can be created and previewed inside **Manage dashboard pages > Dashboard transitions > Custom transition editor**, then saved or shared as JSON. See [Transition presets](docs/TRANSITION-PRESETS.md) and the [Gentle slide example](docs/transition-presets/gentle-slide.json).

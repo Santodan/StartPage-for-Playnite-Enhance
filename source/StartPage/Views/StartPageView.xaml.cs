@@ -10,6 +10,8 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
@@ -25,6 +27,7 @@ namespace LandingPage.Views
             InitializeComponent();
             Unloaded += (sender, args) => { CloseAppearance(); ClosePages(); CloseProfiles(); WatchPageModel(false); };
             Loaded += (sender, args) => WatchPageModel(true);
+            LayoutUpdated += (sender, args) => PositionNotifications();
             DataContextChanged += (sender, args) => WatchPageModel(true);
         }
 
@@ -32,10 +35,276 @@ namespace LandingPage.Views
 
         private void WatchPageModel(bool watch)
         {
-            if (observedPageModel != null) observedPageModel.PropertyChanged -= PageModelChanged;
+            if (observedPageModel != null)
+            {
+                observedPageModel.PropertyChanged -= PageModelChanged;
+                observedPageModel.PageTransitionStarting -= BeginDashboardTransition;
+                observedPageModel.PageTransitionFinishing -= CompleteDashboardTransition;
+            }
+            ResetDashboardTransition();
             observedPageModel = watch ? DataContext as ViewModels.StartPageViewModel : null;
-            if (observedPageModel != null) observedPageModel.PropertyChanged += PageModelChanged;
+            if (observedPageModel != null)
+            {
+                observedPageModel.PropertyChanged += PageModelChanged;
+                observedPageModel.PageTransitionStarting += BeginDashboardTransition;
+                observedPageModel.PageTransitionFinishing += CompleteDashboardTransition;
+            }
         }
+
+        internal Func<bool> DashboardAnimationsEnabled = () => SystemParameters.ClientAreaAnimation;
+        private TaskCompletionSource<bool> transitionCompletion;
+        private DashboardTransition activeTransition;
+        private Models.DashboardTransitionPreset activePreset;
+        private int transitionGeneration;
+        private DashboardSlideDirection activeDirection;
+        private int transitionMilliseconds;
+        private bool transitionForward;
+
+        private void ResetDashboardTransition()
+        {
+            ++transitionGeneration;
+            DashboardScene.BeginAnimation(OpacityProperty, null);
+            DashboardScene.Opacity = 1;
+            DashboardTransitionImage.Clip = null;
+            DashboardTransitionImage.BeginAnimation(OpacityProperty, null);
+            DashboardTransitionImage.RenderTransform = Transform.Identity;
+            DashboardTransitionImage.Opacity = 1;
+            DashboardTransitionImage.Source = null;
+            DashboardTransitionImage.Visibility = Visibility.Collapsed;
+            DashboardScene.RenderTransform = Transform.Identity;
+            DashboardScene.IsHitTestVisible = true;
+            var completion = transitionCompletion; transitionCompletion = null;
+            completion?.TrySetResult(true);
+        }
+
+        private void BeginDashboardTransition(object sender, ViewModels.DashboardTransitionEventArgs args)
+        {
+            ResetDashboardTransition();
+            var settings = observedPageModel?.Settings.Settings;
+            if (!IsLoaded || settings == null || settings.DashboardTransition == DashboardTransition.None
+                || (settings.DashboardRespectWindowsAnimations && !DashboardAnimationsEnabled()) || DashboardScene.ActualWidth < 1 || DashboardScene.ActualHeight < 1) return;
+            try
+            {
+                var bounds = new Rect(0, 0, DashboardScene.ActualWidth, DashboardScene.ActualHeight);
+                var drawing = new DrawingVisual();
+                using (var context = drawing.RenderOpen())
+                {
+                    // Dashboard panels/artwork may be translucent. Flatten them onto
+                    // an opaque theme surface so the incoming page cannot bleed through
+                    // while its widgets are still preparing beneath the snapshot.
+                    context.DrawRectangle(Brushes.Black, null, bounds);
+                    var surfaceBrush = TryFindResource("WindowBackgroundBrush") as Brush ?? Window.GetWindow(this)?.Background;
+                    if (surfaceBrush != null) context.DrawRectangle(surfaceBrush, null, bounds);
+                    // The global background is outside StartPage's visual subtree.
+                    // Include its current viewport so artwork and widgets transition together.
+                    var global = LandingPageExtension.Instance?.GlobalBackgroundView;
+                    if (settings.EnableGlobalBackground && global?.IsVisible == true)
+                    {
+                        var viewport = DashboardScene.TransformToVisual(global).TransformBounds(bounds);
+                        context.DrawRectangle(new VisualBrush(global) { ViewboxUnits = BrushMappingMode.Absolute,
+                            Viewbox = viewport, Stretch = Stretch.Fill }, null, bounds);
+                    }
+                    context.DrawRectangle(new VisualBrush(DashboardScene), null, bounds);
+                }
+                var scale = Math.Min(1, 2048 / Math.Max(bounds.Width, bounds.Height));
+                var bitmap = new RenderTargetBitmap(Math.Max(1, (int)(bounds.Width * scale)), Math.Max(1, (int)(bounds.Height * scale)),
+                    96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                bitmap.Render(drawing); bitmap.Freeze();
+                activeTransition = settings.DashboardTransition;
+                activePreset = activeTransition == DashboardTransition.Custom ? Models.TransitionPresets.Clone(settings.DashboardCustomTransition) : null;
+                activeDirection = settings.DashboardSlideDirection;
+                transitionMilliseconds = settings.DashboardTransitionMilliseconds;
+                transitionForward = args.Forward;
+                DashboardTransitionImage.Source = bitmap;
+                DashboardTransitionImage.Visibility = Visibility.Visible;
+                DashboardScene.IsHitTestVisible = false;
+            }
+            catch (Exception ex)
+            {
+                LandingPageExtension.logger?.Debug(ex, "Unable to capture dashboard transition; switching without animation.");
+                ResetDashboardTransition();
+            }
+        }
+
+        private async Task CompleteDashboardTransition()
+        {
+            if (DashboardTransitionImage.Source == null) return;
+            var generation = transitionGeneration;
+            var presentationWatch = System.Diagnostics.Stopwatch.StartNew();
+            // Let layout/Loaded work run without waiting for the dispatcher to become idle.
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Transition presentation wait: {presentationWatch.ElapsedMilliseconds} ms.");
+            if (generation != transitionGeneration) return;
+            if (!IsLoaded || DashboardTransitionImage.Source == null) { ResetDashboardTransition(); return; }
+            transitionCompletion = new TaskCompletionSource<bool>();
+            var pending = transitionCompletion.Task;
+            var duration = TimeSpan.FromMilliseconds(transitionMilliseconds);
+            if (activeTransition == DashboardTransition.Wipe)
+            {
+                var direction = ResolveTransitionDirection();
+                var width = DashboardScene.ActualWidth; var height = DashboardScene.ActualHeight;
+                var end = direction == DashboardSlideDirection.Left ? new Rect(0,0,0,height)
+                    : direction == DashboardSlideDirection.Right ? new Rect(width,0,0,height)
+                    : direction == DashboardSlideDirection.Up ? new Rect(0,0,width,0) : new Rect(0,height,width,0);
+                var clip = new RectangleGeometry(new Rect(0,0,width,height));
+                DashboardTransitionImage.Clip = clip;
+                var wipe = new RectAnimation(clip.Rect, end, duration) { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut } };
+                wipe.Completed += (sender, args) => { if (generation == transitionGeneration) ResetDashboardTransition(); };
+                clip.BeginAnimation(RectangleGeometry.RectProperty, wipe);
+            }
+            else if (activeTransition == DashboardTransition.Custom || activeTransition == DashboardTransition.SlideFade
+                || activeTransition == DashboardTransition.ZoomIn || activeTransition == DashboardTransition.ZoomOut)
+            {
+                var preset = activePreset ?? BuiltInMotionPreset();
+                AnimateMotionPreset(preset, generation);
+            }
+            else if (activeTransition == DashboardTransition.Fade)
+            {
+                var fade = new DoubleAnimation(1, 0, duration) { FillBehavior = FillBehavior.Stop };
+                fade.Completed += (sender, args) => ResetDashboardTransition();
+                DashboardTransitionImage.BeginAnimation(OpacityProperty, fade);
+            }
+            else
+            {
+                var direction = activeDirection == DashboardSlideDirection.Automatic
+                    ? (transitionForward ? DashboardSlideDirection.Left : DashboardSlideDirection.Right) : activeDirection;
+                var vertical = direction == DashboardSlideDirection.Up || direction == DashboardSlideDirection.Down;
+                var offset = (vertical ? DashboardScene.ActualHeight : DashboardScene.ActualWidth)
+                    * (direction == DashboardSlideDirection.Right || direction == DashboardSlideDirection.Down ? 1 : -1);
+                var outgoing = new TranslateTransform(); var incoming = new TranslateTransform();
+                DashboardTransitionImage.RenderTransform = outgoing; DashboardScene.RenderTransform = incoming;
+                var property = vertical ? TranslateTransform.YProperty : TranslateTransform.XProperty;
+                var easing = new QuadraticEase { EasingMode = EasingMode.EaseInOut };
+                var leave = new DoubleAnimation(0, offset, duration) { EasingFunction = easing, FillBehavior = FillBehavior.Stop };
+                var enter = new DoubleAnimation(-offset, 0, duration) { EasingFunction = easing, FillBehavior = FillBehavior.Stop };
+                enter.Completed += (sender, args) => ResetDashboardTransition();
+                outgoing.BeginAnimation(property, leave); incoming.BeginAnimation(property, enter);
+            }
+            await pending;
+        }
+
+        private DashboardSlideDirection ResolveTransitionDirection() => activeDirection == DashboardSlideDirection.Automatic
+            ? (transitionForward ? DashboardSlideDirection.Left : DashboardSlideDirection.Right) : activeDirection;
+
+        private Models.DashboardTransitionPreset BuiltInMotionPreset()
+        {
+            var preset = new Models.DashboardTransitionPreset { DurationMs = transitionMilliseconds, ReverseOnPrevious = false,
+                Incoming = new Models.TransitionMotion(), Outgoing = new Models.TransitionMotion { EndOpacity = 0 } };
+            if (activeTransition == DashboardTransition.ZoomIn) preset.Incoming.StartScale = 0.90;
+            else if (activeTransition == DashboardTransition.ZoomOut) preset.Outgoing.EndScale = 1.10;
+            else
+            {
+                var direction = ResolveTransitionDirection();
+                var offset = direction == DashboardSlideDirection.Left || direction == DashboardSlideDirection.Up ? -15 : 15;
+                if (direction == DashboardSlideDirection.Up || direction == DashboardSlideDirection.Down)
+                { preset.Outgoing.EndY = offset; preset.Incoming.StartY = -offset; }
+                else { preset.Outgoing.EndX = offset; preset.Incoming.StartX = -offset; }
+                preset.Incoming.StartOpacity = 0;
+            }
+            return preset;
+        }
+
+        private void AnimateMotionPreset(Models.DashboardTransitionPreset preset, int generation)
+        {
+            Models.TransitionPresets.Validate(preset);
+            var sign = preset.ReverseOnPrevious && !transitionForward ? -1 : 1;
+            IEasingFunction easing = null;
+            if (preset.Easing == Models.TransitionEasing.Quadratic) easing = new QuadraticEase { EasingMode = EasingMode.EaseInOut };
+            if (preset.Easing == Models.TransitionEasing.Cubic) easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
+            if (preset.Easing == Models.TransitionEasing.Sine) easing = new SineEase { EasingMode = EasingMode.EaseInOut };
+            Action<FrameworkElement, Models.TransitionMotion, bool> animate = (element, motion, completes) =>
+            {
+                var scale = new ScaleTransform(); var translation = new TranslateTransform();
+                var transforms = new TransformGroup(); transforms.Children.Add(scale); transforms.Children.Add(translation);
+                element.RenderTransformOrigin = new Point(0.5,0.5); element.RenderTransform = transforms;
+                Func<double,double,DoubleAnimation> make = (from,to) => new DoubleAnimation(from,to,TimeSpan.FromMilliseconds(preset.DurationMs))
+                    { BeginTime = TimeSpan.FromMilliseconds(motion.DelayMs), EasingFunction = easing, FillBehavior = FillBehavior.HoldEnd };
+                var opacity = make(motion.StartOpacity,motion.EndOpacity);
+                // Explicit start values also cover the delay before an animation starts.
+                element.Opacity = motion.StartOpacity;
+                scale.ScaleX = scale.ScaleY = motion.StartScale;
+                translation.X = sign * motion.StartX * DashboardScene.ActualWidth / 100;
+                translation.Y = sign * motion.StartY * DashboardScene.ActualHeight / 100;
+                if (completes) opacity.Completed += (sender,args) => { if (generation == transitionGeneration) ResetDashboardTransition(); };
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty,make(motion.StartScale,motion.EndScale));
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty,make(motion.StartScale,motion.EndScale));
+                translation.BeginAnimation(TranslateTransform.XProperty,make(translation.X,sign * motion.EndX * DashboardScene.ActualWidth / 100));
+                translation.BeginAnimation(TranslateTransform.YProperty,make(translation.Y,sign * motion.EndY * DashboardScene.ActualHeight / 100));
+                element.BeginAnimation(OpacityProperty,opacity);
+            };
+            var outgoingLast = preset.Outgoing.DelayMs > preset.Incoming.DelayMs;
+            animate(DashboardTransitionImage,preset.Outgoing,outgoingLast);
+            animate(DashboardScene,preset.Incoming,!outgoingLast);
+        }
+
+        private void TransitionAction(Action action)
+        {
+            try { action(); }
+            catch (Exception ex) { TransitionPresetStatus.Text = ex.Message; LandingPageExtension.logger.Warn(ex,"Transition preset operation failed."); }
+        }
+        private async void PreviewTransition_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(DataContext is ViewModels.StartPageViewModel model) || !model.CanChangePages || transitionCompletion != null) return;
+            try
+            {
+                if (model.Settings.Settings.DashboardTransition == DashboardTransition.Custom) Models.TransitionPresets.Validate(model.Settings.Settings.DashboardCustomTransition);
+                BeginDashboardTransition(this,new ViewModels.DashboardTransitionEventArgs { Forward = true });
+                if (DashboardTransitionImage.Source == null) { TransitionPresetStatus.Text = "Choose a transition and enable animations to preview."; return; }
+                await CompleteDashboardTransition();
+                TransitionPresetStatus.Text = "Preview complete. Switch pages to test with different content.";
+            }
+            catch (Exception ex) { ResetDashboardTransition(); TransitionPresetStatus.Text = ex.Message; }
+        }
+        private void SaveTransitionPreset_Click(object sender, RoutedEventArgs e) => TransitionAction(() =>
+        {
+            var settings = ((ViewModels.StartPageViewModel)DataContext).Settings.Settings;
+            var copy = Models.TransitionPresets.Clone(settings.DashboardCustomTransition);
+            var name = copy.Name;
+            for (var suffix = 2; settings.DashboardTransitionPresets.Any(item => item.Name == copy.Name); ++suffix) copy.Name = name + " (" + suffix + ")";
+            settings.DashboardTransitionPresets.Add(copy); TransitionPresetPicker.SelectedItem = copy;
+            TransitionPresetStatus.Text = "Saved an independent preset: " + copy.Name;
+            ((ViewModels.StartPageViewModel)DataContext).SaveCurrentPage();
+        });
+        private void LoadTransitionPreset_Click(object sender, RoutedEventArgs e) => TransitionAction(() =>
+        {
+            if (!(TransitionPresetPicker.SelectedItem is Models.DashboardTransitionPreset selected)) throw new ArgumentException("Select a saved preset.");
+            var settings = ((ViewModels.StartPageViewModel)DataContext).Settings.Settings;
+            settings.DashboardCustomTransition = Models.TransitionPresets.Clone(selected); settings.DashboardTransition = DashboardTransition.Custom;
+            TransitionPresetStatus.Text = "Loaded " + selected.Name;
+        });
+        private void DeleteTransitionPreset_Click(object sender, RoutedEventArgs e) => TransitionAction(() =>
+        {
+            if (TransitionPresetPicker.SelectedItem is Models.DashboardTransitionPreset selected)
+            {
+                ((ViewModels.StartPageViewModel)DataContext).Settings.Settings.DashboardTransitionPresets.Remove(selected);
+                ((ViewModels.StartPageViewModel)DataContext).SaveCurrentPage();
+                TransitionPresetStatus.Text = "Deleted saved preset. Current transition is unchanged.";
+            }
+        });
+        private void ExportTransitionPreset_Click(object sender, RoutedEventArgs e) => TransitionAction(() =>
+        {
+            var json = Models.TransitionPresets.Export(((ViewModels.StartPageViewModel)DataContext).Settings.Settings.DashboardCustomTransition);
+            var path = LandingPageExtension.Instance.PlayniteApi.Dialogs.SaveFile("Transition preset|*.json");
+            if (!string.IsNullOrWhiteSpace(path)) { System.IO.File.WriteAllText(path,json); TransitionPresetStatus.Text = "Exported " + path; }
+        });
+        private void ImportTransitionPreset_Click(object sender, RoutedEventArgs e) => TransitionAction(() =>
+        {
+            var path = LandingPageExtension.Instance.PlayniteApi.Dialogs.SelectFile("Transition preset|*.json");
+            if (string.IsNullOrWhiteSpace(path)) return;
+            if (new System.IO.FileInfo(path).Length > 65536) throw new ArgumentException("Choose a JSON file smaller than 64 KiB.");
+            var preset = Models.TransitionPresets.Import(System.IO.File.ReadAllText(path));
+            var model = (ViewModels.StartPageViewModel)DataContext;
+            var settings = model.Settings.Settings;
+            var name = preset.Name;
+            for (var suffix = 2; settings.DashboardTransitionPresets.Any(item => string.Equals(item.Name, preset.Name, StringComparison.OrdinalIgnoreCase)); ++suffix)
+                preset.Name = name + " (" + suffix + ")";
+            settings.DashboardTransitionPresets.Add(preset);
+            settings.DashboardCustomTransition = Models.TransitionPresets.Clone(preset);
+            settings.DashboardTransition = DashboardTransition.Custom;
+            TransitionPresetPicker.SelectedItem = preset;
+            model.SaveCurrentPage();
+            TransitionPresetStatus.Text = "Imported and saved preset: " + preset.Name;
+        });
 
         private void PageModelChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
@@ -163,19 +432,53 @@ namespace LandingPage.Views
             }
         }
 
+        private readonly List<WeakReference> notificationAnchors = new List<WeakReference>();
+        private WeakReference notificationAnchor;
+
+        internal void RegisterNotificationAnchor(FrameworkElement anchor)
+        {
+            notificationAnchors.RemoveAll(reference => !(reference.Target is FrameworkElement element) || !element.IsLoaded || ReferenceEquals(element, anchor));
+            notificationAnchors.Add(new WeakReference(anchor));
+            PositionNotifications();
+        }
+
+        internal void ToggleNotificationsAt(FrameworkElement anchor)
+        {
+            notificationAnchor = new WeakReference(anchor);
+            PositionNotifications();
+            (DataContext as ViewModels.StartPageViewModel)?.ToggleNotificationsCommand.Execute(null);
+        }
+
+        private void PositionNotifications()
+        {
+            if (!IsLoaded || NotificationGrid.Visibility != Visibility.Visible) return;
+            var anchor = notificationAnchor?.Target as FrameworkElement;
+            if (anchor == null || !anchor.IsLoaded || !anchor.IsVisible)
+                anchor = notificationAnchors.Select(reference => reference.Target as FrameworkElement)
+                    .FirstOrDefault(element => element?.IsLoaded == true && element.IsVisible);
+            if (anchor == null) return;
+            try
+            {
+                var point = anchor.TranslatePoint(new Point(0, anchor.ActualHeight), this);
+                const double edgePadding = 8;
+                var width = Math.Min(380, Math.Max(0, ActualWidth - 2 * edgePadding));
+                var centeredX = point.X + anchor.ActualWidth / 2 - width / 2;
+                var x = Math.Max(edgePadding, Math.Min(centeredX, ActualWidth - width - edgePadding));
+                var y = Math.Max(0, point.Y + 6);
+                var margin = new Thickness(x, y, 0, 0);
+                if (NotificationGrid.Margin != margin) NotificationGrid.Margin = margin;
+                if (NotificationGrid.Width != width) NotificationGrid.Width = width;
+                var height = Math.Max(0, ActualHeight - y - 8);
+                if (NotificationGrid.MaxHeight != height) NotificationGrid.MaxHeight = height;
+                var listHeight = Math.Min(300, Math.Max(0, height - 130));
+                if (NotificationItemsControl.MaxHeight != listHeight) NotificationItemsControl.MaxHeight = listHeight;
+            }
+            catch (InvalidOperationException) { } // Anchor is detaching during a page change.
+        }
+
         private void ToggleNotifications_Click(object sender, RoutedEventArgs e)
         {
-            if (NotificationsBorder.Tag is Visibility vis)
-            {
-                if (vis == Visibility.Visible)
-                {
-                    NotificationsBorder.Tag = Visibility.Collapsed;
-                }
-                else
-                {
-                    NotificationsBorder.SetBinding(TagProperty, new Binding("Notifications") { Converter = (IValueConverter)Resources["IEnumerableNullOrEmptyToVisibilityConverter"], Mode = BindingMode.OneWay });
-                }
-            }
+            (DataContext as ViewModels.StartPageViewModel)?.ToggleNotificationsCommand.Execute(null);
         }
     }
 }

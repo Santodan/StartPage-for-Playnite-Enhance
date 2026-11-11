@@ -12,7 +12,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 8. [x] **Multiple dashboard pages and toolbar widget.** Named pages with independent layouts/backgrounds. A placeable toolbar supports configurable native Playnite toolbar items, a page selector, previous/next arrows, and page management.
 9. [x] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
 10. [x] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
-11. [ ] **Dashboard transitions.** Optional None/Fade/Slide transitions with duration and direction controls. Prepare the destination before revealing it and coordinate the page/background change. Begin only after the user approves dashboard switching smoothness.
+11. [x] **Dashboard transitions.** Optional None/Fade/Slide transitions with duration and direction controls. Prepare the destination before revealing it and coordinate the page/background change. Begin only after the user approves dashboard switching smoothness.
 12. [ ] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
 13. [ ] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime.
 14. [ ] **Achievement dashboard.** Per-game completion, recently completed games, closest-to-completion games, and pinned goals, using available achievement-provider data.
@@ -179,9 +179,31 @@ Group sizing/appearance: each toolbar group now independently supports Fill/Fit 
 - **Add profile** creates an independent saved copy without changing the running dashboard. **Apply** adds a copy and applies it using the existing automatic backup mechanism. Copies get their own page/widget IDs and shelf settings; editing or applying a copy never alters the template recipe.
 - Starters use built-in widgets, game-artwork backgrounds, and no hardcoded local files or library-specific metadata filters. Current notification/global-background preferences, ignore tags, and achievement-provider selection are respected when the gallery is generated. Saved copies can be exported through the existing JSON profile workflow.
 - Tests: `tests/Test-StarterProfiles.ps1` covers recipe validity, shelf mapping, portability, independent generations, profile round-trip, and distinct rendered previews. `tests/Test-DashboardPages.ps1` covers four gallery page previews, command bindings, adding without applying, and applying with a backup. Run using Windows PowerShell STA after a Release build.
-- Release build and regression tests passed; awaiting user testing. Step 10 remains uncommitted.
+- Release build and regression tests passed; user testing completed. Step 10 and its dashboard fixes were committed as `af89018` with user authorization.
 - Profile crash fix: normalize missing/null Most Played options, detach removed widgets from settings/activity events, and discard refresh results after removal or settings replacement. Regression coverage applies a starter from a second page containing Most Played, including older profiles with null options.
 
 Profile manager follow-up: Apply now defaults to appending independent profile pages, preserving existing page/control identities, the active page and shared settings. Unchecking the option retains full replacement. Saved profiles support Ctrl/Shift multi-selection and bulk deletion with confirmation. Regression tests cover repeated append, unique identities/names, navigation, preservation and bulk deletion through the real WPF list.
 
-Dashboard smoothness follow-up (awaiting user testing): retain decoded local backgrounds in a bounded 64 MiB / eight-image cache with file-change invalidation; decode through the asynchronous background binding; debounce navigation saves until 750 ms after the last switch, while explicit saves and closing StartPage flush immediately. Existing page roots, shelf models and layout templates remain reused. No transition animation is implemented yet.
+Dashboard smoothness follow-up (committed as `af89018`): retain decoded local backgrounds in a bounded 64 MiB / eight-image cache with file-change invalidation; bind cached backgrounds directly without asynchronous binding queue delays; debounce navigation saves until 750 ms after the last switch, while explicit saves and closing StartPage flush immediately. Existing page roots, shelf models and layout templates remain reused.
+
+
+## Eleventh change: dashboard transitions (awaiting user testing)
+
+- Open **Manage dashboard pages... > Dashboard transitions** from the background menu or toolbar.
+- Choose None, Fade (default), or Slide; set duration from 50 to 1000 ms (default 200 ms).
+- Slide direction supports Automatic based on page order, Left, Right, Up, or Down.
+- The outgoing dashboard is captured before background/widget changes and stays visible while the destination prepares. Then the selected animation reveals it. Snapshot resolution is bounded to 2048 pixels on its longest side and released after completion/interruption.
+- Global backgrounds are included in the outgoing snapshot. Page management/profile/settings overlays remain outside the animated surface.
+- Windows animation preferences are respected by default. Uncheck **Follow Windows animation preference** to explicitly enable animations when Windows has disabled them.
+- Preferences are global navigation settings and persist in Playnite settings; applying a profile does not overwrite them. Navigation saves begin after the transition finishes.
+- Tests cover real fade/slide completion, all directions, None, Windows preference/override, interruption cleanup, command release and Playnite settings cloning. Step 11 remains uncommitted until user approval.
+
+
+Dashboard performance follow-up: Game Shelves reuses its loaded results on unchanged revisits, keeps lightweight library notifications while hidden, and defers hidden-page refreshes until needed. Library/settings changes and day changes invalidate the cached results. A widget refresh now shares one library snapshot across its shelves and avoids redundant game lookups for already-required queries. Refreshes are serialized per widget. Per-widget opening times over 100 ms are logged alongside dashboard/background timings. Awaiting user measurements on the installed build; no fixed load-time improvement is claimed.
+
+Additional transition customization has been requested for a follow-up after loading performance is reviewed; keep step 11 open for user feedback before proceeding to step 12.
+
+Extension debug logging follow-up: the dashboard-only diagnostics controls were removed from page management and moved to **Extensions > StartPage > Debug**. The opt-in `startpage-debug.log` captures the extension's logger at every level with exception details, lifecycle callbacks, and widget/dashboard/cache/background timings. The Debug tab shows its full path and opens its folder. Existing dashboard-only files are retained. No separate commit has been made for this follow-up.
+
+
+Step 11 transition customization follow-up: added Slide and fade, Zoom in/out and Wipe alongside the existing Fade/Slide/None modes. Custom presets independently configure incoming/outgoing opacity, X/Y percentage movement, scale and delay, with Linear/Quadratic/Cubic/Sine easing and optional reverse movement for backward navigation. Users can preview without changing pages, save/load/delete independent named presets, and import/export validated versioned JSON. See `docs/TRANSITION-PRESETS.md` and `docs/transition-presets/gentle-slide.json`. Animation parameters remain bounded; no script engine or blur effects were added. Awaiting user testing; no commit authorized for this follow-up.

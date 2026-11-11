@@ -185,6 +185,7 @@ public class DashboardTestProxy : RealProxy
             throw new NotSupportedException(call.MethodName);
         }).GetTransparentProxy();
     }
+    public static int LibraryEnumerations;
     public static IPlayniteAPI Create(string directory, Plugin plugin)
     {
         var paths = new DashboardTestProxy(typeof(IPlaynitePathsAPI), call => directory).GetTransparentProxy();
@@ -194,8 +195,8 @@ public class DashboardTestProxy : RealProxy
         var addons = new DashboardTestProxy(addonsType, call => { var loaded = new List<Plugin> { plugin }; loaded.AddRange(ExtraPlugins); return loaded; }).GetTransparentProxy();
         var games = new DashboardTestProxy(typeof(IItemCollection<Game>), call =>
         {
-            if (call.MethodName == "GetEnumerator") return ((IEnumerable<Game>)new List<Game>()).GetEnumerator();
-            if (call.MethodName == "get_Count") return 0;
+            if (call.MethodName == "GetEnumerator") { System.Threading.Interlocked.Increment(ref LibraryEnumerations); return ((IEnumerable<Game>)new List<Game>()).GetEnumerator(); }
+            if (call.MethodName == "get_Count") { System.Threading.Interlocked.Increment(ref LibraryEnumerations); return 0; }
             if (call.MethodName == "get_IsReadOnly") return false;
             return null;
         }).GetTransparentProxy();
@@ -252,6 +253,9 @@ try {
     # A real StartPage view model saves only inside our unique temporary directory.
     $plugin = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageExtension])
     [LandingPage.LandingPageExtension].GetProperty('Instance').SetValue($null,$plugin)
+    # Startup logging occurs before SettingsViewModel has been assigned.
+    [LandingPage.LandingPageExtension].GetField('logger',[Reflection.BindingFlags]'Static,NonPublic').GetValue($null).Info('Fixture startup before settings initialization')
+
     $api = [DashboardTestProxy]::Create($tempRoot,$plugin)
     [Playnite.SDK.Plugins.Plugin].GetField('PlayniteApi',$flags).SetValue($plugin,$api)
     $settingsModel = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageSettingsViewModel])
@@ -278,7 +282,9 @@ try {
     $probe.BeforeHidden = [Action]{
         $script:backgroundReadyBeforeHide = $background.BackgroundImagePath -eq $pageB.Background.ImageUri -and $background.BackgroundImageQueue.Count -eq 1 -and $background.BackgroundImageQueue[0].Opacity -eq 1
     }
-    Wait-Task ($vm.SwitchPageAsync($pageB))
+    $firstSwitch = $vm.SwitchPageAsync($pageB)
+    if (!$script:backgroundReadyBeforeHide) { throw 'Switch yielded to the dispatcher before hiding the outgoing page' }
+    Wait-Task $firstSwitch
     $probe.BeforeHidden = $null
     if (!$script:backgroundReadyBeforeHide) { throw 'Destination background must replace old artwork before outgoing widget callbacks' }
     if ($probe.CloseCount -ne 1 -or (Get-Setting $settingsModel.Settings 'BlurAmount') -ne 3 -or !$background.BackgroundImagePath.AbsoluteUri.EndsWith('B.png')) { throw 'Switch did not close outgoing widget/apply target background' }
@@ -396,8 +402,31 @@ try {
     if (![object]::ReferenceEquals($native.PanelMainPluginItems.Children[0].Content,$native.PanelMainPluginItems.Children[0].DataContext.IconObject)) { throw 'Original native extension icon was moved out of the toolbar' }
     if ($controls[8].IsEnabled) { throw 'Missing extension should be unavailable without losing its saved ID' }
     if ($controls[9] -is [Windows.Controls.CheckBox]) { throw 'Notifications must render as a toolbar button' }
-    $controls[9].IsChecked = $true; $controls[9].RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
-    if (!$nativeModel.NotificationPanelVisible) { throw 'Notifications toolbar button did not open the native panel' }
+    $badge = $controls[9].Content.Children[1]
+    if ($badge.Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Bell badge must be hidden at zero notifications' }
+    $badgeNotification = [Playnite.SDK.NotificationMessage]::new('badge-fixture','Badge test',[Playnite.SDK.NotificationType]::Info)
+    $vm.Notifications.Add($badgeNotification)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($badge.Visibility -ne [Windows.Visibility]::Visible -or $badge.Text -ne [string][char]0x25CF) { throw 'Dot badge did not appear for pending notifications' }
+    $toolbar.Settings.NotificationBadgeStyle = [LandingPage.Settings.NotificationBadgeStyle]::Count
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $controls = $toolbar.Content.Content.Children[0].Child.Children
+    $badge = $controls[9].Content.Children[1]
+    if ($badge.Text -ne '1' -or $badge.Visibility -ne [Windows.Visibility]::Visible) { throw 'Count badge setting did not update the bell' }
+    $vm.Notifications.Clear()
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($badge.Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Count badge stayed visible at zero' }
+    $toolbar.Settings.NotificationBadgeStyle = [LandingPage.Settings.NotificationBadgeStyle]::Dot
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $controls = $toolbar.Content.Content.Children[0].Child.Children
+    $vm.NotificationsOpen = $false
+    $controls[9].Command.Execute($null)
+    $window.UpdateLayout()
+    if (!$vm.NotificationsOpen -or $view.FindName('NotificationGrid').Visibility -ne [Windows.Visibility]::Visible) { throw 'Notifications toolbar button did not open StartPage notifications' }
+    if (@([ToolbarTestVisuals]::Text($view.FindName('NotificationGrid')) | Where-Object { $_.Text -eq 'No notifications' -and $_.Visibility -eq [Windows.Visibility]::Visible }).Count -ne 1) { throw 'Empty notifications panel must show an empty state' }
+    $vm.ToggleNotificationsCommand.Execute($null)
+    $window.UpdateLayout()
+    if ($view.FindName('NotificationGrid').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Minimizing must fully hide notifications without leaving a floating popup' }
     $oldTarget = $native.SortMenu.ReadLocalValue([Windows.Controls.ContextMenu]::PlacementTargetProperty)
     $oldContext = $native.SortMenu.ReadLocalValue([Windows.FrameworkElement]::DataContextProperty)
     $controls[1].RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
@@ -843,11 +872,186 @@ try {
     $oldShelfSettings = $auditShelves.Shelves
     $auditShelves.Shelves = [LandingPage.Settings.ShelvesSettings]::new()
     if ((Count-RefreshListeners $oldShelfSettings $auditShelves) -ne 0 -or (Count-RefreshListeners $auditShelves.Shelves $auditShelves) -ne 1) { throw 'Shelf settings replacement leaked or lost refresh subscriptions' }
+    for ($shelfIndex = 0; $shelfIndex -lt 3; ++$shelfIndex) {
+        $cachedShelf = [LandingPage.ViewModels.ShelveViewModel].GetConstructors()[0].Invoke([object[]]@([LandingPage.Models.ShelveProperties]::new(),$auditShelves.Shelves,$api,$auditShelves.ShelveViewModels,$null))
+        $auditShelves.ShelveViewModels.Add($cachedShelf)
+    }
+    $queryCount = [DashboardTestProxy]::LibraryEnumerations
+    Wait-Task ($auditShelves.OnViewShownAsync())
+    $afterInitialQuery = [DashboardTestProxy]::LibraryEnumerations
+    if ($afterInitialQuery -ne $queryCount + 1) { throw 'Shelf initial load must enumerate the library once' }
+    Wait-Task ($auditShelves.OnViewHiddenAsync())
+    Wait-Task ($auditShelves.OnViewShownAsync())
+    if ([DashboardTestProxy]::LibraryEnumerations -ne $afterInitialQuery) { throw 'Returning to unchanged shelves unnecessarily queried the library' }
+    Wait-Task ($auditShelves.OnViewHiddenAsync())
+    Set-Setting $auditSettingsModel.Settings 'IgnoreTagId' ([guid]::NewGuid())
+    if ([DashboardTestProxy]::LibraryEnumerations -ne $afterInitialQuery) { throw 'Hidden shelf refresh should be deferred' }
+    Wait-Task ($auditShelves.OnViewShownAsync())
+    if ([DashboardTestProxy]::LibraryEnumerations -ne $afterInitialQuery + 1) { throw 'Changed shelf settings did not invalidate the cached results' }
+    $beforeBurst = [DashboardTestProxy]::LibraryEnumerations
+    $refreshBurst = [Collections.Generic.List[Threading.Tasks.Task]]::new()
+    for ($request = 0; $request -lt 20; ++$request) { $refreshBurst.Add($auditShelves.UpdateShelvesAsync()) }
+    Wait-Task ([Threading.Tasks.Task]::WhenAll($refreshBurst))
+    if ([DashboardTestProxy]::LibraryEnumerations -gt $beforeBurst + 2) { throw 'A burst of refresh requests was not coalesced' }
+    'PASS: three shelves share one library snapshot, unchanged revisits perform no queries, and hidden filter changes invalidate the cache.'
     $auditShelves.OnViewClosed()
     if ((Count-RefreshListeners $auditShelves.Shelves $auditShelves) -ne 0) { throw 'Closed shelf widget retained refresh subscriptions' }
     'PASS: replaced background/shelf settings detach old listeners and attach exactly once; closing shelves detaches refresh listeners.'
     'PASS: profile selection, delete confirmation/cancellation, page reorder and background-source commands update real buttons without input.'
     'PASS: previous/next button availability refreshes after switching without mouse or keyboard input.'
+    # Override only the fixture's animation preference, never the user's Windows settings.
+    Set-Field $view 'DashboardAnimationsEnabled' ([Func[bool]]{ return $true })
+    $snapshotImage = $view.FindName('DashboardTransitionImage')
+    $scene = $view.FindName('DashboardScene')
+    Set-Setting $settingsModel.Settings 'DashboardTransitionMilliseconds' 60
+    foreach ($transition in @([LandingPage.DashboardTransition]::Fade,[LandingPage.DashboardTransition]::Slide)) {
+        Set-Setting $settingsModel.Settings 'DashboardTransition' $transition
+        $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+        $switch = $vm.SwitchPageAsync($target)
+        if (!$snapshotImage.Source -or $scene.IsHitTestVisible) { throw 'Transition must retain outgoing dashboard and block old controls during preparation' }
+        $snapshot = [Windows.Media.Imaging.BitmapSource]$snapshotImage.Source
+        $stride = $snapshot.PixelWidth * 4
+        $pixels = [byte[]]::new($stride * $snapshot.PixelHeight)
+        $snapshot.CopyPixels($pixels,$stride,0)
+        for ($pixel = 3; $pixel -lt $pixels.Length; $pixel += 4) {
+            if ($pixels[$pixel] -ne 255) { throw 'Transparent transition snapshot allows the preparing page to bleed through' }
+        }
+
+        Wait-Task $switch
+        if ($snapshotImage.Source -or !$scene.IsHitTestVisible -or $vm.IsSwitchingPage -or $scene.RenderTransform -ne [Windows.Media.Transform]::Identity) { throw 'Transition completion did not release snapshot/transform/navigation' }
+    }
+    foreach ($mode in @('SlideFade','ZoomIn','ZoomOut','Wipe','Custom')) {
+        Set-Setting $settingsModel.Settings 'DashboardTransition' ([Enum]::Parse([LandingPage.DashboardTransition],$mode))
+        $customMotion = Get-Setting $settingsModel.Settings 'DashboardCustomTransition'; $customMotion.DurationMs = 60
+        $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+        Wait-Task ($vm.SwitchPageAsync($target))
+        if ($snapshotImage.Source -or !$scene.IsHitTestVisible -or $scene.Opacity -ne 1 -or $snapshotImage.Clip) { throw ('Transition did not clean up: ' + $mode) }
+    }
+    $preset = Get-Setting $settingsModel.Settings 'DashboardCustomTransition'
+    $preset.Name = 'Fixture custom motion'
+    $view.GetType().GetMethod('SaveTransitionPreset_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    $savedMotions = Get-Setting $settingsModel.Settings 'DashboardTransitionPresets'
+    if ($savedMotions.Count -ne 1) { throw 'Saving custom transition failed' }
+    $preset.Incoming.StartX = 25
+    if ($savedMotions[0].Incoming.StartX -eq 25) { throw 'Saved custom preset aliases editor settings' }
+    $view.GetType().GetMethod('LoadTransitionPreset_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    if ((Get-Setting $settingsModel.Settings 'DashboardCustomTransition').Incoming.StartX -eq 25) { throw 'Loading custom preset failed' }
+    $beforePreview = $vm.SelectedPage.Id
+    $view.GetType().GetMethod('PreviewTransition_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    $previewDeadline = [datetime]::UtcNow.AddSeconds(10)
+    while ($snapshotImage.Source) {
+        if ([datetime]::UtcNow -gt $previewDeadline) { throw 'Transition preview did not complete' }
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5
+    }
+    if ($vm.SelectedPage.Id -ne $beforePreview -or !$scene.IsHitTestVisible) { throw 'Preview changed the page or left controls blocked' }
+    $view.GetType().GetMethod('DeleteTransitionPreset_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    if ($savedMotions.Count -ne 0) { throw 'Deleting custom transition preset failed' }
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::Slide)
+    foreach ($direction in @('Left','Right','Up','Down','Automatic')) {
+        Set-Setting $settingsModel.Settings 'DashboardSlideDirection' ([Enum]::Parse([LandingPage.DashboardSlideDirection],$direction))
+        $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+        Wait-Task ($vm.SwitchPageAsync($target))
+        if ($snapshotImage.Source -or !$scene.IsHitTestVisible) { throw ('Slide direction did not clean up: ' + $direction) }
+    }
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::None)
+    $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+    $switch = $vm.SwitchPageAsync($target)
+    if ($snapshotImage.Source) { throw 'None transition must not create a snapshot' }
+    Wait-Task $switch
+    Set-Setting $settingsModel.Settings 'DashboardTransitionMilliseconds' 0
+    if ((Get-Setting $settingsModel.Settings 'DashboardTransitionMilliseconds') -ne 50) { throw 'Transition duration minimum was not clamped' }
+    Set-Setting $settingsModel.Settings 'DashboardTransitionMilliseconds' 4000
+    if ((Get-Setting $settingsModel.Settings 'DashboardTransitionMilliseconds') -ne 1000) { throw 'Transition duration maximum was not clamped' }
+    Set-Field $view 'DashboardAnimationsEnabled' ([Func[bool]]{ return $false })
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::Fade)
+    Set-Setting $settingsModel.Settings 'DashboardRespectWindowsAnimations' $true
+    $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+    $switch = $vm.SwitchPageAsync($target)
+    if ($snapshotImage.Source) { throw 'Disabled Windows animations must suppress transitions when respected' }
+    Wait-Task $switch
+    Set-Setting $settingsModel.Settings 'DashboardRespectWindowsAnimations' $false
+    Set-Setting $settingsModel.Settings 'DashboardTransitionMilliseconds' 60
+    $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+    $switch = $vm.SwitchPageAsync($target)
+    if (!$snapshotImage.Source) { throw 'Explicit animation override did not permit transition' }
+    # Closing/unloading during preparation must release snapshots and navigation.
+    $view.GetType().GetMethod('ResetDashboardTransition',$flags).Invoke($view,@())
+    Wait-Task $switch
+    if ($snapshotImage.Source -or !$scene.IsHitTestVisible -or $vm.IsSwitchingPage) { throw 'Interrupted transition left snapshot/navigation stuck' }
+    'PASS: real fade/slide lifecycle, all slide directions, None mode, outgoing snapshot retention, cleanup/navigation release, and duration bounds (animations follow Windows preference).'
+    $notificationAnchor = [Windows.Controls.Button]::new()
+    $notificationAnchor.Width = 32; $notificationAnchor.Height = 28
+    $notificationAnchor.HorizontalAlignment = [Windows.HorizontalAlignment]::Left
+    $notificationAnchor.VerticalAlignment = [Windows.VerticalAlignment]::Top
+    $notificationAnchor.Margin = [Windows.Thickness]::new(75,95,0,0)
+    [void]$view.Content.Children.Add($notificationAnchor); $window.UpdateLayout()
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $vm.NotificationsOpen = $false
+    $view.GetType().GetMethod('ToggleNotificationsAt',$flags).Invoke($view,@($notificationAnchor))
+    $window.UpdateLayout()
+    $point = $notificationAnchor.TranslatePoint([Windows.Point]::new(0,$notificationAnchor.ActualHeight),$view)
+    $notificationGrid = $view.FindName('NotificationGrid')
+    if ([Math]::Abs($notificationGrid.Margin.Left - [Math]::Max(8,[Math]::Min($point.X + $notificationAnchor.ActualWidth / 2 - $notificationGrid.Width / 2,$view.ActualWidth - $notificationGrid.Width - 8))) -gt 1 -or [Math]::Abs($notificationGrid.Margin.Top - $point.Y - 6) -gt 1) { throw ('Notifications are not anchored below the opening button: margin=' + $notificationGrid.Margin + ' anchor=' + $point + ' visible=' + $notificationGrid.Visibility + ' loaded=' + $notificationAnchor.IsLoaded) }
+    $notificationAnchor.Margin = [Windows.Thickness]::new(180,150,0,0); $window.UpdateLayout()
+    $point = $notificationAnchor.TranslatePoint([Windows.Point]::new(0,$notificationAnchor.ActualHeight),$view)
+    if ([Math]::Abs($notificationGrid.Margin.Top - $point.Y - 6) -gt 1) { throw 'Notification panel did not follow a moved toolbar anchor' }
+    $notificationAnchor.Margin = [Windows.Thickness]::new($view.ActualWidth / 2 - 16,150,0,0); $window.UpdateLayout()
+    $point = $notificationAnchor.TranslatePoint([Windows.Point]::new(0,$notificationAnchor.ActualHeight),$view)
+    if ([Math]::Abs(($notificationGrid.Margin.Left + $notificationGrid.Width / 2) - ($point.X + $notificationAnchor.ActualWidth / 2)) -gt 1) { throw 'Notification panel is not centered beneath a bell away from the edges' }
+    $notificationAnchor.Margin = [Windows.Thickness]::new($view.ActualWidth - 40,150,0,0); $window.UpdateLayout()
+    if ($notificationGrid.Margin.Left -lt 8 -or $notificationGrid.Margin.Left + $notificationGrid.Width -gt $view.ActualWidth - 7) { throw 'Notification panel extends beyond the window edge' }
+    $vm.NotificationsOpen = $false
+    [void]$view.Content.Children.Remove($notificationAnchor)
+    $message = [Playnite.SDK.NotificationMessage]::new('test-notification','Test notification',[Playnite.SDK.NotificationType]::Info)
+    $vm.Notifications.Add($message)
+    if ($vm.NotificationCount -ne 1 -or $vm.NotificationsOpen) { throw 'Minimized notifications should update count without reopening the popup' }
+    $vm.ToggleNotificationsCommand.Execute($null)
+    $window.UpdateLayout()
+    if (!$vm.NotificationsOpen -or $view.FindName('NotificationItemsControl').Items.Count -ne 1) { throw 'Bell did not show pending notifications' }
+    $vm.Notifications.Clear(); $window.UpdateLayout()
+    if ($vm.NotificationCount -ne 0 -or !$vm.NotificationsOpen) { throw 'Clearing notifications should retain an open empty-state panel' }
+    $vm.ToggleNotificationsCommand.Execute($null)
+    $diagnosticFile = $settingsModel.DebugLogPath
+    if ([IO.File]::Exists($diagnosticFile)) { throw 'Disabled performance diagnostics wrote a log' }
+    Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $true
+    $extensionLogger = [LandingPage.LandingPageExtension].GetField('logger',[Reflection.BindingFlags]'Static,NonPublic').GetValue($null)
+    $extensionLogger.Info('Fixture extension-wide information')
+    $extensionLogger.Debug('Fixture extension-wide debug')
+    $extensionLogger.Trace('Fixture extension-wide trace')
+    $extensionLogger.Warn([InvalidOperationException]::new('Fixture exception details'),'Fixture extension-wide warning')
+    $extensionLogger.Error('Fixture extension-wide error')
+
+    $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+    Wait-Task ($vm.SwitchPageAsync($target))
+    if (![IO.File]::Exists($diagnosticFile) -or ![IO.File]::ReadAllText($diagnosticFile).Contains('Switch complete')) { throw 'Enabled performance diagnostics did not record a completed switch' }
+    $debugText = [IO.File]::ReadAllText($diagnosticFile)
+    foreach ($entry in @('Fixture extension-wide information','Fixture extension-wide debug','Fixture extension-wide trace','Fixture extension-wide warning','Fixture extension-wide error','Fixture exception details')) {
+        if (!$debugText.Contains($entry)) { throw ('Extension debug log missed: ' + $entry) }
+    }
+    $diagnosticLength = ([IO.FileInfo]$diagnosticFile).Length
+    Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $false
+    $extensionLogger.Info('This message must not enter the disabled dedicated log')
+    $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+    Wait-Task ($vm.SwitchPageAsync($target))
+    if (([IO.FileInfo]$diagnosticFile).Length -ne $diagnosticLength) { throw 'Disabled diagnostics kept writing logs' }
+    'PASS: bell opens empty and populated notifications, minimizing fully hides panel, count updates, and opt-in diagnostics writes only when enabled.'
+    $selectorToolbar = [LandingPage.Views.ToolbarWidgetView]::new()
+    $selectorToolbar.Settings = [LandingPage.Settings.ToolbarWidgetSettings]::new()
+    $selectorToolbar.Settings.Items.Clear()
+    $selectorEntry = [LandingPage.Settings.ToolbarEntry]::new(); $selectorEntry.Id = 'page.select'; $selectorToolbar.Settings.Items.Add($selectorEntry)
+    [void]$view.Content.Children.Add($selectorToolbar); $window.UpdateLayout()
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $selectorToolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($selectorToolbar,@())
+    $replacementSelector = $selectorToolbar.Content.Content.Children[0].Child.Children[0]
+    $selectedBeforeRestore = $vm.SelectedPage.Id
+    $rootBeforeRestore = $vm.RootNodeViewModel
+    $settingsCopy = [LandingPage.Models.DashboardProfiles].GetMethod('Clone').MakeGenericMethod([LandingPage.LandingPageSettings]).Invoke($null,@($settingsModel.Settings))
+    $settingsModel.Settings = $settingsCopy
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if (!$replacementSelector.SelectedItem -or $replacementSelector.SelectedItem.Id -ne $selectedBeforeRestore -or !$vm.Pages.Contains($replacementSelector.SelectedItem)) { throw 'Settings restoration left the dashboard selector blank or bound to an obsolete page object' }
+    if (![object]::ReferenceEquals($rootBeforeRestore,$vm.RootNodeViewModel)) { throw 'Settings restoration rebuilt the cached page layout' }
+    [void]$view.Content.Children.Remove($selectorToolbar)
+    'PASS: restoring cloned settings preserves the current dashboard selector by stable page ID and keeps the cached layout.'
     $window.Close()
     'PASS: toolbar serialization, native catalog/commands/menus/toggles/search/progress/extensions, clickable page navigation, missing providers, menu-state restoration, and settings refresh.'
     'PASS: legacy migration, independent layout/backgrounds, save/reload/order, nested traversal, real page switching and widget callbacks, deletion, last-page protection, temporary-file persistence, context-menu navigation, and in-app manager open/close.'

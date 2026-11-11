@@ -1,0 +1,32 @@
+{
+  "Format": "StartPage.TransitionPreset",
+  "Version": 1,
+  "Preset": {
+    "Name": "Gentle slide",
+    "DurationMs": 220,
+    "Easing": "Cubic",
+    "ReverseOnPrevious": true,
+    "Incoming": {
+      "StartOpacity": 0,
+      "EndOpacity": 1,
+      "StartScale": 0.98,
+      "EndScale": 1,
+      "StartX": 8,
+      "EndX": 0,
+      "StartY": 0,
+      "EndY": 0,
+      "DelayMs": 0
+    },
+    "Outgoing": {
+      "StartOpacity": 1,
+      "EndOpacity": 0,
+      "StartScale": 1,
+      "EndScale": 1,
+      "StartX": 0,
+      "EndX": -8,
+      "StartY": 0,
+      "EndY": 0,
+      "DelayMs": 0
+    }
+  }
+}

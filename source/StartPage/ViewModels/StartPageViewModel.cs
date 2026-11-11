@@ -44,6 +44,12 @@ namespace LandingPage.ViewModels
         public LandingPageSettingsViewModel Settings => settings;
 
         public ObservableCollection<NotificationMessage> Notifications { get; private set; }
+        private bool notificationsOpen;
+        private bool notificationsMinimized;
+        public bool NotificationsOpen { get => notificationsOpen; set { SetValue(ref notificationsOpen, value); if (!value) notificationsMinimized = true; } }
+        public int NotificationCount => Notifications?.Count ?? 0;
+        public ICommand ToggleNotificationsCommand { get; private set; }
+
 
         public ICommand OpenSettingsCommand => new RelayCommand(() => plugin.OpenSettingsView());
         public ICommand NextRandomBackgroundCommand { get; set; }
@@ -103,7 +109,14 @@ namespace LandingPage.ViewModels
             );
 
             Notifications = playniteAPI.Notifications.Messages;
-            Notifications.CollectionChanged += (sender, args) => OnPropertyChanged(nameof(Notifications));
+            notificationsOpen = Settings.Settings.EnableNotifications && !Settings.Settings.MinimizeNotificationsOnLaunch && Notifications.Count > 0;
+            Notifications.CollectionChanged += (sender, args) =>
+            {
+                OnPropertyChanged(nameof(NotificationCount));
+                if (args.NewItems?.Count > 0 && !notificationsMinimized && Settings.Settings.EnableNotifications
+                    && !Settings.Settings.MinimizeNotificationsOnLaunch) NotificationsOpen = true;
+            };
+            ToggleNotificationsCommand = new RelayCommand(() => NotificationsOpen = !NotificationsOpen);
             DeleteNotificationCommand = new RelayCommand<NotificationMessage>(sender => playniteAPI.Notifications.Remove(sender.Id));
             ClearNotificationsCommand = new RelayCommand(() => playniteAPI.Notifications.RemoveAll());
             NextRandomBackgroundCommand = new RelayCommand(async () =>
