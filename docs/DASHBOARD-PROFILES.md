@@ -40,3 +40,29 @@ A missing extension or unavailable widget type appears as a placeholder while pr
 Local image files and folders are referenced, not embedded or copied. Keep the paths available, or select replacement files after import. Missing local references are reported after applying. Nothing deletes or moves your images.
 
 Shelf metadata selections use Playnite IDs. A profile shared with another library may need its tag/category/platform/source selections adjusted. Operational settings such as startup behavior and other extensions' configuration are not changed by applying a profile.
+
+
+## Starter profiles
+
+Expand **Starter profiles** in the manager to choose:
+
+| Starter | Included layout |
+| --- | --- |
+| Minimal | Home page with toolbar, clock, welcome note, and recently played shelf. |
+| Achievements | Recent unlocks alongside game cards with progress and trophy metadata. Uses your selected achievement provider. |
+| Library | Library and Backlog pages with recent/favorite/unplayed/installed shelves and navigation on both pages. |
+
+Each card shows a schematic preview for every page, including shelf styles. These diagrams represent layout structure rather than screenshots; your theme, artwork, library, window size, and achievement data determine the rendered dashboard.
+
+**Add profile** puts an independent copy in the saved list and leaves the current dashboard unchanged. **Apply** adds a copy and applies it using the add-pages option, first saving a backup of your current dashboard. All widgets remain editable afterward. To share a customized starter, save it as a new profile and export that saved copy.
+
+Starters do not reference local images or require library-specific tags. They retain your selected achievement provider and relevant notification/global-background preferences. The Achievements starter can have empty sections until its provider has data; it does not download achievements or change provider configuration.
+
+
+## Keep existing pages and delete multiple profiles
+
+**Add profile pages to the existing dashboard** is checked by default and applies to saved profiles and starter cards. Apply appends independent pages without changing your existing pages, active page, shared appearance settings, or running widget controls. Each appended page retains its profile layout, background and widget/shelf configuration. Repeated applications get fresh page/widget identities and numbered page names when needed. Shared settings, including the achievement provider, remain those of your current dashboard.
+
+Uncheck the option to replace the entire dashboard and load the profile's shared settings. Both modes save an automatic backup first.
+
+The saved profiles list supports Ctrl-click and Shift-click selection. Choose **Delete selected profiles...**, then **Delete** to remove all selected saved snapshots together. This leaves the active dashboard intact. Apply, rename and export use the active profile selection.

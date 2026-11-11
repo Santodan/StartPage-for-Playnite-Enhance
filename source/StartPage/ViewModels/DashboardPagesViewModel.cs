@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Threading;
 using LandingPage.Models;
 using LandingPage.Models.Layout;
 using LandingPage.ViewModels.Layout;
@@ -55,7 +56,14 @@ namespace LandingPage.ViewModels
             PropertyChanged += (sender, args) =>
             {
                 if (args.PropertyName == nameof(IsLoading)) OnPropertyChanged(nameof(CanChangePages));
+                // WPF otherwise waits for mouse/keyboard input to requery RelayCommand.
+                // Re-enable navigation as soon as switching/loading completes.
+                if (args.PropertyName == nameof(CanChangePages) || args.PropertyName == nameof(SelectedPage)
+                    || args.PropertyName == nameof(Pages) || args.PropertyName == nameof(SelectedProfile)
+                    || args.PropertyName == nameof(ConfirmPageDeletion) || args.PropertyName == nameof(ConfirmDeleteProfile))
+                    CommandManager.InvalidateRequerySuggested();
             };
+            WatchPageInputs();
             Settings.PropertyChanged += PageSettingsReplaced;
             PreviousPageCommand = new RelayCommand(async () =>
             {
@@ -144,8 +152,27 @@ namespace LandingPage.ViewModels
             Settings.Settings.ActiveDashboardPageId = SelectedPage.Id;
         }
 
+        private DispatcherTimer navigationSaveTimer;
+
+        private void QueueNavigationSave()
+        {
+            CaptureCurrentPage();
+            if (navigationSaveTimer == null)
+            {
+                navigationSaveTimer = new DispatcherTimer(DispatcherPriority.Background)
+                { Interval = TimeSpan.FromMilliseconds(750) };
+                navigationSaveTimer.Tick += (sender, args) =>
+                {
+                    try { SaveCurrentPage(); }
+                    catch (Exception ex) { LandingPageExtension.logger?.Warn(ex, "Unable to save dashboard navigation."); }
+                };
+            }
+            navigationSaveTimer.Stop(); navigationSaveTimer.Start();
+        }
+
         public void SaveCurrentPage()
         {
+            navigationSaveTimer?.Stop();
             CaptureCurrentPage();
             plugin.SavePluginSettings(Settings.Settings);
         }
@@ -173,10 +200,18 @@ namespace LandingPage.ViewModels
             IsLoading = true;
             var previous = SelectedPage;
             var previousRoot = RootNodeViewModel;
+            var switchWatch = System.Diagnostics.Stopwatch.StartNew();
+            long backgroundMilliseconds = 0;
             try
             {
-                await HidePageAsync();
-                plugin.SavePluginSettings(Settings.Settings);
+                // Capture the outgoing projection before installing the next background.
+                // Neither widget shutdown nor settings serialization should hold the old
+                // page's artwork on screen while the destination is loading.
+                CaptureCurrentPage();
+                ApplyPageBackground(page);
+                backgroundMilliseconds = switchWatch.ElapsedMilliseconds;
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                await HidePageAsync(false);
                 ConfirmPageDeletion = false;
                 selectedPage = page;
                 Settings.Settings.ActiveDashboardPageId = page.Id;
@@ -185,7 +220,6 @@ namespace LandingPage.ViewModels
                     pageRoots[page.Id] = root = new GridNodeViewModel(page.Layout);
                 RootNodeViewModel = root;
                 OnPropertyChanged(nameof(SelectedPage));
-                ApplyPageBackground(page);
                 if (initializedPages.Contains(page.Id))
                 {
                     if (isPageVisible) await OpenPageAsync();
@@ -197,7 +231,10 @@ namespace LandingPage.ViewModels
                     initializedPages.Add(page.Id);
                     if (!isPageVisible) await HidePageAsync();
                 }
-                SaveCurrentPage();
+                // Let the destination render before serializing profiles/settings;
+                // rapid navigation only needs to persist the final active page.
+                QueueNavigationSave();
+                LandingPageExtension.logger?.Debug($"Dashboard switch '{page.Name}': background selected {backgroundMilliseconds} ms; ready {switchWatch.ElapsedMilliseconds} ms.");
             }
             catch (Exception ex)
             {
@@ -214,9 +251,33 @@ namespace LandingPage.ViewModels
             finally { IsLoading = false; IsSwitchingPage = false; }
         }
 
+        private LandingPageSettings observedPageSettings;
+        private ObservableCollection<DashboardPage> observedPages;
+
+        private void WatchPageInputs()
+        {
+            if (observedPageSettings != null) observedPageSettings.PropertyChanged -= PageInputChanged;
+            if (observedPages != null) observedPages.CollectionChanged -= PageOrderChanged;
+            observedPageSettings = Settings.Settings;
+            observedPages = observedPageSettings.DashboardPages;
+            observedPageSettings.PropertyChanged += PageInputChanged;
+            if (observedPages != null) observedPages.CollectionChanged += PageOrderChanged;
+            CommandManager.InvalidateRequerySuggested();
+        }
+        private void PageOrderChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs args)
+            => CommandManager.InvalidateRequerySuggested();
+        private void PageInputChanged(object sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == nameof(LandingPageSettings.DashboardPages)) WatchPageInputs();
+            if (args.PropertyName == nameof(LandingPageSettings.BackgroundImageSource)
+                || args.PropertyName == nameof(LandingPageSettings.BackgroundImagePath)
+                || args.PropertyName == nameof(LandingPageSettings.BackgroundImageUri)) CommandManager.InvalidateRequerySuggested();
+        }
+
         private void PageSettingsReplaced(object sender, PropertyChangedEventArgs args)
         {
             if (args.PropertyName != nameof(LandingPageSettingsViewModel.Settings)) return;
+            WatchPageInputs();
             // Canceling the settings dialog supplies cloned models. Keep cached live
             // layouts attached to those models without resetting inactive backgrounds.
             foreach (var page in Settings.Settings.DashboardPages)

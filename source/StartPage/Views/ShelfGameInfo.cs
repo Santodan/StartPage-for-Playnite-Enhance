@@ -44,7 +44,7 @@ namespace LandingPage.Views
         {
             Content = panel;
             achievementTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromSeconds(10) };
-            achievementTimer.Tick += (sender, args) => Refresh();
+            achievementTimer.Tick += (sender, args) => Refresh(true);
             Loaded += (sender, args) => Rebind();
             Unloaded += (sender, args) => { generation++; achievementTimer.Stop(); Unsubscribe(); };
         }
@@ -247,34 +247,47 @@ namespace LandingPage.Views
             catch (Exception ex) { LandingPageExtension.logger.Debug(ex, "Unable to load the default Playnite source icon."); return null; }
         }
 
-        private async void Refresh()
+        private Guid renderedGame;
+        private LandingPage.Settings.AchievementsProvider renderedProvider;
+        private ShelfAchievementProgress renderedProgress;
+
+        private async void Refresh(bool achievementsOnly = false)
         {
             var version = ++generation;
-            panel.Children.Clear();
-            Visibility = Visibility.Collapsed;
             var game = Model?.Game;
             var settings = Settings;
             if (IsLoaded && settings?.ShowAchievementProgress == true) achievementTimer.Start();
             else achievementTimer.Stop();
-            if (game == null || settings == null || string.IsNullOrEmpty(game.Name)) return;
-            if (IncludeTitle && settings.TitleDisplay != ShelfTitleDisplay.Hide
-                && (DefaultTitleVisible || settings.TitleDisplay == ShelfTitleDisplay.Show)) AddText(game.Name, true);
-            if (settings.ShowPlaytime) AddText(string.Format(CultureInfo.CurrentCulture, "Playtime: {0:0.#} h", game.Playtime / 3600d));
-            if (settings.ShowLastPlayed) AddText("Last played: " + (game.LastActivity?.ToLocalTime().ToString("d") ?? "Never"));
-            if (settings.ShowSource || settings.ShowSourceIcon) AddSource(game);
-            if ((settings.ShowPlatform || settings.ShowPlatformIcons) && game.Platforms?.Any() == true) AddPlatforms(game.Platforms);
-            if (settings.ShowFavoriteBadge && game.Favorite) AddText("★ Favorite");
-            if (settings.ShowInstallationStatus) AddText(game.IsInstalled ? "Installed" : "Not installed");
-            if (!settings.ShowAchievementProgress) return;
-            try
+            if (game == null || settings == null || string.IsNullOrEmpty(game.Name))
+            { panel.Children.Clear(); Visibility = Visibility.Collapsed; return; }
+            var plugin = LandingPageExtension.Instance;
+            var provider = plugin.Settings.SelectedAchievementsProvider;
+            ShelfAchievementProgress progress = null;
+            if (settings.ShowAchievementProgress)
             {
-                var plugin = LandingPageExtension.Instance;
-                var progress = await ShelfAchievements.GetAsync(game.Id,
-                    plugin.Settings.SelectedAchievementsProvider, plugin.PlayniteApi?.Paths.ExtensionsDataPath);
-                if (!IsLoaded || version != generation || progress == null) return;
-                AddAchievementProgress(progress);
+                try { progress = await ShelfAchievements.GetAsync(game.Id, provider, plugin.PlayniteApi?.Paths.ExtensionsDataPath); }
+                catch (Exception ex) { LandingPageExtension.logger.Debug(ex, "Unable to show optional shelf achievement progress."); }
             }
-            catch (Exception ex) { LandingPageExtension.logger.Debug(ex, "Unable to show optional shelf achievement progress."); }
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (!IsLoaded || version != generation) return;
+                if (achievementsOnly && renderedGame == game.Id && renderedProvider == provider
+                    && renderedProgress?.Total == progress?.Total && renderedProgress?.Unlocked == progress?.Unlocked) return;
+                renderedGame = game.Id; renderedProvider = provider; renderedProgress = progress;
+                // Commit the complete metadata together, retaining the previous progress
+                // while the provider is being read rather than collapsing on each poll.
+                panel.Children.Clear();
+                Visibility = Visibility.Collapsed;
+                if (IncludeTitle && settings.TitleDisplay != ShelfTitleDisplay.Hide
+                    && (DefaultTitleVisible || settings.TitleDisplay == ShelfTitleDisplay.Show)) AddText(game.Name, true);
+                if (settings.ShowPlaytime) AddText(string.Format(CultureInfo.CurrentCulture, "Playtime: {0:0.#} h", game.Playtime / 3600d));
+                if (settings.ShowLastPlayed) AddText("Last played: " + (game.LastActivity?.ToLocalTime().ToString("d") ?? "Never"));
+                if (settings.ShowSource || settings.ShowSourceIcon) AddSource(game);
+                if ((settings.ShowPlatform || settings.ShowPlatformIcons) && game.Platforms?.Any() == true) AddPlatforms(game.Platforms);
+                if (settings.ShowFavoriteBadge && game.Favorite) AddText("â˜… Favorite");
+                if (settings.ShowInstallationStatus) AddText(game.IsInstalled ? "Installed" : "Not installed");
+                if (progress != null) AddAchievementProgress(progress);
+            });
         }
     }
 }

@@ -250,10 +250,10 @@ namespace LandingPage.ViewModels
             SaveCurrentPage();
         }
 
-        private async Task HidePageAsync()
+        private async Task HidePageAsync(bool capturePage = true)
         {
             RootNodeViewModel.EditModeEnabled = false;
-            CaptureCurrentPage();
+            if (capturePage) CaptureCurrentPage();
             Unsubscribe();
             foreach (var view in RootNodeViewModel.ActiveViews)
             {

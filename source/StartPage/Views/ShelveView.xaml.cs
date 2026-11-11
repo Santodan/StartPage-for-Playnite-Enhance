@@ -101,10 +101,15 @@ namespace LandingPage.Views
             if (args.PropertyName == nameof(ShelveProperties.DisplayStyle)) ApplyDisplayStyle();
         }
 
+        private ListBox styledList;
+        private ShelfDisplayStyle? appliedStyle;
+
         private void ApplyDisplayStyle()
         {
             if (GameListBox == null || !(DataContext is ShelveViewModel model)) return;
             var style = model.ShelveProperties.DisplayStyle;
+            if (ReferenceEquals(styledList, GameListBox) && appliedStyle == style) return;
+            styledList = GameListBox; appliedStyle = style;
             var original = style == ShelfDisplayStyle.CoverRow;
             if (Template.FindName("ShelveDockPanel", this) is DockPanel dock)
             {

@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using LandingPage.Models;
+using LandingPage.Settings;
 using LandingPage.Models.Layout;
 using LandingPage.ViewModels.Layout;
 using Playnite.SDK;
@@ -17,6 +18,19 @@ namespace LandingPage.ViewModels
     public partial class StartPageViewModel
     {
         public ObservableCollection<DashboardProfile> Profiles => Settings.Settings.DashboardProfiles;
+        public IReadOnlyList<DashboardStarterTemplate> StarterProfiles { get; private set; }
+        public ICommand AddStarterProfileCommand { get; private set; }
+        public ICommand ApplyStarterProfileCommand { get; private set; }
+        private bool appendProfilePages = true;
+        public bool AppendProfilePages { get => appendProfilePages; set => SetValue(ref appendProfilePages, value); }
+        public ObservableCollection<DashboardProfile> SelectedProfiles { get; } = new ObservableCollection<DashboardProfile>();
+        public void SetSelectedProfiles(IEnumerable<DashboardProfile> profiles)
+        {
+            SelectedProfiles.Clear();
+            foreach (var profile in profiles) SelectedProfiles.Add(profile);
+            ConfirmDeleteProfile = false;
+            CommandManager.InvalidateRequerySuggested();
+        }
         private DashboardProfile selectedProfile;
         public DashboardProfile SelectedProfile { get => selectedProfile; set { SetValue(ref selectedProfile, value); ConfirmDeleteProfile = false; } }
         private string newProfileName = "My dashboard";
@@ -44,8 +58,16 @@ namespace LandingPage.ViewModels
         private void InitializeProfiles()
         {
             SelectedProfile = Profiles.FirstOrDefault();
+            RefreshStarterProfiles();
+            AddStarterProfileCommand = new RelayCommand<DashboardStarterTemplate>(template => ProfileAction(() => AddStarterProfile(template)), template => CanChangePages && template != null);
+            ApplyStarterProfileCommand = new RelayCommand<DashboardStarterTemplate>(async template =>
+            {
+                if (template == null || !CanChangePages) return;
+                try { await ApplyDashboardProfileAsync(AddStarterProfile(template), AppendProfilePages); }
+                catch (Exception ex) { LandingPageExtension.logger?.Warn(ex, "Unable to apply starter profile."); ProfileStatus = "Could not apply starter profile: " + ex.Message; }
+            }, template => CanChangePages && template != null);
             SaveDashboardProfileCommand = new RelayCommand(() => ProfileAction(() => SaveDashboardProfile(NewProfileName)), () => CanChangePages);
-            ApplyDashboardProfileCommand = new RelayCommand(async () => { if (SelectedProfile != null) await ApplyDashboardProfileAsync(SelectedProfile); }, () => CanChangePages && SelectedProfile != null);
+            ApplyDashboardProfileCommand = new RelayCommand(async () => { if (SelectedProfile != null) await ApplyDashboardProfileAsync(SelectedProfile, AppendProfilePages); }, () => CanChangePages && SelectedProfile != null);
             ImportDashboardProfileCommand = new RelayCommand(() =>
             {
                 var path = playniteAPI.Dialogs.SelectFile("Dashboard profile|*.json");
@@ -58,15 +80,36 @@ namespace LandingPage.ViewModels
                 var path = playniteAPI.Dialogs.SaveFile("Dashboard profile|*.json");
                 if (!string.IsNullOrWhiteSpace(path)) ProfileAction(() => { File.WriteAllText(path, DashboardProfiles.Export(profile)); ProfileStatus = "Exported " + profile.Name + "."; });
             }, () => CanChangePages && SelectedProfile != null);
-            RequestDeleteProfileCommand = new RelayCommand(() => ConfirmDeleteProfile = true, () => CanChangePages && SelectedProfile != null);
+            RequestDeleteProfileCommand = new RelayCommand(() => ConfirmDeleteProfile = true, () => CanChangePages && SelectedProfiles.Count > 0);
             CancelDeleteProfileCommand = new RelayCommand(() => ConfirmDeleteProfile = false);
             DeleteDashboardProfileCommand = new RelayCommand(() => ProfileAction(() =>
             {
-                if (SelectedProfile == null || !ConfirmDeleteProfile) return;
-                Profiles.Remove(SelectedProfile); SelectedProfile = Profiles.FirstOrDefault();
-                SaveCurrentPage(); ProfileStatus = "Deleted saved profile. Current dashboard unchanged.";
-            }), () => CanChangePages && SelectedProfile != null && ConfirmDeleteProfile);
+                if (SelectedProfiles.Count == 0 || !ConfirmDeleteProfile) return;
+                var removed = SelectedProfiles.ToArray();
+                foreach (var profile in removed) Profiles.Remove(profile);
+                SelectedProfiles.Clear(); SelectedProfile = Profiles.FirstOrDefault();
+                ConfirmDeleteProfile = false;
+                SaveCurrentPage(); ProfileStatus = "Deleted " + removed.Length + " saved profile(s). Current dashboard unchanged.";
+            }), () => CanChangePages && SelectedProfiles.Count > 0 && ConfirmDeleteProfile);
         }
+        public void RefreshStarterProfiles()
+        {
+            StarterProfiles = DashboardStarterTemplates.Create(Settings.Settings, plugin.Id);
+            OnPropertyChanged(nameof(StarterProfiles));
+        }
+        public DashboardProfile AddStarterProfile(DashboardStarterTemplate template)
+        {
+            if (template?.Profile == null) throw new ArgumentException("Choose a starter profile.");
+            var created = new DashboardProfile
+            {
+                Name = UniqueProfileName(template.Name), Snapshot = DashboardProfiles.Prepare(template.Profile, plugin.Id)
+            };
+            Profiles.Add(created); SelectedProfile = created;
+            SaveCurrentPage();
+            ProfileStatus = "Added " + created.Name + " to saved profiles. Your current dashboard is unchanged until Apply.";
+            return created;
+        }
+
         private void ProfileAction(Action action)
         {
             try { action(); }
@@ -144,7 +187,7 @@ namespace LandingPage.ViewModels
             return paths.Count(path => !File.Exists(path) && !Directory.Exists(path));
         }
 
-        public async Task<bool> ApplyDashboardProfileAsync(DashboardProfile profile)
+        public async Task<bool> ApplyDashboardProfileAsync(DashboardProfile profile, bool appendPages = false)
         {
             if (profile == null || !CanChangePages) return false;
             DashboardSnapshot prepared;
@@ -153,13 +196,32 @@ namespace LandingPage.ViewModels
             // Persist a full backup before releasing controls or replacing dashboard data.
             var backup = SaveDashboardProfile("Before applying " + profile.Name);
             SelectedProfile = profile;
+            var previousShelves = Settings.Settings.ShelveInstanceSettings == null ? null
+                : new Dictionary<Guid, ShelvesSettings>(Settings.Settings.ShelveInstanceSettings);
             IsSwitchingPage = true; IsLoading = true;
             try
             {
-                await ReplaceDashboardAsync(prepared);
+                if (appendPages)
+                {
+                    // Existing controls, shared settings, active page and backgrounds stay intact.
+                    var names = new HashSet<string>(Pages.Select(page => page.Name), StringComparer.OrdinalIgnoreCase);
+                    foreach (var page in prepared.Pages)
+                    {
+                        var name = page.Name;
+                        for (var suffix = 2; !names.Add(page.Name); ++suffix) page.Name = name + " (" + suffix + ")";
+                        // Appended external widgets also need independent identities.
+                        foreach (var node in page.Layout.Enumerate())
+                            if (node.ViewProperties is ViewProperties view && view.PluginId != plugin.Id) view.InstanceId = Guid.NewGuid();
+                    }
+                    if (Settings.Settings.ShelveInstanceSettings == null) Settings.Settings.ShelveInstanceSettings = new Dictionary<Guid, ShelvesSettings>();
+                    foreach (var pair in prepared.Shelves) Settings.Settings.ShelveInstanceSettings[pair.Key] = pair.Value;
+                    foreach (var page in prepared.Pages) Pages.Add(page);
+                    SaveCurrentPage();
+                }
+                else await ReplaceDashboardAsync(prepared);
                 var unavailable = prepared.Pages.SelectMany(page => page.Layout.Enumerate()).Count(node => (node.ViewProperties?.view as FrameworkElement)?.Tag as string == "StartPage.MissingWidget");
                 var missingAssets = MissingProfileAssets(prepared);
-                ProfileStatus = "Applied " + profile.Name + ". Previous dashboard saved as " + backup.Name + "."
+                ProfileStatus = (appendPages ? "Added pages from " : "Applied ") + profile.Name + ". Previous dashboard saved as " + backup.Name + "."
                     + (unavailable > 0 ? " " + unavailable + " widget(s) need their extensions enabled." : "")
                     + (missingAssets > 0 ? " " + missingAssets + " local image/folder reference(s) are unavailable." : "");
                 return true;
@@ -167,7 +229,17 @@ namespace LandingPage.ViewModels
             catch (Exception ex)
             {
                 LandingPageExtension.logger?.Error(ex, "Unable to apply dashboard profile; restoring backup.");
-                try { await ReplaceDashboardAsync(DashboardProfiles.Prepare(backup, plugin.Id)); ProfileStatus = "Could not apply profile. Previous dashboard restored."; }
+                try
+                {
+                    if (appendPages)
+                    {
+                        foreach (var page in prepared.Pages) Pages.Remove(page);
+                        Settings.Settings.ShelveInstanceSettings = previousShelves;
+                        SaveCurrentPage();
+                    }
+                    else await ReplaceDashboardAsync(DashboardProfiles.Prepare(backup, plugin.Id));
+                    ProfileStatus = "Could not apply profile. Previous dashboard restored.";
+                }
                 catch (Exception restoreError) { LandingPageExtension.logger?.Error(restoreError, "Dashboard backup restore failed."); ProfileStatus = "Apply failed. The saved backup profile remains available: " + backup.Name; }
                 return false;
             }

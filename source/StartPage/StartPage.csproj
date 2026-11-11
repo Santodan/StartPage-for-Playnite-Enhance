@@ -71,6 +71,8 @@
     <Compile Include="Views\ShelfGameInfo.cs" />
     <Compile Include="Models\DashboardPage.cs" />
     <Compile Include="Models\DashboardProfile.cs" />
+    <Compile Include="Models\DashboardStarterTemplates.cs" />
+    <Compile Include="Controls\DashboardTemplatePreview.cs" />
     <Compile Include="ViewModels\DashboardProfilesViewModel.cs" />
     <Compile Include="ViewModels\DashboardPagesViewModel.cs" />
     <Compile Include="Models\AdvancedShelfRules.cs" />

@@ -11,14 +11,15 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 7. [x] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
 8. [x] **Multiple dashboard pages and toolbar widget.** Named pages with independent layouts/backgrounds. A placeable toolbar supports configurable native Playnite toolbar items, a page selector, previous/next arrows, and page management.
 9. [x] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
-10. [ ] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
-11. [ ] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
-12. [ ] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime.
-13. [ ] **Achievement dashboard.** Per-game completion, recently completed games, closest-to-completion games, and pinned goals, using available achievement-provider data.
-14. [ ] **Shortcut widget.** Configurable game, application, folder, and website buttons with labels and icons.
-15. [ ] **Divider/spacer widget.** Configurable separator lines and empty space for composing sections.
-16. [ ] **Remove limit from game shelves and achievements.** Shelf count/skip caps removed; unlimited shelf option added. Achievement limits remain pending.
-17. [ ] **Background options**
+10. [x] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
+11. [ ] **Dashboard transitions.** Optional None/Fade/Slide transitions with duration and direction controls. Prepare the destination before revealing it and coordinate the page/background change. Begin only after the user approves dashboard switching smoothness.
+12. [ ] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
+13. [ ] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime.
+14. [ ] **Achievement dashboard.** Per-game completion, recently completed games, closest-to-completion games, and pinned goals, using available achievement-provider data.
+15. [ ] **Shortcut widget.** Configurable game, application, folder, and website buttons with labels and icons.
+16. [ ] **Divider/spacer widget.** Configurable separator lines and empty space for composing sections.
+17. [ ] **More achievements settings.** Remove the Achievement limits and add more settings to the achievements.
+18. [ ] **Background options** Add more options to control the background image.
 
 ## First change: testing in Playnite
 
@@ -166,3 +167,21 @@ Group sizing/appearance: each toolbar group now independently supports Fill/Fit 
 - Verify save, edit, apply, backup restore, import/export, missing extensions, local images, and restart persistence in Playnite. Tests cover immutable snapshots, all widget/shelf/page data, safe JSON validation, ID remapping, automatic backup, runtime apply, unavailable-provider placeholders, external lifecycle reuse, and Playnite's actual settings serializer.
 - Commands: `powershell.exe -STA -ExecutionPolicy Bypass -File tests/Test-DashboardProfiles.ps1`, `tests/Test-DashboardPages.ps1`, and `tests/Test-SettingsSerialization.ps1` after a Release build. Test fixtures use a temporary configuration directory and never overwrite installed settings.
 - Release build and regression tests passed; user testing completed and the user authorized the commit.
+
+
+## Tenth change: starter profiles with previews
+
+- Open **Dashboard profiles...** from the background menu or toolbar and expand **Starter profiles**.
+- **Minimal:** one Home page with toolbar navigation, clock, welcome note, and recently played shelf.
+- **Achievements:** one page with recent unlocks and game cards showing achievement progress/trophy metadata, using the achievement provider currently selected in StartPage. Missing achievement data leaves relevant sections empty; no external provider data/settings are modified.
+- **Library:** Library and Backlog pages, with recent games, additions, favorites, never-played games, and an installed list. Both pages have navigation and profile-management toolbar items.
+- Every card previews each page's actual layout tree and shelf styles. These are schematic previews; installed theme, artwork, window dimensions, and library/provider data determine the final appearance.
+- **Add profile** creates an independent saved copy without changing the running dashboard. **Apply** adds a copy and applies it using the existing automatic backup mechanism. Copies get their own page/widget IDs and shelf settings; editing or applying a copy never alters the template recipe.
+- Starters use built-in widgets, game-artwork backgrounds, and no hardcoded local files or library-specific metadata filters. Current notification/global-background preferences, ignore tags, and achievement-provider selection are respected when the gallery is generated. Saved copies can be exported through the existing JSON profile workflow.
+- Tests: `tests/Test-StarterProfiles.ps1` covers recipe validity, shelf mapping, portability, independent generations, profile round-trip, and distinct rendered previews. `tests/Test-DashboardPages.ps1` covers four gallery page previews, command bindings, adding without applying, and applying with a backup. Run using Windows PowerShell STA after a Release build.
+- Release build and regression tests passed; awaiting user testing. Step 10 remains uncommitted.
+- Profile crash fix: normalize missing/null Most Played options, detach removed widgets from settings/activity events, and discard refresh results after removal or settings replacement. Regression coverage applies a starter from a second page containing Most Played, including older profiles with null options.
+
+Profile manager follow-up: Apply now defaults to appending independent profile pages, preserving existing page/control identities, the active page and shared settings. Unchecking the option retains full replacement. Saved profiles support Ctrl/Shift multi-selection and bulk deletion with confirmation. Regression tests cover repeated append, unique identities/names, navigation, preservation and bulk deletion through the real WPF list.
+
+Dashboard smoothness follow-up (awaiting user testing): retain decoded local backgrounds in a bounded 64 MiB / eight-image cache with file-change invalidation; decode through the asynchronous background binding; debounce navigation saves until 750 ms after the last switch, while explicit saves and closing StartPage flush immediately. Existing page roots, shelf models and layout templates remain reused. No transition animation is implemented yet.

@@ -41,6 +41,7 @@ namespace LandingPage.ViewModels
         public const double MaxTTL = 0;
         internal Uri uri;
         public Uri Uri { get => uri; set => SetValue(ref uri, value); }
+        public object Image => Converters.DashboardBackgroundCache.Load(Uri);
         internal double ttl = 0;
         public double TTL { get => ttl; set => SetValue(ref ttl, value); }
         public double Velocity { get; set; } = 0;

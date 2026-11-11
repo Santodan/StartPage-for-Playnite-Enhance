@@ -1,4 +1,4 @@
-﻿using LandingPage.Converters;
+using LandingPage.Converters;
 using PlayniteCommon.Extensions;
 using LandingPage.Models;
 using LandingPage.Models.GameActivity;
@@ -36,14 +36,10 @@ namespace LandingPage.ViewModels.GameActivity
             GameActivityViewModel = gameActivityViewModel;
             this.playniteAPI = playniteApi;
             this.settings = settingsViewModel;
-            settingsViewModel.Settings.PropertyChanged += Settings_PropertyChangedAsync;
             settingsViewModel.PropertyChanged += SettingsViewModel_PropertyChangedAsync;
-            settingsViewModel.Settings.MostPlayedOptions.CollectionChanged += MostPlayedOptions_CollectionChanged;
-            foreach (var options in settingsViewModel.Settings.MostPlayedOptions)
-            {
-                options.PropertyChanged += Options_PropertyChangedAsync;
-            }
-            gameActivityViewModel.Activities.CollectionChanged += Activities_CollectionChanged;
+            BindSettings();
+            observedActivities = gameActivityViewModel.Activities;
+            observedActivities.CollectionChanged += Activities_CollectionChanged;
             gameActivityViewModel.PropertyChanged += GameActivityViewModel_PropertyChangedAsync;
             FillWithPlaceholders();
             if (GameActivityViewModel.Activities.Count > 0)
@@ -52,73 +48,81 @@ namespace LandingPage.ViewModels.GameActivity
             }
         }
 
+        private LandingPageSettings observedSettings;
+        private ObservableCollection<MostPlayedOptions> observedOptions;
+        private readonly List<MostPlayedOptions> observedOptionItems = new List<MostPlayedOptions>();
+        private ObservableCollection<Activity> observedActivities;
+        private volatile bool closed;
+        private int settingsRevision;
+
+        private void UnbindSettings()
+        {
+            if (observedSettings != null) observedSettings.PropertyChanged -= Settings_PropertyChangedAsync;
+            if (observedOptions != null) observedOptions.CollectionChanged -= MostPlayedOptions_CollectionChanged;
+            foreach (var option in observedOptionItems) option.PropertyChanged -= Options_PropertyChangedAsync;
+            observedOptionItems.Clear(); observedSettings = null; observedOptions = null;
+        }
+        private void BindSettings()
+        {
+            UnbindSettings();
+            ++settingsRevision;
+            if (closed || Settings?.Settings == null) return;
+            observedSettings = Settings.Settings;
+            observedOptions = observedSettings.MostPlayedOptions;
+            observedSettings.PropertyChanged += Settings_PropertyChangedAsync;
+            observedOptions.CollectionChanged += MostPlayedOptions_CollectionChanged;
+            foreach (var option in observedOptions.Distinct()) { option.PropertyChanged += Options_PropertyChangedAsync; observedOptionItems.Add(option); }
+        }
+        private async Task RefreshSafelyAsync()
+        {
+            if (closed) return;
+            try { await UpdateMostPlayedAsync(); }
+            catch (Exception ex) { if (!closed) LandingPageExtension.logger?.Warn(ex, "Unable to refresh Most Played after a settings/activity update."); }
+        }
         private async void GameActivityViewModel_PropertyChangedAsync(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(GameActivityViewModel.Activities))
-            {
-                GameActivityViewModel.Activities.CollectionChanged += Activities_CollectionChanged;
-                await UpdateMostPlayedAsync();
-            }
+            if (closed || e.PropertyName != nameof(GameActivityViewModel.Activities)) return;
+            if (observedActivities != null) observedActivities.CollectionChanged -= Activities_CollectionChanged;
+            observedActivities = GameActivityViewModel.Activities;
+            if (observedActivities != null) observedActivities.CollectionChanged += Activities_CollectionChanged;
+            await RefreshSafelyAsync();
         }
-
         private async void Options_PropertyChangedAsync(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            await UpdateMostPlayedAsync();
+            if (closed) return;
+            ++settingsRevision;
+            await RefreshSafelyAsync();
         }
-
         private async void SettingsViewModel_PropertyChangedAsync(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(LandingPageSettingsViewModel.Settings))
-            {
-                Settings.Settings.MostPlayedOptions.CollectionChanged += MostPlayedOptions_CollectionChanged;
-                foreach (var options in Settings.Settings.MostPlayedOptions)
-                {
-                    options.PropertyChanged -= Options_PropertyChangedAsync;
-                    options.PropertyChanged += Options_PropertyChangedAsync;
-                }
-                Settings.Settings.PropertyChanged += Settings_PropertyChangedAsync;
-                await UpdateMostPlayedAsync();
-            }
+            if (closed || e.PropertyName != nameof(LandingPageSettingsViewModel.Settings)) return;
+            BindSettings();
+            await RefreshSafelyAsync();
         }
-
         private async void Settings_PropertyChangedAsync(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
+            if (closed) return;
             if (e.PropertyName == nameof(LandingPageSettings.MostPlayedOptions))
             {
-                Settings.Settings.MostPlayedOptions.CollectionChanged -= MostPlayedOptions_CollectionChanged;
-                Settings.Settings.MostPlayedOptions.CollectionChanged += MostPlayedOptions_CollectionChanged;
-                foreach (var options in Settings.Settings.MostPlayedOptions)
-                {
-                    options.PropertyChanged -= Options_PropertyChangedAsync;
-                    options.PropertyChanged += Options_PropertyChangedAsync;
-                }
-                await UpdateMostPlayedAsync();
+                BindSettings();
+                await RefreshSafelyAsync();
             }
-            if (e.PropertyName == nameof(LandingPageSettings.SkipGamesInPreviousMostPlayed)
-                || e.PropertyName == nameof(LandingPageSettings.ShowHiddenInMostPlayed))
+            else if (e.PropertyName == nameof(LandingPageSettings.SkipGamesInPreviousMostPlayed) || e.PropertyName == nameof(LandingPageSettings.ShowHiddenInMostPlayed))
             {
-                await UpdateMostPlayedAsync();
+                ++settingsRevision;
+                await RefreshSafelyAsync();
             }
         }
-
         private void MostPlayedOptions_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            if (e.OldItems != null)
-                foreach (MostPlayedOptions removed in e.OldItems)
-                {
-                    removed.PropertyChanged -= Options_PropertyChangedAsync;
-                }
-            if (e.NewItems != null)
-                foreach(MostPlayedOptions added in e.NewItems)
-                {
-                    added.PropertyChanged += Options_PropertyChangedAsync;
-                }
+            if (!closed) BindSettings();
         }
 
         private DispatcherTimer timer = null;
 
         private void Activities_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
+            if (closed) return;
             if (timer == null)
             {
                 timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -128,7 +132,7 @@ namespace LandingPage.ViewModels.GameActivity
                     {
                         dt.Stop();
                     }
-                    await UpdateMostPlayedAsync();
+                    await RefreshSafelyAsync();
                 };
             }
             timer.Stop();
@@ -139,8 +143,7 @@ namespace LandingPage.ViewModels.GameActivity
 
         public async Task UpdateMostPlayedAsync()
         {
-            var tagId = LandingPageExtension.Instance.SettingsViewModel.Settings.IgnoreMostPlayedTagId;
-
+            if (closed || Settings?.Settings == null) return;
             for (int i = Settings.Settings.MostPlayedOptions.Count - 1; i > 0; --i)
             {
                 if (Settings.Settings.MostPlayedOptions[i].Timeframe == Timeframe.None &&
@@ -163,18 +166,16 @@ namespace LandingPage.ViewModels.GameActivity
                 Settings.Settings.MostPlayedOptions.Add(new MostPlayedOptions { Timeframe = Timeframe.None });
             }
 
+            var revision = settingsRevision;
             var groups = await GetMostPlayedGroupsAsync();
+            if (closed || revision != settingsRevision) return;
 
             for (int i = 0; i < groups.Count; i++)
             {
                 if (specialGames.Count > i)
                 {
                     specialGames[i].Label = groups[i].Label;
-                    specialGames[i].Games.Clear();
-                    foreach(var game in groups[i].Games)
-                    {
-                        specialGames[i].Games.Add(game);
-                    }
+                    UpdateGroupGames(specialGames[i].Games, groups[i].Games);
                 }
                 else
                 {
@@ -186,6 +187,25 @@ namespace LandingPage.ViewModels.GameActivity
             while (specialGames.Count > groups.Count)
             {
                 specialGames.RemoveAt(j--);
+            }
+        }
+
+        private static void UpdateGroupGames(ObservableCollection<GameModel> current, ObservableCollection<GameModel> incoming)
+        {
+            var ids = new HashSet<Guid>(incoming.Select(model => model.Game.Id));
+            for (var i = current.Count - 1; i >= 0; --i)
+                if (!ids.Contains(current[i].Game.Id)) current.RemoveAt(i);
+            for (var i = 0; i < incoming.Count; ++i)
+            {
+                var next = incoming[i];
+                var existing = current.FirstOrDefault(model => model.Game.Id == next.Game.Id);
+                if (existing == null) current.Insert(i, next);
+                else
+                {
+                    if (!ReferenceEquals(existing.Game, next.Game)) existing.Game = next.Game;
+                    var index = current.IndexOf(existing);
+                    if (index != i) current.Move(index, i);
+                }
             }
         }
 
@@ -259,9 +279,9 @@ namespace LandingPage.ViewModels.GameActivity
         private List<GameGroup> GetMostPlayedGroups()
         {
             var groups = new List<GameGroup>();
-            var tagId = LandingPageExtension.Instance.SettingsViewModel.Settings.IgnoreMostPlayedTagId;
+            var tagId = Settings.Settings.IgnoreMostPlayedTagId;
 
-            foreach (var options in Settings.Settings.MostPlayedOptions)
+            foreach (var options in Settings.Settings.MostPlayedOptions.ToArray())
             {
                 if (options.Timeframe == Timeframe.None)
                 {
@@ -352,9 +372,9 @@ namespace LandingPage.ViewModels.GameActivity
         private List<GameGroup> GetPlaceholderGroups()
         {
             var groups = new List<GameGroup>();
-            var tagId = LandingPageExtension.Instance.SettingsViewModel.Settings.IgnoreMostPlayedTagId;
+            var tagId = Settings.Settings.IgnoreMostPlayedTagId;
 
-            foreach (var options in Settings.Settings.MostPlayedOptions)
+            foreach (var options in Settings.Settings.MostPlayedOptions.ToArray())
             {
                 if (options.Timeframe == Timeframe.None)
                 {
@@ -370,7 +390,12 @@ namespace LandingPage.ViewModels.GameActivity
 
         public void OnViewClosed()
         {
-            GameActivityViewModel.Activities.CollectionChanged -= Activities_CollectionChanged;
+            if (closed) return;
+            closed = true; ++settingsRevision;
+            timer?.Stop();
+            UnbindSettings();
+            settings.PropertyChanged -= SettingsViewModel_PropertyChangedAsync;
+            if (observedActivities != null) observedActivities.CollectionChanged -= Activities_CollectionChanged;
             GameActivityViewModel.PropertyChanged -= GameActivityViewModel_PropertyChangedAsync;
         }
 

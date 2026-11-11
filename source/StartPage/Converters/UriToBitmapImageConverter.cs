@@ -156,3 +156,67 @@ namespace LandingPage.Converters
         }
     }
 }
+
+namespace LandingPage.Converters
+{
+    // Called by an asynchronous image binding. Keep a small, bounded set of frozen
+    // local backgrounds so revisiting a page does not repeat image decoding.
+    internal static class DashboardBackgroundCache
+    {
+        private sealed class Entry
+        {
+            public string Key;
+            public BitmapImage Image;
+            public long Bytes;
+        }
+        private static readonly object gate = new object();
+        private static readonly LinkedList<Entry> images = new LinkedList<Entry>();
+        private const long MaxBytes = 64L * 1024 * 1024;
+        private static long bytes;
+        public static object Load(Uri uri)
+        {
+            if (uri == null || !uri.IsAbsoluteUri || !uri.IsFile) return uri;
+            try
+            {
+                var file = new FileInfo(uri.LocalPath);
+                if (!file.Exists) return uri;
+                var key = file.FullName + "|" + file.LastWriteTimeUtc.Ticks + "|" + file.Length;
+                lock (gate)
+                {
+                    var found = images.First;
+                    while (found != null)
+                    {
+                        if (found.Value.Key == key)
+                        {
+                            images.Remove(found); images.AddFirst(found);
+                            return found.Value.Image;
+                        }
+                        found = found.Next;
+                    }
+                    var decodeWatch = System.Diagnostics.Stopwatch.StartNew();
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
+                    bitmap.UriSource = uri;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+                    LandingPageExtension.logger?.Debug($"Dashboard background decoded: {bitmap.PixelWidth}x{bitmap.PixelHeight}, {decodeWatch.ElapsedMilliseconds} ms.");
+                    var size = (long)bitmap.PixelWidth * bitmap.PixelHeight * Math.Max(4, (bitmap.Format.BitsPerPixel + 7) / 8);
+                    if (size <= MaxBytes)
+                    {
+                        while (images.Count > 0 && (images.Count >= 8 || bytes + size > MaxBytes))
+                        { bytes -= images.Last.Value.Bytes; images.RemoveLast(); }
+                        images.AddFirst(new Entry { Key = key, Image = bitmap, Bytes = size }); bytes += size;
+                    }
+                    return bitmap;
+                }
+            }
+            catch (Exception ex)
+            {
+                LandingPageExtension.logger?.Debug(ex, "Unable to cache dashboard background.");
+                return uri;
+            }
+        }
+    }
+}

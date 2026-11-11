@@ -21,7 +21,7 @@ Add **StartPage > Toolbar** to a panel in Edit Mode for configurable native Play
 
 ## Dashboard profiles
 
-Right-click StartPage and choose **Dashboard profiles...** to save, apply, import, or export all dashboard pages and StartPage widget/shelf settings. Profiles are independent snapshots; applying one automatically saves a backup of the current dashboard. See the [profile guide](docs/DASHBOARD-PROFILES.md).
+Right-click StartPage and choose **Dashboard profiles...** to save, apply, import, or export all dashboard pages and StartPage widget/shelf settings. Profiles are independent snapshots; applying one automatically saves a backup of the current dashboard. The **Starter profiles** gallery includes Minimal, Achievements, and a two-page Library template with previews. See the [profile guide](docs/DASHBOARD-PROFILES.md).
 
 ## Shelf pattern filters
 

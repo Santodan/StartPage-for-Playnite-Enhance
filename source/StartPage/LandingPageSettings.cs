@@ -1,4 +1,4 @@
-﻿using LandingPage.Converters;
+using LandingPage.Converters;
 using LandingPage.Models;
 using LandingPage.Models.GameActivity;
 using LandingPage.Models.Layout;
@@ -199,8 +199,20 @@ namespace LandingPage
         private Dictionary<Guid, Settings.ShelvesSettings> shelveInstanceSettings = null;
         public Dictionary<Guid, Settings.ShelvesSettings> ShelveInstanceSettings { get => shelveInstanceSettings; set => SetValue(ref shelveInstanceSettings, value); }
 
-        private ObservableCollection<MostPlayedOptions> mostPlayedOptions = null;
-        public ObservableCollection<MostPlayedOptions> MostPlayedOptions { get => mostPlayedOptions; set => SetValue(ref mostPlayedOptions, value); }
+        private static ObservableCollection<MostPlayedOptions> DefaultMostPlayedOptions() => new ObservableCollection<MostPlayedOptions>
+        {
+            new MostPlayedOptions { Timeframe = Timeframe.Last14Days },
+            new MostPlayedOptions { Timeframe = Timeframe.Last3Month },
+            new MostPlayedOptions { Timeframe = Timeframe.AllTime }
+        };
+        private ObservableCollection<MostPlayedOptions> mostPlayedOptions = DefaultMostPlayedOptions();
+        [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
+        public ObservableCollection<MostPlayedOptions> MostPlayedOptions
+        {
+            get => mostPlayedOptions;
+            set => SetValue(ref mostPlayedOptions, value == null ? DefaultMostPlayedOptions()
+                : value.Any(option => option == null) ? new ObservableCollection<MostPlayedOptions>(value.Where(option => option != null)) : value);
+        }
 
         private bool skipGamesInPreviousShelves = false;
         public bool SkipGamesInPreviousShelves { get => skipGamesInPreviousShelves; set => SetValue(ref skipGamesInPreviousShelves, value); }

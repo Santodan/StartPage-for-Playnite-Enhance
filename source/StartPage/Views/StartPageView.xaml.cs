@@ -81,6 +81,7 @@ namespace LandingPage.Views
             if (!(DataContext is ViewModels.StartPageViewModel model) || model.IsSwitchingPage) return;
             if (AppearanceOverlay.Visibility == Visibility.Visible) CloseAppearance();
             ClosePages();
+            model.RefreshStarterProfiles();
             ProfilesOverlay.Visibility = Visibility.Visible;
             ProfilesOverlay.Focus();
         }
@@ -94,6 +95,11 @@ namespace LandingPage.Views
                 model.ConfirmDeleteProfile = false;
                 if (model.CanChangePages) model.SaveCurrentPage();
             }
+        }
+        private void SavedProfiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DataContext is LandingPage.ViewModels.StartPageViewModel model && sender is ListBox list)
+                model.SetSelectedProfiles(list.SelectedItems.Cast<LandingPage.Models.DashboardProfile>().ToArray());
         }
         private void CloseProfiles_Click(object sender, RoutedEventArgs e) => CloseProfiles();
         private void ProfilesOverlay_PreviewKeyDown(object sender, KeyEventArgs e)

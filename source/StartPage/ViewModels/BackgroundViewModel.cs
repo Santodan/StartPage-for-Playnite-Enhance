@@ -29,6 +29,7 @@ namespace LandingPage.ViewModels
         private IPlayniteAPI playniteAPI;
 
         private LandingPageExtension plugin;
+        private LandingPageSettings observedBackgroundSettings;
 
         public BackgroundViewModel(IPlayniteAPI playniteAPI, LandingPageExtension landingPageExtension)
         {
@@ -38,7 +39,8 @@ namespace LandingPage.ViewModels
 
             backgroundImageQueue.CollectionChanged += BackgroundImageQueue_CollectionChanged;
 
-            Settings.Settings.PropertyChanged += Settings_PropertyChanged;
+            observedBackgroundSettings = Settings.Settings;
+            observedBackgroundSettings.PropertyChanged += Settings_PropertyChanged;
             Settings.PropertyChanged += Settings_PropertyChanged1;
 
             if (playniteAPI.MainView?.SelectedGames?.FirstOrDefault() is Game last)
@@ -547,10 +549,11 @@ namespace LandingPage.ViewModels
         {
             if (e.PropertyName == nameof(LandingPageSettingsViewModel.Settings))
             {
+                if (observedBackgroundSettings != null) observedBackgroundSettings.PropertyChanged -= Settings_PropertyChanged;
+                observedBackgroundSettings = Settings.Settings;
+                observedBackgroundSettings.PropertyChanged += Settings_PropertyChanged;
                 UpdateBackgroundImagePath(Settings.Settings.BackgroundRefreshInterval != 0);
                 UpdateBackgroundTimer();
-                // Update();
-                Settings.Settings.PropertyChanged += Settings_PropertyChanged;
             }
         }
     }

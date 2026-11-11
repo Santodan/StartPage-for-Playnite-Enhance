@@ -76,7 +76,17 @@ namespace LandingPage.ViewModels
         private LandingPage.Settings.ShelvesSettings shelves;
         
 
-        public LandingPage.Settings.ShelvesSettings Shelves { get => shelves; set => SetValue(ref shelves, value); }
+        public LandingPage.Settings.ShelvesSettings Shelves
+        {
+            get => shelves;
+            set
+            {
+                if (ReferenceEquals(shelves, value)) return;
+                if (shelves != null) shelves.PropertyChanged -= Settings_PropertyChangedAsync;
+                SetValue(ref shelves, value);
+                if (shelves != null) shelves.PropertyChanged += Settings_PropertyChangedAsync;
+            }
+        }
 
         public ShelvesViewModel(
             IPlayniteAPI playniteAPI,
@@ -108,8 +118,6 @@ namespace LandingPage.ViewModels
             }
 
             Shelves = Settings.Settings.ShelveInstanceSettings[instanceId];
-
-            Shelves.PropertyChanged += Settings_PropertyChangedAsync;
 
             foreach (var shelveProperties in Shelves.ShelveProperties)
             {
@@ -182,9 +190,6 @@ namespace LandingPage.ViewModels
                     shelve.UpdateGames(shelve.ShelveProperties);
                 }
                 IsBusy = false;
-                GC.Collect();
-                GC.Collect(1);
-                GC.Collect(2);
             });
         }
 
@@ -196,9 +201,6 @@ namespace LandingPage.ViewModels
                  await shelve.UpdateGamesAsync(shelve.ShelveProperties);
             }
             IsBusy = false;
-            GC.Collect();
-            GC.Collect(1);
-            GC.Collect(2);
         }
 
         private async void Games_ItemUpdatedAsync(object sender, ItemUpdatedEventArgs<Game> e)
@@ -274,7 +276,7 @@ namespace LandingPage.ViewModels
         public void UnsubscribeSettings()
         {
             Settings.PropertyChanged -= Settings_PropertyChanged1Async;
-            Settings.Settings.PropertyChanged -= Settings_PropertyChangedAsync;
+            if (Shelves != null) Shelves.PropertyChanged -= Settings_PropertyChangedAsync;
         }
 
         private void MainWindow_Deactivated(object sender, EventArgs e)

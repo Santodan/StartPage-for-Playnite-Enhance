@@ -35,7 +35,10 @@ namespace LandingPage.Views
 
         public ToolbarWidgetView()
         {
-            WindowChrome.SetIsHitTestVisibleInChrome(this, true);
+            // Only interactive items should claim the caption area. Marking the whole
+            // widget as client content also swallows Playnite's drag/resize hit tests
+            // across empty group space when the theme hides its title bar.
+            WindowChrome.SetIsHitTestVisibleInChrome(this, false);
             SetResourceReference(ForegroundProperty, "TextBrush");
             var textStyle = new Style(typeof(TextBlock), TryFindResource("BaseTextBlockStyle") as Style);
             textStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, new DynamicResourceExtension("TextBrush")));
@@ -238,7 +241,7 @@ namespace LandingPage.Views
                 }
                 control.Margin = new Thickness(Settings.Spacing / 2);
                 control.VerticalAlignment = VerticalAlignment.Center;
-                WindowChrome.SetIsHitTestVisibleInChrome(control, true);
+                WindowChrome.SetIsHitTestVisibleInChrome(control, control is Control);
                 if (!control.IsEnabled && !(option.Id?.StartsWith("page.") ?? false))
                 { control.ToolTip = title + (entry.IsExtension ? ": no extension page or enabled action is currently available." : ": unavailable in the current Playnite theme/context."); ToolTipService.SetShowOnDisabled(control, true); }
                 (panels.TryGetValue(entry.GroupId ?? "main", out var groupPanel) ? groupPanel : panel).Children.Add(control);

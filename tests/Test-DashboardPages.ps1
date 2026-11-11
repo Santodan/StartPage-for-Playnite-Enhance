@@ -1,4 +1,4 @@
-# Runs entirely against temporary settings and an in-memory Playnite API.
+﻿# Runs entirely against temporary settings and an in-memory Playnite API.
 # powershell.exe -STA -File tests/Test-DashboardPages.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -8,6 +8,7 @@ foreach ($name in @('Gu.Wpf.NumericInput','Newtonsoft.Json','Playnite.SDK','Star
     [void][Reflection.Assembly]::LoadFrom((Join-Path $build ($name + '.dll')))
 }
 $app = [Windows.Application]::new()
+[Threading.SynchronizationContext]::SetSynchronizationContext([Windows.Threading.DispatcherSynchronizationContext]::new($app.Dispatcher))
 $flags = [Reflection.BindingFlags]'Instance,Public,NonPublic'
 function Set-Field($target, $name, $value) { $target.GetType().GetField($name, $flags).SetValue($target, $value) }
 function Get-Setting($settings, $name) { return ,([LandingPage.LandingPageSettings].GetProperty($name).GetValue($settings)) }
@@ -36,6 +37,20 @@ using Playnite.SDK.Plugins;
 using StartPage.SDK;
 public static class ToolbarTestVisuals
 {
+    public static IEnumerable<LandingPage.Controls.DashboardTemplatePreview> Previews(System.Windows.DependencyObject root)
+    {
+        var preview = root as LandingPage.Controls.DashboardTemplatePreview;
+        if (preview != null) yield return preview;
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); ++i)
+            foreach (var child in Previews(System.Windows.Media.VisualTreeHelper.GetChild(root,i))) yield return child;
+    }
+    public static IEnumerable<Button> Buttons(System.Windows.DependencyObject root)
+    {
+        var button = root as Button;
+        if (button != null) yield return button;
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); ++i)
+            foreach (var child in Buttons(System.Windows.Media.VisualTreeHelper.GetChild(root,i))) yield return child;
+    }
     public static IEnumerable<TextBlock> Text( System.Windows.DependencyObject root)
     {
         var text = root as TextBlock;
@@ -118,9 +133,10 @@ public class DashboardTestNullConverter : System.Windows.Data.IValueConverter
 public class DashboardTestWidget : Border, IStartPageControl, StartPage.SDK.Async.IAsyncStartPageControl
 {
     public int OpenCount, CloseCount, ShownAsyncCount, HiddenAsyncCount;
+    public Action BeforeHidden;
     public System.Threading.Tasks.Task InitializeAsync() { return System.Threading.Tasks.Task.FromResult(0); }
     public System.Threading.Tasks.Task OnViewShownAsync() { ++ShownAsyncCount; return System.Threading.Tasks.Task.FromResult(0); }
-    public System.Threading.Tasks.Task OnViewHiddenAsync() { ++HiddenAsyncCount; return System.Threading.Tasks.Task.FromResult(0); }
+    public System.Threading.Tasks.Task OnViewHiddenAsync() { if (BeforeHidden != null) BeforeHidden(); ++HiddenAsyncCount; return System.Threading.Tasks.Task.FromResult(0); }
     public System.Threading.Tasks.Task OnDayChangedAsync(DateTime time) { return System.Threading.Tasks.Task.FromResult(0); }
     public void OnStartPageOpened() { ++OpenCount; }
     public void OnStartPageClosed() { ++CloseCount; }
@@ -258,7 +274,13 @@ try {
     $rootModel.OpenView()
     $pageB = [LandingPage.Models.DashboardPages]::Add($settingsModel.Settings,'Second')
     $pageB.Background.Blur = 3; $pageB.Background.ImageUri = [uri]('file:///' + $tempRoot.Replace('\','/') + '/B.png')
+    $script:backgroundReadyBeforeHide = $false
+    $probe.BeforeHidden = [Action]{
+        $script:backgroundReadyBeforeHide = $background.BackgroundImagePath -eq $pageB.Background.ImageUri -and $background.BackgroundImageQueue.Count -eq 1 -and $background.BackgroundImageQueue[0].Opacity -eq 1
+    }
     Wait-Task ($vm.SwitchPageAsync($pageB))
+    $probe.BeforeHidden = $null
+    if (!$script:backgroundReadyBeforeHide) { throw 'Destination background must replace old artwork before outgoing widget callbacks' }
     if ($probe.CloseCount -ne 1 -or (Get-Setting $settingsModel.Settings 'BlurAmount') -ne 3 -or !$background.BackgroundImagePath.AbsoluteUri.EndsWith('B.png')) { throw 'Switch did not close outgoing widget/apply target background' }
     Set-Setting $settingsModel.Settings 'BlurAmount' ([double]7)
     Wait-Task ($vm.SwitchPageAsync($pageA))
@@ -276,6 +298,13 @@ try {
     if ((Get-Setting $saved 'ActiveDashboardPageId') -ne $pageA.Id -or (Get-Setting $saved 'DashboardPages').Count -ne 1) { throw 'Saved active page/deletion is incorrect' }
     $imagePath = Join-Path $tempRoot 'page-image.png'
     [IO.File]::Copy((Join-Path $root 'source/StartPage/icon.png'),$imagePath)
+    $backgroundItem = [LandingPage.ViewModels.BackgroundQueueItem]::new([uri]$imagePath,1)
+    $decodedA = $backgroundItem.Image
+    $decodedB = ([LandingPage.ViewModels.BackgroundQueueItem]::new([uri]$imagePath,1)).Image
+    if ($decodedA -isnot [Windows.Media.Imaging.BitmapSource] -or !$decodedA.IsFrozen -or ![object]::ReferenceEquals($decodedA,$decodedB)) { throw 'Revisited background did not reuse a frozen decoded image' }
+    [IO.File]::SetLastWriteTimeUtc($imagePath,[datetime]::UtcNow.AddMinutes(1))
+    $decodedChanged = ([LandingPage.ViewModels.BackgroundQueueItem]::new([uri]$imagePath,1)).Image
+    if ([object]::ReferenceEquals($decodedA,$decodedChanged)) { throw 'Background cache failed to invalidate an edited image' }
     $vm.SetPageImage($imagePath)
     if ($background.BackgroundImagePath.LocalPath -ne $imagePath) { throw 'Choosing a local page image did not display it' }
     $vm.SetPageImage($tempRoot)
@@ -334,6 +363,10 @@ try {
     $pageSelector = $controls | Where-Object { $_ -is [Windows.Controls.ComboBox] }
     if (!$pageSelector -or !$pageSelector.IsEnabled -or $pageSelector.SelectedItem.Id -ne $vm.SelectedPage.Id) { throw 'Toolbar page selector is not clickable/bound' }
     if (![Windows.Shell.WindowChrome]::GetIsHitTestVisibleInChrome($pageSelector)) { throw 'Toolbar selector is swallowed by Playnite window chrome' }
+    foreach ($chromeSpace in @($toolbar,$toolbar.Content,$toolbar.Content.Content,$toolbar.Content.Content.Children[0],$toolbar.Content.Content.Children[0].Child)) {
+        if ([Windows.Shell.WindowChrome]::GetIsHitTestVisibleInChrome($chromeSpace)) { throw 'Toolbar empty space blocks native caption dragging/resizing' }
+    }
+
     if ($controls[0].Content.Children[0].Content.Child.Text -ne [string][char]0x25C0 -or $controls[2].Content.Children[0].Content.Child.Text -ne [string][char]0x25B6) { throw 'Page arrow glyphs are missing' }
     $manage = $controls | Where-Object { $_ -is [Windows.Controls.Button] -and $_.ToolTip -eq 'Manage dashboard pages' }
     $manage.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
@@ -345,6 +378,7 @@ try {
     }
     $toolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($toolbar,@())
     $controls = $toolbar.Content.Content.Children[0].Child.Children
+    if (![Windows.Shell.WindowChrome]::GetIsHitTestVisibleInChrome($controls[0]) -or ![Windows.Shell.WindowChrome]::GetIsHitTestVisibleInChrome($controls[4]) -or [Windows.Shell.WindowChrome]::GetIsHitTestVisibleInChrome($controls[6])) { throw 'Chrome interaction must be limited to interactive toolbar controls' }
     $controls[0].Command.Execute($controls[0].CommandParameter)
     if ($nativeModel.Searches -ne 1) { throw 'Native search command was not forwarded' }
     if ($controls[2].IsEnabled) { throw 'Native CanExecute=false was ignored' }
@@ -577,11 +611,248 @@ try {
     Wait-Task ($vm.ApplyDashboardProfileAsync($invalidProfile))
     if ($vm.Profiles.Count -ne $profileCountBeforeInvalid -or ![object]::ReferenceEquals($externalProbe,[LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).GetValue($vm.RootNodeViewModel.GridNode.ViewProperties))) { throw 'Invalid profile changed the running dashboard' }
     'PASS: runtime profile save/import/apply, automatic backups, independent snapshots, missing-provider placeholders, external instance reuse/lifecycle, invalid-profile isolation, and in-app manager.'
+    $view.ShowProfiles(); $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $starterPreviews = @([ToolbarTestVisuals]::Previews($view.FindName('ProfilesOverlay')))
+    if ($starterPreviews.Count -ne 4 -or @($starterPreviews | Where-Object { !$_.Layout -or !$_.Shelves }).Count -ne 0) { throw 'Starter gallery preview layout/shelf bindings failed' }
+    $starterButtons = @([ToolbarTestVisuals]::Buttons($view.FindName('ProfilesOverlay')) | Where-Object { $_.Content -eq 'Add profile' })
+    if ($starterButtons.Count -ne 3 -or @($starterButtons | Where-Object { !$_.Command -or !$_.CommandParameter }).Count -ne 0) { throw 'Starter gallery cards are missing their commands or template parameters' }
+    $minimalCard = $starterButtons | Where-Object { $_.CommandParameter.Key -eq 'minimal' }
+    $recipe = $minimalCard.CommandParameter
+    $rootBeforeTemplate = $vm.RootNodeViewModel; $profileCount = $vm.Profiles.Count
+    $minimalCard.Command.Execute($recipe)
+    if ($vm.Profiles.Count -ne $profileCount + 1 -or ![object]::ReferenceEquals($rootBeforeTemplate,$vm.RootNodeViewModel)) { throw 'Adding starter profile must not replace the current dashboard' }
+    $vm.SelectedProfile.Snapshot.Pages[0].Name = 'Edited saved template'
+    if ($recipe.Profile.Snapshot.Pages[0].Name -ne 'Home') { throw 'Saved starter copy mutated the gallery recipe' }
+    # Reproduce a removed Most Played widget still watching settings during a starter apply.
+    $activityModel = [LandingPage.ViewModels.GameActivity.GameActivityViewModel].GetConstructors()[0].Invoke([object[]]@($null,$api,$settingsModel))
+    $mostPlayed = [LandingPage.ViewModels.GameActivity.MostPlayedViewModel].GetConstructors()[0].Invoke([object[]]@($api,$settingsModel,$activityModel))
+    $mostPlayedPage = [LandingPage.Models.DashboardPages]::Add($settingsModel.Settings,'Second page with Most Played')
+    $mostProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $mostProperties.PluginId = $plugin.Id; $mostProperties.ViewId = 'MostPlayed'
+    $mostView = [Windows.Controls.Border]::new(); $mostView.DataContext = $mostPlayed
+    [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($mostProperties,$mostView)
+    $mostPlayedPage.Layout.ViewProperties = $mostProperties
+    Set-Field $plugin 'mostPlayedViewModel' $mostPlayed
+    Wait-Task ($vm.SwitchPageAsync($mostPlayedPage))
+    $pendingMostPlayedUpdate = $mostPlayed.UpdateMostPlayedAsync()
+    # Profiles already exported by older builds may explicitly contain null options.
+    $recipe.Profile.Snapshot.SharedSettings['MostPlayedOptions'] = [Newtonsoft.Json.Linq.JValue]::CreateNull()
+    $applyCard = [ToolbarTestVisuals]::Buttons($view.FindName('ProfilesOverlay')) | Where-Object { $_.Content -eq 'Apply' -and $_.CommandParameter.Key -eq 'minimal' } | Select-Object -First 1
+    $profileCount = $vm.Profiles.Count
+    $vm.AppendProfilePages = $false # Explicit replacement remains available.
+    $applyCard.Command.Execute($applyCard.CommandParameter)
+    $applyDeadline = [datetime]::UtcNow.AddSeconds(15)
+    while ($vm.IsSwitchingPage -or $vm.IsLoading) { if ([datetime]::UtcNow -gt $applyDeadline) { throw 'Starter profile apply timed out' }; $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5 }
+    Wait-Task $pendingMostPlayedUpdate
+    if (!$mostPlayed.GetType().GetField('closed',$flags).GetValue($mostPlayed) -or $mostPlayed.GetType().GetField('observedSettings',$flags).GetValue($mostPlayed) -or $mostPlayed.GetType().GetField('observedOptions',$flags).GetValue($mostPlayed)) { throw 'Removed Most Played widget retained settings subscriptions' }
+    $normalizedMostPlayed = Get-Setting $settingsModel.Settings 'MostPlayedOptions'
+    if (!$normalizedMostPlayed -or $normalizedMostPlayed.Count -ne 3) { throw 'Older null Most Played profile settings were not normalized safely' }
+    Wait-Task ($mostPlayed.UpdateMostPlayedAsync())
+    $activityModel.GetType().GetField('timer',$flags).GetValue($activityModel).Stop()
+    if ($vm.SelectedPage.Name -ne 'Home' -or $vm.Profiles.Count -ne $profileCount + 2) { throw ('Applying starter failed or missed its automatic backup: ' + $vm.ProfileStatus) }
+    if ($recipe.Profile.Snapshot.Pages[0].Name -ne 'Home') { throw 'Applying starter mutated its source recipe' }
+    $view.GetType().GetMethod('CloseProfiles_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    'PASS: starter gallery previews/commands, add-without-applying, independent template copies, and apply with automatic backup.'
+    $localSettings = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageSettingsViewModel]); $localSettings.Settings = [LandingPage.LandingPageSettings]::new()
+    $localActivity = [LandingPage.ViewModels.GameActivity.GameActivityViewModel].GetConstructors()[0].Invoke([object[]]@($null,$api,$localSettings))
+    $localMost = [LandingPage.ViewModels.GameActivity.MostPlayedViewModel].GetConstructors()[0].Invoke([object[]]@($api,$localSettings,$localActivity))
+    $oldMostOptions = Get-Setting $localSettings.Settings 'MostPlayedOptions'
+    Set-Setting $localSettings.Settings 'MostPlayedOptions' $null
+    Wait-Task ($localMost.UpdateMostPlayedAsync())
+    $revision = $localMost.GetType().GetField('settingsRevision',$flags).GetValue($localMost)
+    $oldMostOptions[0].SkippedGames = 9
+    if ($localMost.GetType().GetField('settingsRevision',$flags).GetValue($localMost) -ne $revision) { throw 'Most Played still observes options from a replaced collection' }
+    $oldSettingsObject = $localSettings.Settings
+    $localSettings.Settings = [LandingPage.LandingPageSettings]::new()
+    Wait-Task ($localMost.UpdateMostPlayedAsync())
+    $revision = $localMost.GetType().GetField('settingsRevision',$flags).GetValue($localMost)
+    Set-Setting $oldSettingsObject 'SkipGamesInPreviousMostPlayed' $true
+    if ($localMost.GetType().GetField('settingsRevision',$flags).GetValue($localMost) -ne $revision) { throw 'Most Played still observes a replaced settings object' }
+    $localMost.OnViewClosed()
+    Set-Setting $localSettings.Settings 'MostPlayedOptions' $null
+    Wait-Task ($localMost.UpdateMostPlayedAsync())
+    $localActivity.GetType().GetField('timer',$flags).GetValue($localActivity).Stop()
+    'PASS: Most Played on a second page, starter apply with legacy null options, removed-widget subscriptions, in-flight refresh cancellation, and settings/collection replacement.'
+    # Append mode must preserve page/control identities and shared settings.
+    $vm.AppendProfilePages = $true
+    $navigationTimer = $vm.GetType().GetField('navigationSaveTimer',$flags).GetValue($vm)
+    if (!$navigationTimer) { throw 'Page navigation never initialized its deferred save' }
+    $vm.SaveCurrentPage()
+    if ($navigationTimer.IsEnabled) { throw 'Explicit save did not flush deferred navigation persistence' }
+    $beforePages = @($vm.Pages)
+    $beforeRoot = $vm.RootNodeViewModel
+    $beforeActive = $vm.SelectedPage.Id
+    $beforePadding = Get-Setting $settingsModel.Settings 'Padding'
+    $appendRecipe = $vm.StarterProfiles | Where-Object { $_.Key -eq 'library' }
+    $appendProfile = $vm.AddStarterProfile($appendRecipe)
+    $vm.SelectedProfile = $appendProfile
+    $vm.ApplyDashboardProfileCommand.Execute($null)
+    $deadline = [datetime]::UtcNow.AddSeconds(15)
+    while ($vm.IsSwitchingPage -or $vm.IsLoading) { if ([datetime]::UtcNow -gt $deadline) { throw 'Append timed out' }; $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle) }
+    if ($vm.Pages.Count -ne $beforePages.Count + 2 -or $vm.SelectedPage.Id -ne $beforeActive -or ![object]::ReferenceEquals($vm.RootNodeViewModel,$beforeRoot)) { throw 'Appending replaced existing dashboard state' }
+    foreach ($page in $beforePages) { if (!$vm.Pages.Contains($page)) { throw 'Appending removed an existing page' } }
+    if ((Get-Setting $settingsModel.Settings 'Padding') -ne $beforePadding) { throw 'Appending changed shared appearance settings' }
+    $firstAppendIds = @($vm.Pages | ForEach-Object { $_.Id })
+    Wait-Task ($vm.ApplyDashboardProfileAsync($appendProfile,$true))
+    if ($vm.Pages.Count -ne $beforePages.Count + 4 -or @($vm.Pages | Group-Object Id | Where-Object Count -gt 1).Count -or @($vm.Pages | Group-Object Name | Where-Object Count -gt 1).Count) { throw 'Repeated append did not create independent, uniquely named pages' }
+    $appendedPage = $vm.Pages[$beforePages.Count]
+    Wait-Task ($vm.SwitchPageAsync($appendedPage))
+    if ($vm.SelectedPage.Id -ne $appendedPage.Id) { throw 'Appended page cannot be opened' }
+    $view.ShowProfiles(); $window.UpdateLayout()
+    $list = $view.FindName('SavedProfilesList')
+    if ($list.SelectionMode -ne [Windows.Controls.SelectionMode]::Extended) { throw 'Profiles list does not support multi-selection' }
+    $list.SelectedItems.Clear()
+    $deleteTargets = @($vm.Profiles | Select-Object -First 2)
+    foreach ($profile in $deleteTargets) { [void]$list.SelectedItems.Add($profile) }
+    if ($vm.SelectedProfiles.Count -ne 2) { throw 'Profile multi-selection did not reach the view model' }
+    $rootBeforeDelete = $vm.RootNodeViewModel; $pagesBeforeDelete = $vm.Pages.Count; $countBeforeDelete = $vm.Profiles.Count
+    $vm.RequestDeleteProfileCommand.Execute($null)
+    $vm.DeleteDashboardProfileCommand.Execute($null)
+    if ($vm.Profiles.Count -ne $countBeforeDelete - 2 -or $vm.Pages.Count -ne $pagesBeforeDelete -or ![object]::ReferenceEquals($rootBeforeDelete,$vm.RootNodeViewModel)) { throw 'Bulk deletion failed or changed the active dashboard' }
+    foreach ($profile in $deleteTargets) { if ($vm.Profiles.Contains($profile)) { throw 'A selected profile was not deleted' } }
+    'PASS: append default/command, existing controls/pages/settings preserved, repeated independent append, page navigation, and multi-select deletion through the real list.'
+    $refreshShelf = [LandingPage.ViewModels.ShelveViewModel].GetConstructors()[0].Invoke([object[]]@([LandingPage.Models.ShelveProperties]::new(),[LandingPage.Settings.ShelvesSettings]::new(),$api,[Collections.ObjectModel.ObservableCollection[LandingPage.ViewModels.ShelveViewModel]]::new(),$null))
+    $gameA = [Playnite.SDK.Models.Game]::new(); $gameA.Name = 'Stable cover A'
+    $gameB = [Playnite.SDK.Models.Game]::new(); $gameB.Name = 'Stable cover B'
+    $selection = [Collections.Generic.List[Playnite.SDK.Models.Game]]::new(); $selection.Add($gameA); $selection.Add($gameB)
+    $applyGames = $refreshShelf.GetType().GetMethod('ApplyGameSelection',$flags)
+    [void]$applyGames.Invoke($refreshShelf,[object[]](,$selection))
+    $stableA = $refreshShelf.Games[0]; $stableB = $refreshShelf.Games[1]
+    $script:shelfChanges = 0; $script:shelfResets = 0
+    $listener = [Collections.Specialized.NotifyCollectionChangedEventHandler]{ param($sender,$eventArgs) $script:shelfChanges++; if ($eventArgs.Action -eq 'Reset') { $script:shelfResets++ } }
+    $refreshShelf.Games.add_CollectionChanged($listener)
+    for ($i = 0; $i -lt 5; ++$i) { [void]$applyGames.Invoke($refreshShelf,[object[]](,$selection)) }
+    if ($script:shelfChanges -ne 0 -or ![object]::ReferenceEquals($stableA,$refreshShelf.Games[0])) { throw 'Unchanged shelf refresh invalidates covers/containers' }
+    $selection.Reverse(); [void]$applyGames.Invoke($refreshShelf,[object[]](,$selection))
+    if ($script:shelfResets -ne 0 -or ![object]::ReferenceEquals($stableB,$refreshShelf.Games[0])) { throw 'Shelf reorder recreated models or reset the view' }
+    [void]$selection.Remove($gameA); [void]$applyGames.Invoke($refreshShelf,[object[]](,$selection))
+    if ($refreshShelf.Games.Count -ne 1 -or $script:shelfResets -ne 0) { throw 'Incremental shelf removal failed' }
+    $refreshShelf.Games.Add([LandingPage.Models.GameModel]::new($gameB))
+    [void]$applyGames.Invoke($refreshShelf,[object[]](,$selection))
+    if ($refreshShelf.Games.Count -ne 1) { throw 'Duplicate placeholder models survived shelf reconciliation' }
+    $currentGroup = [Collections.ObjectModel.ObservableCollection[LandingPage.Models.GameModel]]::new(); $currentGroup.Add($stableB)
+    $incomingGroup = [Collections.ObjectModel.ObservableCollection[LandingPage.Models.GameModel]]::new(); $incomingGroup.Add([LandingPage.Models.GameModel]::new($gameB))
+    $script:mostGroupChanges = 0
+    $groupListener = [Collections.Specialized.NotifyCollectionChangedEventHandler]{ $script:mostGroupChanges++ }
+    $currentGroup.add_CollectionChanged($groupListener)
+    $updateGroup = [LandingPage.ViewModels.GameActivity.MostPlayedViewModel].GetMethod('UpdateGroupGames',[Reflection.BindingFlags]'Static,NonPublic')
+    [void]$updateGroup.Invoke($null,[object[]]@($currentGroup,$incomingGroup))
+    if ($script:mostGroupChanges -ne 0 -or ![object]::ReferenceEquals($stableB,$currentGroup[0])) { throw 'Most Played refresh recreated an unchanged cover' }
+    $refreshShelf.OnViewClosed()
+    $previousProvider = Get-Setting $settingsModel.Settings 'SelectedAchievementsProvider'
+    Set-Setting $settingsModel.Settings 'SelectedAchievementsProvider' ([LandingPage.Settings.AchievementsProvider]::SuccessStory)
+    $progressDirectory = Join-Path $tempRoot 'cebe6d32-8c46-4459-b993-5a5189d60788/SuccessStory'
+    [void][IO.Directory]::CreateDirectory($progressDirectory)
+    $progressFile = Join-Path $progressDirectory ($gameB.Id.ToString() + '.json')
+    [IO.File]::WriteAllText($progressFile,'{"Total":10,"Unlocked":4}')
+    $info = [LandingPage.Views.ShelfGameInfo]::new()
+    $info.Settings = [LandingPage.Models.ShelveProperties]::new(); $info.Settings.ShowAchievementProgress = $true
+    $info.Model = $stableB
+    [void]$layout.Children.Add($info); $window.UpdateLayout()
+    $panel = $info.Content
+    $deadline = [datetime]::UtcNow.AddSeconds(10)
+    while (@($panel.Children | Where-Object { $_ -is [Windows.Controls.ProgressBar] }).Count -eq 0) {
+        if ([datetime]::UtcNow -gt $deadline) { throw 'Achievement progress failed to load without hover' }
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5
+    }
+    $bar = $panel.Children | Where-Object { $_ -is [Windows.Controls.ProgressBar] } | Select-Object -First 1
+    $refreshInfo = $info.GetType().GetMethod('Refresh',$flags)
+    [void]$refreshInfo.Invoke($info,@($true))
+    if (!$panel.Children.Contains($bar)) { throw 'Achievement poll clears existing progress while awaiting data' }
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    Start-Sleep -Milliseconds 30
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if (!$panel.Children.Contains($bar) -or $bar.Value -ne 40) { throw 'Unchanged achievement poll replaces the existing bar' }
+    [IO.File]::WriteAllText($progressFile,'{"Total":10,"Unlocked":7}')
+    [void]$refreshInfo.Invoke($info,@($true))
+    $deadline = [datetime]::UtcNow.AddSeconds(10)
+    do {
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        $newBar = $panel.Children | Where-Object { $_ -is [Windows.Controls.ProgressBar] } | Select-Object -First 1
+        if ([datetime]::UtcNow -gt $deadline) { throw 'Achievement progress did not update without hover' }
+    } while ($newBar.Value -ne 70)
+    [void]$layout.Children.Remove($info)
+    Set-Setting $settingsModel.Settings 'SelectedAchievementsProvider' $previousProvider
+    'PASS: unchanged shelf refresh emits no collection changes, incremental reorder/removal preserves models, and achievement polls keep progress visible and update without hover.'
+    $previousButton = [Windows.Controls.Button]::new(); $previousButton.Command = $vm.PreviousPageCommand
+    $nextButton = [Windows.Controls.Button]::new(); $nextButton.Command = $vm.NextPageCommand
+    [void]$layout.Children.Add($previousButton); [void]$layout.Children.Add($nextButton)
+    Wait-Task ($vm.SwitchPageAsync($vm.Pages[0]))
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($previousButton.IsEnabled -or !$nextButton.IsEnabled) { throw 'Navigation buttons did not refresh after switch to first page without mouse input' }
+    Wait-Task ($vm.SwitchPageAsync($vm.Pages[$vm.Pages.Count - 1]))
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if (!$previousButton.IsEnabled -or $nextButton.IsEnabled) { throw 'Navigation buttons did not refresh after switch to last page without mouse input' }
+    $applyButton = [Windows.Controls.Button]::new(); $applyButton.Command = $vm.ApplyDashboardProfileCommand
+    $confirmPageButton = [Windows.Controls.Button]::new(); $confirmPageButton.Command = $vm.DeletePageCommand
+    $confirmProfileButton = [Windows.Controls.Button]::new(); $confirmProfileButton.Command = $vm.DeleteDashboardProfileCommand
+    foreach ($button in @($applyButton,$confirmPageButton,$confirmProfileButton)) { [void]$layout.Children.Add($button) }
+    $vm.SelectedProfile = $null
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($applyButton.IsEnabled) { throw 'Apply button did not disable after profile selection cleared' }
+    $vm.SelectedProfile = $vm.Profiles[0]
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if (!$applyButton.IsEnabled) { throw 'Apply button did not enable after programmatic profile selection' }
+    $vm.ConfirmPageDeletion = $true
+    $vm.SetSelectedProfiles([LandingPage.Models.DashboardProfile[]]@($vm.Profiles[0]))
+    $vm.ConfirmDeleteProfile = $true
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if (!$confirmPageButton.IsEnabled -or !$confirmProfileButton.IsEnabled) { throw 'Delete confirmation commands did not refresh without input' }
+    $vm.ConfirmPageDeletion = $false; $vm.ConfirmDeleteProfile = $false
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($confirmPageButton.IsEnabled -or $confirmProfileButton.IsEnabled) { throw 'Cancelled delete confirmation left enabled commands' }
+    $active = $vm.SelectedPage; $vm.Pages.Move($vm.Pages.IndexOf($active),0)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($previousButton.IsEnabled -or !$nextButton.IsEnabled) { throw 'Reordering pages left stale navigation state' }
+    $nextBackgroundButton = [Windows.Controls.Button]::new(); $nextBackgroundButton.Command = $vm.NextRandomBackgroundCommand
+    [void]$layout.Children.Add($nextBackgroundButton)
+    Set-Setting $settingsModel.Settings 'BackgroundImagePath' $null
+    Set-Setting $settingsModel.Settings 'BackgroundImageSource' ([LandingPage.BackgroundImageSource]::Random)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if (!$nextBackgroundButton.IsEnabled) { throw 'Random background command did not refresh after changing source' }
+    Set-Setting $settingsModel.Settings 'BackgroundImageSource' ([LandingPage.BackgroundImageSource]::LastPlayed)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($nextBackgroundButton.IsEnabled) { throw 'Random background command stayed enabled for a non-random source' }
+    function Count-RefreshListeners($source,$target) {
+        $count = 0; $type = [object].GetMethod('GetType').Invoke($source,@())
+        while ($type) {
+            foreach ($field in $type.GetFields([Reflection.BindingFlags]'Instance,NonPublic,Public,DeclaredOnly')) {
+                if ($field.Name -like '*PropertyChanged*') {
+                    $handlers = $field.GetValue($source)
+                    if ($handlers -is [Delegate]) { foreach ($handler in $handlers.GetInvocationList()) { if ([object]::ReferenceEquals($handler.Target,$target)) { $count++ } } }
+                }
+            }
+            $type = $type.BaseType
+        }
+        return $count
+    }
+    $auditSettingsModel = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageSettingsViewModel])
+    $auditSettingsModel.Settings = [LandingPage.LandingPageSettings]::new()
+    Set-Setting $auditSettingsModel.Settings 'BackgroundImageUri' ([uri]$imagePath)
+    $auditPlugin = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageExtension])
+    [LandingPage.LandingPageExtension].GetProperty('SettingsViewModel',$flags).SetValue($auditPlugin,$auditSettingsModel)
+    $auditBackground = [LandingPage.ViewModels.BackgroundViewModel].GetConstructors()[0].Invoke([object[]]@($api,$auditPlugin))
+    $oldBackgroundSettings = $auditSettingsModel.Settings
+    $replacementSettings = [LandingPage.LandingPageSettings]::new()
+    Set-Setting $replacementSettings 'BackgroundImageUri' ([uri]$imagePath)
+    $auditSettingsModel.Settings = $replacementSettings
+    if ((Count-RefreshListeners $oldBackgroundSettings $auditBackground) -ne 0 -or (Count-RefreshListeners $replacementSettings $auditBackground) -ne 1) { throw 'Background settings replacement leaked or duplicated refresh subscriptions' }
+    $auditBackground.Unsubscribe()
+    Set-Setting $auditSettingsModel.Settings 'ShelveInstanceSettings' ([Collections.Generic.Dictionary[guid,LandingPage.Settings.ShelvesSettings]]::new())
+    Set-Setting $auditSettingsModel.Settings 'ShelveProperties' ([Collections.ObjectModel.ObservableCollection[LandingPage.Models.ShelveProperties]]::new())
+    $auditShelves = [LandingPage.ViewModels.ShelvesViewModel].GetConstructors()[0].Invoke([object[]]@($api,$auditPlugin,$auditSettingsModel,[guid]::NewGuid()))
+    $oldShelfSettings = $auditShelves.Shelves
+    $auditShelves.Shelves = [LandingPage.Settings.ShelvesSettings]::new()
+    if ((Count-RefreshListeners $oldShelfSettings $auditShelves) -ne 0 -or (Count-RefreshListeners $auditShelves.Shelves $auditShelves) -ne 1) { throw 'Shelf settings replacement leaked or lost refresh subscriptions' }
+    $auditShelves.OnViewClosed()
+    if ((Count-RefreshListeners $auditShelves.Shelves $auditShelves) -ne 0) { throw 'Closed shelf widget retained refresh subscriptions' }
+    'PASS: replaced background/shelf settings detach old listeners and attach exactly once; closing shelves detaches refresh listeners.'
+    'PASS: profile selection, delete confirmation/cancellation, page reorder and background-source commands update real buttons without input.'
+    'PASS: previous/next button availability refreshes after switching without mouse or keyboard input.'
     $window.Close()
     'PASS: toolbar serialization, native catalog/commands/menus/toggles/search/progress/extensions, clickable page navigation, missing providers, menu-state restoration, and settings refresh.'
     'PASS: legacy migration, independent layout/backgrounds, save/reload/order, nested traversal, real page switching and widget callbacks, deletion, last-page protection, temporary-file persistence, context-menu navigation, and in-app manager open/close.'
 } finally {
-    if ($vm) { $vm.GetType().GetField('clock',$flags).GetValue($vm).Stop() }
+    if ($vm) { $vm.GetType().GetField('clock',$flags).GetValue($vm).Stop(); $navTimer = $vm.GetType().GetField('navigationSaveTimer',$flags).GetValue($vm); if ($navTimer) { $navTimer.Stop() } }
     [LandingPage.LandingPageExtension].GetProperty('Instance').SetValue($null,$originalPlugin)
     $serializerField.SetValue($null, $originalSerializer)
     $app.Shutdown()

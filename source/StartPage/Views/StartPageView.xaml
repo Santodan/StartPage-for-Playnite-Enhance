@@ -553,6 +553,41 @@
                         <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Dashboard profiles" FontSize="20" Margin="0,0,0,12"/>
                         <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Save all dashboard pages, backgrounds, widget appearance, StartPage widget settings, and shelf rules together." TextWrapping="Wrap" Margin="0,0,0,12"/>
                         <StackPanel IsEnabled="{Binding CanChangePages}">
+                            <CheckBox Content="Add profile pages to the existing dashboard" IsChecked="{Binding AppendProfilePages}" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Checked: keep existing pages and shared settings. Unchecked: replace the entire dashboard. Both modes save a backup." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                            <Expander Header="Starter profiles" IsExpanded="True" Margin="0,0,0,10">
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Choose a starting layout. Previews show the layout structure; your theme, artwork, and data determine the final appearance." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <ItemsControl ItemsSource="{Binding StarterProfiles}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{DynamicResource NormalBrush}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                                                    <StackPanel>
+                                                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="{Binding Name}" FontSize="18"/>
+                                                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="{Binding Description}" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                                                        <ItemsControl ItemsSource="{Binding Profile.Snapshot.Pages}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Margin="0,0,0,8">
+                                                                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="{Binding Name}" Margin="0,0,0,4"/>
+                                                                        <controls:DashboardTemplatePreview Layout="{Binding Layout}" Shelves="{Binding DataContext.Profile.Snapshot.Shelves, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="{Binding Notes}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                                        <WrapPanel>
+                                                            <Button Content="Add profile" Command="{Binding DataContext.AddStarterProfileCommand, RelativeSource={RelativeSource AncestorType=local:StartPageView}}" CommandParameter="{Binding}" Margin="0,0,8,0"/>
+                                                            <Button Content="Apply" Command="{Binding DataContext.ApplyStarterProfileCommand, RelativeSource={RelativeSource AncestorType=local:StartPageView}}" CommandParameter="{Binding}"/>
+                                                        </WrapPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Add profile saves a copy. Apply uses the option above and saves a backup." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                </StackPanel>
+                            </Expander>
                             <Expander Header="Save current dashboard" IsExpanded="True">
                                 <StackPanel Margin="8,6,0,10">
                                     <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Profile name"/>
@@ -561,20 +596,84 @@
                                 </StackPanel>
                             </Expander>
                             <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Saved profiles" Margin="0,6,0,4"/>
-                            <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" DisplayMemberPath="Name"/>
+                            <Border BorderBrush="{DynamicResource NormalBrush}" BorderThickness="1" CornerRadius="6" Padding="4" Margin="0,2,0,4">
+                                <Grid>
+                                    <ListBox x:Name="SavedProfilesList" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                                             SelectionMode="Extended" SelectionChanged="SavedProfiles_SelectionChanged" MinHeight="110" MaxHeight="260"
+                                             Background="Transparent" BorderThickness="0" Padding="0" Foreground="{DynamicResource TextBrush}"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                <Setter Property="Margin" Value="0,0,0,4"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <Border BorderBrush="{DynamicResource NormalBrush}" BorderThickness="1" CornerRadius="4" Background="Transparent">
+                                                                <Grid>
+                                                                    <Border x:Name="RowShade" Background="{DynamicResource TextBrush}" Opacity="0.04" CornerRadius="4"/>
+                                                                    <Grid Margin="10,9">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="24"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <Border Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Left" CornerRadius="3" BorderThickness="1" BorderBrush="{DynamicResource TextBrush}">
+                                                                            <TextBlock x:Name="SelectionMark" Text="&#x2713;" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}" Visibility="Hidden"/>
+                                                                        </Border>
+                                                                        <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="RowShade" Property="Opacity" Value="0.10"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsSelected" Value="True">
+                                                                    <Setter TargetName="RowShade" Property="Opacity" Value="0.18"/>
+                                                                    <Setter TargetName="SelectionMark" Property="Visibility" Value="Visible"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextBrush}" ToolTip="{Binding Name}"/>
+                                                    <TextBlock Text="{Binding Snapshot.Pages.Count, StringFormat={}{0} page(s)}" FontSize="11" Margin="0,3,0,0" Opacity="0.7" Foreground="{DynamicResource TextBrush}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock Text="No saved profiles yet. Save your dashboard or add a starter above." TextWrapping="Wrap" Margin="12" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}" IsHitTestVisible="False">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Profiles.Count}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </Border>
+                            <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="{Binding SelectedProfiles.Count, StringFormat={}{0} selected}" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Use Ctrl or Shift to select multiple profiles for deletion. Apply, rename and export use the active selection." TextWrapping="Wrap" Margin="0,4,0,4"/>
                             <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Rename selected profile" Margin="0,8,0,4"/>
                             <TextBox Text="{Binding SelectedProfile.Name, UpdateSourceTrigger=LostFocus}"/>
                             <Button Content="Apply selected profile" Command="{Binding ApplyDashboardProfileCommand}" Margin="0,8,0,4"/>
-                            <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Applying replaces the current dashboard pages. An independent backup of the current dashboard is saved first." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                            <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Apply uses the add-pages option above. Your current dashboard is backed up first." TextWrapping="Wrap" Margin="0,0,0,10"/>
                             <WrapPanel>
                                 <Button Content="Import JSON..." Command="{Binding ImportDashboardProfileCommand}" Margin="0,0,6,6"/>
                                 <Button Content="Export selected JSON..." Command="{Binding ExportDashboardProfileCommand}" Margin="0,0,0,6"/>
                             </WrapPanel>
-                            <Expander Header="Delete saved profile" Margin="0,6,0,0">
+                            <Expander Header="Delete saved profiles" Margin="0,6,0,0">
                                 <StackPanel Margin="8,6,0,8">
-                                    <Button Content="Delete selected profile..." Command="{Binding RequestDeleteProfileCommand}"/>
+                                    <Button Content="Delete selected profiles..." Command="{Binding RequestDeleteProfileCommand}"/>
                                     <StackPanel Visibility="{Binding ConfirmDeleteProfile, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,6,0,0">
-                                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Delete this saved profile? The active dashboard is kept." TextWrapping="Wrap"/>
+                                        <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Delete all selected saved profiles? The active dashboard is kept." TextWrapping="Wrap"/>
                                         <WrapPanel Margin="0,4,0,0">
                                             <Button Content="Delete" Command="{Binding DeleteDashboardProfileCommand}" Margin="0,0,6,0"/>
                                             <Button Content="Cancel" Command="{Binding CancelDeleteProfileCommand}"/>

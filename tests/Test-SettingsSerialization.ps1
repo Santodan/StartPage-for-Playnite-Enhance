@@ -1,4 +1,4 @@
-# Use Playnite's actual serializer/resolver, rather than Json.NET defaults.
+﻿# Use Playnite's actual serializer/resolver, rather than Json.NET defaults.
 # powershell.exe -STA -File tests/Test-SettingsSerialization.ps1
 param([string]$PlayniteDirectory = 'E:\Programs\Playnite')
 $ErrorActionPreference = 'Stop'
@@ -19,6 +19,13 @@ $previousSerializer = $serializerField.GetValue($null)
 try {
     $serializerField.SetValue($null, [Playnite.Common.DataSerializer]::new())
     $settings = [LandingPage.LandingPageSettings]::new()
+    $mostOptions = [Collections.ObjectModel.ObservableCollection[LandingPage.Models.GameActivity.MostPlayedOptions]]::new()
+    foreach ($timeframe in @('Last14Days','Last3Month','Last6Month','LastYear')) {
+        $option = [LandingPage.Models.GameActivity.MostPlayedOptions]::new()
+        $option.Timeframe = [Enum]::Parse([LandingPage.Models.GameActivity.Timeframe],$timeframe)
+        $mostOptions.Add($option)
+    }
+    [LandingPage.LandingPageSettings].GetProperty('MostPlayedOptions').SetValue($settings,$mostOptions)
     $rules = [LandingPage.Models.ShelveProperties]::new()
     $rules.IncludedNamePatterns = '*Quest*'; $rules.ExcludedInstallPathPatterns = 'D:\Games\Demos\*'
     $rules.IncludedPublisherNamePatterns = 'glob:*[A-Z]*'
@@ -46,6 +53,14 @@ try {
     $rules.NeverPlayedOnly = $false
     $model.CancelEdit()
     $restored = $model.Settings
+    $mostRestored = [LandingPage.LandingPageSettings].GetProperty('MostPlayedOptions').GetValue($restored)
+    if (($mostRestored | ForEach-Object { $_.Timeframe.ToString() }) -join ',' -ne 'Last14Days,Last3Month,Last6Month,LastYear') { throw 'Most Played options duplicated or changed during Playnite settings clone' }
+    for ($iteration = 0; $iteration -lt 4; ++$iteration) {
+        $model.BeginEdit(); $model.CancelEdit()
+        $roundtripOptions = [LandingPage.LandingPageSettings].GetProperty('MostPlayedOptions').GetValue($model.Settings)
+        if ($roundtripOptions.Count -ne 4) { throw 'Repeated settings cloning grows Most Played options' }
+    }
+
     $restoredRules = [LandingPage.LandingPageSettings].GetProperty('ShelveProperties').GetValue($restored)[0]
     if ($restoredRules.IncludedNamePatterns -ne '*Quest*' -or !$restoredRules.NeverPlayedOnly -or [object]::ReferenceEquals($restoredRules,$rules)) { throw 'Cancel settings failed to restore an independent clone' }
     $restoredInstances = [LandingPage.LandingPageSettings].GetProperty('ShelveInstanceSettings').GetValue($restored)
