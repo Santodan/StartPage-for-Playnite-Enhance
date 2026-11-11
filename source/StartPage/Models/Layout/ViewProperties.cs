@@ -18,6 +18,8 @@ namespace LandingPage.Models.Layout
         public Settings.TextWidgetSettings TextSettings { get => textSettings; set => SetValue(ref textSettings, value ?? new Settings.TextWidgetSettings()); }
         private Settings.ImageWidgetSettings imageSettings = new Settings.ImageWidgetSettings();
         public Settings.ImageWidgetSettings ImageSettings { get => imageSettings; set => SetValue(ref imageSettings, value ?? new Settings.ImageWidgetSettings()); }
+        private Settings.FeaturedGameSettings featuredGameSettings = new Settings.FeaturedGameSettings();
+        public Settings.FeaturedGameSettings FeaturedGameSettings { get => featuredGameSettings; set => SetValue(ref featuredGameSettings, value ?? new Settings.FeaturedGameSettings()); }
         private Settings.ToolbarWidgetSettings toolbarSettings = new Settings.ToolbarWidgetSettings();
         public Settings.ToolbarWidgetSettings ToolbarSettings { get => toolbarSettings; set => SetValue(ref toolbarSettings, value ?? new Settings.ToolbarWidgetSettings()); }
         private string viewId;

@@ -47,6 +47,13 @@ try {
     [LandingPage.LandingPageSettings].GetProperty('ShelveInstanceSettings').SetValue($settings,$instanceSettings)
     $page = [LandingPage.Models.DashboardPages]::Ensure($settings)
     $properties = [LandingPage.Models.Layout.ViewProperties]::new(); $properties.TextSettings.Text = 'Preserve page widget'
+    $properties.FeaturedGameSettings.Source = [LandingPage.Settings.FeaturedGameSource]::Pinned
+    $properties.FeaturedGameSettings.PinnedGameId = [guid]::NewGuid()
+    $properties.FeaturedGameSettings.TitleSize = 42
+    $properties.FeaturedGameSettings.MatchMetadataTextSize = $false; $properties.FeaturedGameSettings.MetadataTextSize = 19
+    $properties.FeaturedGameSettings.MatchMetadataTextColor = $false; $properties.FeaturedGameSettings.MetadataTextColor = '#123456'
+    $properties.FeaturedGameSettings.MatchMetadataIconSize = $false; $properties.FeaturedGameSettings.MetadataIconSize = 25
+    $featuredPin = $properties.FeaturedGameSettings.PinnedGameId
     $properties.ToolbarSettings.NotificationBadgeStyle = [LandingPage.Settings.NotificationBadgeStyle]::Count
     $toolbarEntry = [LandingPage.Settings.ToolbarEntry]::new(); $toolbarEntry.Id = 'native.sort'; $properties.ToolbarSettings.Items.Add($toolbarEntry)
     $properties.ToolbarSettings.Groups[0].WidthSizing = [LandingPage.Settings.ToolbarGroupSizing]::Fixed; $properties.ToolbarSettings.Groups[0].Width = 280
@@ -86,6 +93,9 @@ try {
     $pages = [LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($restored)
     if ($pages.Count -ne 1 -or $pages[0].Layout.ViewProperties.TextSettings.Text -ne 'Preserve page widget') { throw 'Settings cloning lost dashboard page data' }
 
+    $featuredSettings = $pages[0].Layout.ViewProperties.FeaturedGameSettings
+    if ($featuredSettings.MatchMetadataTextSize -or $featuredSettings.MetadataTextSize -ne 19 -or $featuredSettings.MatchMetadataTextColor -or $featuredSettings.MetadataTextColor -ne '#123456' -or $featuredSettings.MatchMetadataIconSize -or $featuredSettings.MetadataIconSize -ne 25) { throw 'Playnite settings clone lost featured metadata formatting' }
+    if ($pages[0].Layout.ViewProperties.FeaturedGameSettings.PinnedGameId -ne $featuredPin -or $pages[0].Layout.ViewProperties.FeaturedGameSettings.TitleSize -ne 42) { throw 'Playnite settings clone lost featured game settings' }
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.NotificationBadgeStyle -ne [LandingPage.Settings.NotificationBadgeStyle]::Count) { throw 'Playnite settings clone lost notification badge preference' }
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.Items.Count -ne 5 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Items[4].Id -ne 'native.sort') { throw 'Playnite settings clone duplicated or lost toolbar items' }
 

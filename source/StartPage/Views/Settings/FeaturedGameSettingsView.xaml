@@ -1,0 +1,76 @@
+﻿<UserControl x:Class="LandingPage.Views.Settings.FeaturedGameSettingsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:settings="clr-namespace:LandingPage.Settings" xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:numeric="http://gu.se/NumericInput">
+ <UserControl.Resources>
+  <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+  <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+ </UserControl.Resources>
+ <StackPanel>
+  <Expander Header="Game selection" Foreground="{DynamicResource TextBrush}" IsExpanded="True"><StackPanel Margin="8,6,0,8">
+   <TextBlock Text="Featured game source"/>
+   <ComboBox SelectedValue="{Binding Source}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Pinned game" Tag="{x:Static settings:FeaturedGameSource.Pinned}"/>
+    <ComboBoxItem Content="Last played" Tag="{x:Static settings:FeaturedGameSource.LastPlayed}"/>
+    <ComboBoxItem Content="Recently added" Tag="{x:Static settings:FeaturedGameSource.LastAdded}"/>
+    <ComboBoxItem Content="Random game" Tag="{x:Static settings:FeaturedGameSource.Random}"/>
+    <ComboBoxItem Content="Random favorite" Tag="{x:Static settings:FeaturedGameSource.RandomFavorite}"/>
+    <ComboBoxItem Content="Selected library game" Tag="{x:Static settings:FeaturedGameSource.SelectedGame}"/>
+   </ComboBox>
+   <Button Content="Choose pinned game..." Click="ChooseGame_Click" Margin="0,6,0,4"/>
+   <TextBlock Text="{Binding PinnedGameName}" TextWrapping="Wrap"/>
+   <CheckBox Content="Installed games only (automatic selection)" IsChecked="{Binding InstalledOnly}" Margin="0,6,0,0"/>
+   <CheckBox Content="Include hidden games (automatic selection)" IsChecked="{Binding IncludeHidden}" Margin="0,4,0,0"/>
+   <TextBlock Text="Random selection stays fixed while switching pages. Use Another game to choose again. Explicitly pinned games ignore the automatic filters." TextWrapping="Wrap" Margin="0,6,0,0"/>
+  </StackPanel></Expander>
+  <Expander Header="Content and actions" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show description" IsChecked="{Binding ShowDescription}" Margin="0,3"/>
+   <CheckBox Content="Show playtime" IsChecked="{Binding ShowPlaytime}" Margin="0,3"/>
+   <CheckBox Content="Show last played" IsChecked="{Binding ShowLastPlayed}" Margin="0,3"/>
+   <CheckBox Content="Show source name and icon" IsChecked="{Binding ShowSource}" Margin="0,3"/>
+   <CheckBox Content="Show achievement progress" IsChecked="{Binding ShowAchievements}" Margin="0,3"/>
+   <CheckBox Content="Show Play / Install button" IsChecked="{Binding ShowPlayButton}" Margin="0,3"/>
+   <CheckBox Content="Show Open in library button" IsChecked="{Binding ShowLibraryButton}" Margin="0,3"/>
+   <TextBlock Text="Description length (characters)" Margin="0,6,0,2"/>
+   <numeric:IntBox Value="{Binding DescriptionLength}" MinValue="0" MaxValue="2000" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Achievements use the provider selected in StartPage settings and show only when data is available." TextWrapping="Wrap" Margin="0,6,0,0"/>
+  </StackPanel></Expander>
+  <Expander Header="Metadata formatting" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Use the same size as description text" IsChecked="{Binding MatchMetadataTextSize}"/>
+   <TextBlock Text="Metadata text size" Margin="0,6,0,2"/>
+   <numeric:DoubleBox Value="{Binding MetadataTextSize}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
+   <CheckBox Content="Use the same color as description text" IsChecked="{Binding MatchMetadataTextColor}" Margin="0,8,0,4"/>
+   <CheckBox Content="Use custom metadata color (when not matching text)" IsChecked="{Binding UseCustomMetadataColor}"/>
+   <TextBlock Text="Metadata text color" Margin="0,6,0,2"/>
+   <controls:ColorPicker SelectedColor="{Binding MetadataTextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+   <CheckBox Content="Match icon size to metadata text" IsChecked="{Binding MatchMetadataIconSize}" Margin="0,8,0,4"/>
+   <TextBlock Text="Metadata icon size"/>
+   <numeric:DoubleBox Value="{Binding MetadataIconSize}" MinValue="8" MaxValue="64" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Sizes apply independently of custom colors. When matching text color, theme colors are retained unless custom text colors are enabled." TextWrapping="Wrap" Margin="0,6,0,0"/>
+  </StackPanel></Expander>
+  <Expander Header="Artwork and text" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show artwork" IsChecked="{Binding ShowArtwork}"/>
+   <CheckBox Content="Use cover instead of background artwork" IsChecked="{Binding UseCoverArtwork}" Margin="0,4,0,0"/>
+   <TextBlock Text="Artwork opacity" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding ArtworkOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Artwork overlay opacity" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding OverlayOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Title size" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding TitleSize}" MinValue="12" MaxValue="96" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Text size" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding TextSize}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Maximum content width" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding ContentWidth}" MinValue="160" MaxValue="1400" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Artwork overlay color" Margin="0,6,0,2"/><controls:ColorPicker SelectedColor="{Binding OverlayColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+   <CheckBox Content="Use custom text colors" IsChecked="{Binding UseCustomTextColor}" Margin="0,8,0,4"/>
+   <TextBlock Text="Title color"/><controls:ColorPicker SelectedColor="{Binding TitleColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+   <TextBlock Text="Description text color" Margin="0,6,0,2"/><controls:ColorPicker SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+   <TextBlock Text="Horizontal content position" Margin="0,6,0,2"/>
+   <ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/>
+    <ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/>
+    <ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/>
+   </ComboBox>
+   <TextBlock Text="Vertical content position" Margin="0,6,0,2"/>
+   <ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/>
+    <ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/>
+    <ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
+   </ComboBox>
+  </StackPanel></Expander>
+ </StackPanel>
+</UserControl>

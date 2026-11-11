@@ -95,3 +95,5 @@ Shows recent achievements. Requires the [SuccessStory](https://github.com/Lacro5
 Dashboard page transitions are configurable under **Manage dashboard pages... > Dashboard transitions**. Choose None, Fade or Slide, duration and slide direction. The current dashboard remains visible while the next one prepares. Windows animation preferences are respected by default and can be overridden there.
 
 Custom transition presets can be created and previewed inside **Manage dashboard pages > Dashboard transitions > Custom transition editor**, then saved or shared as JSON. See [Transition presets](docs/TRANSITION-PRESETS.md) and the [Gentle slide example](docs/transition-presets/gentle-slide.json).
+
+The **Featured game** widget shows a pinned or automatically selected game with artwork, description, actions and optional metadata/achievements. Add it in Edit Mode and configure it through **Appearance > Featured game settings**. See [Featured game widget](docs/FEATURED-GAME.md).

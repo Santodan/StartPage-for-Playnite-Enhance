@@ -36,6 +36,7 @@ namespace LandingPage
         internal LandingPageSettingsViewModel SettingsViewModel { get; set; }
         internal LandingPageSettings Settings => SettingsViewModel.Settings;
 
+        private Dictionary<Guid, FeaturedGameView> featuredGameViews = new Dictionary<Guid, FeaturedGameView>();
         internal Dictionary<Guid, ShelvesViewModel> shelvesViewModels = new Dictionary<Guid, ShelvesViewModel>();
 
         public Dictionary<string, List<StartPageViewArgs>> AllAvailableViews { get; set; } = new Dictionary<string, List<StartPageViewArgs>>();
@@ -285,9 +286,12 @@ namespace LandingPage
             GC.Collect();
         }
 
+        internal event EventHandler FeaturedSelectionChanged;
+
         public override void OnGameSelected(OnGameSelectedEventArgs args)
         {
             ExtensionDiagnostics.Record(this, "Lifecycle: OnGameSelected");
+            FeaturedSelectionChanged?.Invoke(this, EventArgs.Empty);
             if (viewModel != null)
             {
                 if (args.NewValue?.FirstOrDefault() is Game last)
@@ -628,6 +632,7 @@ namespace LandingPage
         public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
         {
             ExtensionDiagnostics.Record(this, "Lifecycle: OnApplicationStopped");
+            if (featuredGameViews != null) { foreach (var featured in featuredGameViews.Values) featured.OnViewClosed(); featuredGameViews.Clear(); }
             // Add code to be executed when Playnite is shutting down.
             if (viewModel is LandingPageViewModel)
             {
@@ -763,6 +768,8 @@ namespace LandingPage
                 Description = "Local images, banners, and logos with an optional website link. Configure in Appearance.",
                 AllowMultipleInstances = true
             });
+            views.Add(new StartPageViewArgsBase { ViewId = "FeaturedGame", Name = "Featured game",
+                Description = "Pinned or automatic featured game with artwork, description and actions. Configure in Appearance.", AllowMultipleInstances = true });
             return args;
         }
 
@@ -773,6 +780,12 @@ namespace LandingPage
 
         public object GetStartPageView(string id, Guid instanceId)
         {
+            if (id == "FeaturedGame")
+            {
+                if (featuredGameViews == null) featuredGameViews = new Dictionary<Guid, FeaturedGameView>();
+                var featured = new FeaturedGameView(); featuredGameViews[instanceId] = featured;
+                return featured;
+            }
             if (id == "RecentAchivements")
             {
                 var view = new RecentAchievementsView()
@@ -853,6 +866,8 @@ namespace LandingPage
 
         public void OnViewRemoved(string viewId, Guid instanceId)
         {
+            if (viewId == "FeaturedGame" && featuredGameViews?.TryGetValue(instanceId, out var featured) == true)
+            { featured.OnViewClosed(); featuredGameViews.Remove(instanceId); }
             if (viewId == "GameShelves")
             {
                 shelvesViewModels[instanceId].OnViewClosed();

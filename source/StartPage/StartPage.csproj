@@ -55,6 +55,11 @@
     </Compile>
     <Compile Include="Controls\WidgetPalette.cs" />
     <Compile Include="ExtensionDiagnostics.cs" />
+    <Compile Include="Settings\FeaturedGameSettings.cs" />
+    <Compile Include="Models\FeaturedGameSelection.cs" />
+    <Compile Include="Views\FeaturedGameView.cs" />
+    <Compile Include="Views\Settings\FeaturedGameSettingsView.xaml.cs"><DependentUpon>FeaturedGameSettingsView.xaml</DependentUpon></Compile>
+    <Page Include="Views\Settings\FeaturedGameSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Compile Include="Models\DashboardTransitionPreset.cs" />
     <Compile Include="Settings\ClockSettings.cs" />
     <Compile Include="Views\Settings\ClockSettingsView.xaml.cs"><DependentUpon>ClockSettingsView.xaml</DependentUpon></Compile>

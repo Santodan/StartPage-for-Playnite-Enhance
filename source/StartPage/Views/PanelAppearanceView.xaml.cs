@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using LandingPage.ViewModels.Layout;
 
@@ -14,6 +14,12 @@ namespace LandingPage.Views
         public event RoutedEventHandler Done;
 
         private void Done_Click(object sender, RoutedEventArgs e) => Done?.Invoke(this, e);
+
+        private void ResetFeaturedGame_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)
+                model.GridNode.ViewProperties.FeaturedGameSettings = new LandingPage.Settings.FeaturedGameSettings();
+        }
 
         private void ResetToolbar_Click(object sender, RoutedEventArgs e)
         {

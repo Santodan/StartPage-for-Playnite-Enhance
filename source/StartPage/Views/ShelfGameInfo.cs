@@ -32,6 +32,10 @@ namespace LandingPage.Views
             nameof(DefaultTitleVisible), typeof(bool), typeof(ShelfGameInfo), new PropertyMetadata(true, Changed));
         public bool DefaultTitleVisible { get => (bool)GetValue(DefaultTitleVisibleProperty); set => SetValue(DefaultTitleVisibleProperty, value); }
 
+        // Optional host overrides separate font sizing from custom color selection.
+        public double? TextSizeOverride { get; set; }
+        public Brush TextBrushOverride { get; set; }
+
         private readonly StackPanel panel = new StackPanel();
         private GameModel observedModel;
         private Game observedGame;
@@ -110,6 +114,8 @@ namespace LandingPage.Views
                 text.Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)
                     System.Windows.Media.ColorConverter.ConvertFromString(title ? Settings.MetadataTitleColor : Settings.MetadataTextColor));
             }
+            if (!title && TextSizeOverride.HasValue) text.FontSize = TextSizeOverride.Value;
+            if (!title && TextBrushOverride != null) text.Foreground = TextBrushOverride;
             if (attach) panel.Children.Add(text);
             Visibility = Visibility.Visible;
             return text;

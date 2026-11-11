@@ -186,6 +186,7 @@ public class DashboardTestProxy : RealProxy
         }).GetTransparentProxy();
     }
     public static int LibraryEnumerations;
+    public static readonly List<Game> FeaturedFixtureGames = new List<Game>();
     public static IPlayniteAPI Create(string directory, Plugin plugin)
     {
         var paths = new DashboardTestProxy(typeof(IPlaynitePathsAPI), call => directory).GetTransparentProxy();
@@ -195,8 +196,10 @@ public class DashboardTestProxy : RealProxy
         var addons = new DashboardTestProxy(addonsType, call => { var loaded = new List<Plugin> { plugin }; loaded.AddRange(ExtraPlugins); return loaded; }).GetTransparentProxy();
         var games = new DashboardTestProxy(typeof(IItemCollection<Game>), call =>
         {
-            if (call.MethodName == "GetEnumerator") { System.Threading.Interlocked.Increment(ref LibraryEnumerations); return ((IEnumerable<Game>)new List<Game>()).GetEnumerator(); }
-            if (call.MethodName == "get_Count") { System.Threading.Interlocked.Increment(ref LibraryEnumerations); return 0; }
+            if (call.MethodName == "GetEnumerator") { System.Threading.Interlocked.Increment(ref LibraryEnumerations); return ((IEnumerable<Game>)FeaturedFixtureGames).GetEnumerator(); }
+            if (call.MethodName == "get_Count") { System.Threading.Interlocked.Increment(ref LibraryEnumerations); return FeaturedFixtureGames.Count; }
+            if (call.MethodName == "Get") return FeaturedFixtureGames.Find(game => game.Id == (Guid)call.Args[0]);
+            if (call.MethodName == "CopyTo") { FeaturedFixtureGames.CopyTo((Game[])call.Args[0],(int)call.Args[1]); return null; }
             if (call.MethodName == "get_IsReadOnly") return false;
             return null;
         }).GetTransparentProxy();
@@ -1052,6 +1055,52 @@ try {
     if (![object]::ReferenceEquals($rootBeforeRestore,$vm.RootNodeViewModel)) { throw 'Settings restoration rebuilt the cached page layout' }
     [void]$view.Content.Children.Remove($selectorToolbar)
     'PASS: restoring cloned settings preserves the current dashboard selector by stable page ID and keeps the cached layout.'
+    $featuredGame = [Playnite.SDK.Models.Game]::new(); $featuredGame.Name = 'Featured fixture'; $featuredGame.Description = '<p>Featured description</p>'; $featuredGame.IsInstalled = $true
+    [DashboardTestProxy]::FeaturedFixtureGames.Add($featuredGame)
+    $featuredInstance = [guid]::NewGuid()
+    $featured = $plugin.GetStartPageView('FeaturedGame',$featuredInstance)
+    if ($featured -isnot [LandingPage.Views.FeaturedGameView]) { throw 'Featured game widget is not registered with the provider' }
+    $featured.Settings.Source = [LandingPage.Settings.FeaturedGameSource]::Pinned
+    $featured.Settings.PinnedGameId = $featuredGame.Id
+    $featured.Settings.ShowArtwork = $false; $featured.Settings.ShowSource = $false
+    [void]$layout.Children.Add($featured); $window.UpdateLayout()
+    Wait-Task ($featured.OnViewShownAsync())
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($featured.FeaturedGame.Id -ne $featuredGame.Id -or @([ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture').Count -ne 1) { throw 'Pinned featured game did not render' }
+    $featured.Settings.UseCustomTextColor = $true; $featured.Settings.TitleColor = '#12AB34'; $featured.Settings.TitleSize = 40
+    $title = [ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture' | Select-Object -First 1
+    if ($title.FontSize -ne 40 -or $title.Foreground.Color.ToString() -ne '#FF12AB34') { throw 'Featured text customization did not update live' }
+    $featured.Settings.UseCustomTextColor = $false; $featured.Settings.TextSize = 23
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $metadataText = [ToolbarTestVisuals]::Text($featured) | Where-Object { $_.Text.StartsWith('Playtime:') } | Select-Object -First 1
+    if (!$metadataText -or $metadataText.FontSize -ne 23 -or $metadataText.Foreground.Color -ne [Windows.Media.Colors]::Lime) { throw 'Metadata size must match text independently of custom colors while respecting the theme' }
+    $metadataView = $featured.Content.Children[2].Children | Where-Object { $_ -is [LandingPage.Views.ShelfGameInfo] } | Select-Object -First 1
+    if ($metadataView.Settings.MetadataIconSize -ne 23) { throw 'Metadata icon size did not follow metadata text size' }
+    $featured.Settings.MatchMetadataTextSize = $false; $featured.Settings.MetadataTextSize = 18
+    $featured.Settings.MatchMetadataTextColor = $false; $featured.Settings.UseCustomMetadataColor = $true; $featured.Settings.MetadataTextColor = '#34CD56'
+    $featured.Settings.MatchMetadataIconSize = $false; $featured.Settings.MetadataIconSize = 27
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $metadataText = [ToolbarTestVisuals]::Text($featured) | Where-Object { $_.Text.StartsWith('Playtime:') } | Select-Object -First 1
+    $metadataView = $featured.Content.Children[2].Children | Where-Object { $_ -is [LandingPage.Views.ShelfGameInfo] } | Select-Object -First 1
+    if ($metadataText.FontSize -ne 18 -or $metadataText.Foreground.Color.ToString() -ne '#FF34CD56' -or $metadataView.Settings.MetadataIconSize -ne 27) { throw 'Independent metadata size/color/icon settings failed' }
+    $featured.Settings.MatchMetadataTextSize = $true; $featured.Settings.MatchMetadataTextColor = $true; $featured.Settings.MatchMetadataIconSize = $true
+    $featured.Settings.UseCustomTextColor = $true; $featured.Settings.TextSize = 26; $featured.Settings.TextColor = '#3456CD'
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $metadataText = [ToolbarTestVisuals]::Text($featured) | Where-Object { $_.Text.StartsWith('Playtime:') } | Select-Object -First 1
+    if ($metadataText.FontSize -ne 26 -or $metadataText.Foreground.Color.ToString() -ne '#FF3456CD') { throw 'Metadata did not follow the description text color/size' }
+    $loadedFeaturedGame = $featured.FeaturedGame
+    Wait-Task ($featured.OnViewHiddenAsync()); Wait-Task ($featured.OnViewShownAsync())
+    if (![object]::ReferenceEquals($loadedFeaturedGame,$featured.FeaturedGame)) { throw 'Unchanged featured widget lost its cached selection' }
+    $editor = [LandingPage.Views.Settings.FeaturedGameSettingsView]::new(); $editor.DataContext = $featured.Settings
+    [void]$layout.Children.Add($editor); $window.UpdateLayout()
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if (@([ToolbarTestVisuals]::Text($editor) | Where-Object Text -eq 'Featured game source').Count -ne 1) { throw 'Featured game settings editor did not render' }
+    [void]$layout.Children.Remove($editor)
+    $plugin.OnViewRemoved('FeaturedGame',$featuredInstance)
+    if (!$featured.GetType().GetField('closed',$flags).GetValue($featured) -or $featured.GetType().GetField('subscribed',$flags).GetValue($featured)) { throw 'Removed featured widget retained subscriptions' }
+    [void]$layout.Children.Remove($featured)
+    [DashboardTestProxy]::FeaturedFixtureGames.Clear()
+    'PASS: featured game registration, pinned rendering, live theme/color/size controls, cached revisits, settings editor and removal cleanup.'
     $window.Close()
     'PASS: toolbar serialization, native catalog/commands/menus/toggles/search/progress/extensions, clickable page navigation, missing providers, menu-state restoration, and settings refresh.'
     'PASS: legacy migration, independent layout/backgrounds, save/reload/order, nested traversal, real page switching and widget callbacks, deletion, last-page protection, temporary-file persistence, context-menu navigation, and in-app manager open/close.'

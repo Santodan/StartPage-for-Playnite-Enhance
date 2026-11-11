@@ -13,7 +13,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 9. [x] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
 10. [x] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
 11. [x] **Dashboard transitions.** Optional None/Fade/Slide transitions with duration and direction controls. Prepare the destination before revealing it and coordinate the page/background change. Begin only after the user approves dashboard switching smoothness.
-12. [ ] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
+12. [x] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
 13. [ ] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime.
 14. [ ] **Achievement dashboard.** Per-game completion, recently completed games, closest-to-completion games, and pinned goals, using available achievement-provider data.
 15. [ ] **Shortcut widget.** Configurable game, application, folder, and website buttons with labels and icons.
@@ -196,7 +196,7 @@ Dashboard smoothness follow-up (committed as `af89018`): retain decoded local ba
 - Global backgrounds are included in the outgoing snapshot. Page management/profile/settings overlays remain outside the animated surface.
 - Windows animation preferences are respected by default. Uncheck **Follow Windows animation preference** to explicitly enable animations when Windows has disabled them.
 - Preferences are global navigation settings and persist in Playnite settings; applying a profile does not overwrite them. Navigation saves begin after the transition finishes.
-- Tests cover real fade/slide completion, all directions, None, Windows preference/override, interruption cleanup, command release and Playnite settings cloning. Step 11 remains uncommitted until user approval.
+- Tests cover real fade/slide completion, all directions, None, Windows preference/override, interruption cleanup, command release and Playnite settings cloning. Step 11 and its follow-up fixes were committed as `69bd2f6` after user testing and approval.
 
 
 Dashboard performance follow-up: Game Shelves reuses its loaded results on unchanged revisits, keeps lightweight library notifications while hidden, and defers hidden-page refreshes until needed. Library/settings changes and day changes invalidate the cached results. A widget refresh now shares one library snapshot across its shelves and avoids redundant game lookups for already-required queries. Refreshes are serialized per widget. Per-widget opening times over 100 ms are logged alongside dashboard/background timings. Awaiting user measurements on the installed build; no fixed load-time improvement is claimed.
@@ -207,3 +207,16 @@ Extension debug logging follow-up: the dashboard-only diagnostics controls were 
 
 
 Step 11 transition customization follow-up: added Slide and fade, Zoom in/out and Wipe alongside the existing Fade/Slide/None modes. Custom presets independently configure incoming/outgoing opacity, X/Y percentage movement, scale and delay, with Linear/Quadratic/Cubic/Sine easing and optional reverse movement for backward navigation. Users can preview without changing pages, save/load/delete independent named presets, and import/export validated versioned JSON. See `docs/TRANSITION-PRESETS.md` and `docs/transition-presets/gentle-slide.json`. Animation parameters remain bounded; no script engine or blur effects were added. Awaiting user testing; no commit authorized for this follow-up.
+
+
+## Twelfth change: featured game widget (awaiting user testing)
+
+- In Edit Mode, add **Featured game** to an empty panel. Multiple independent instances are supported.
+- Open the widget's **Appearance > Featured game settings** to choose a pinned game, Last played, Recently added, Random, Random favorite, or Selected library game.
+- The native searchable picker pins a specific game. Automatic sources can filter installed/hidden games; explicit pins override those filters. Missing/deleted pins show a selection prompt rather than a different game.
+- Random selections persist across cached page visits; **Another game** rerolls when alternatives exist. Library/selection changes and day changes invalidate relevant cached selection.
+- Configure description visibility/length, playtime, last played, source name/icon, optional achievement progress, Play/Install and Open in library buttons.
+- Configure background/cover artwork, artwork opacity, overlay color picker/opacity, title/text sizes, optional title/text color pickers, content width and alignment. Text follows the theme by default. Missing artwork leaves usable text/actions. Descriptions are displayed as plain text, without a browser.
+- The achievement section uses the selected StartPage provider and is omitted if data is unavailable. Profiles preserve per-widget settings; pinned game IDs refer to the current Playnite library and may need reselection when sharing.
+- Cached revisits avoid rescanning an unchanged selection. Hidden widgets defer rendering. Removed widgets detach settings/database/selection listeners.
+- Tests cover selection/filter/missing-pin/random behavior, description conversion, live rendered configuration, provider registration, settings editor, cache reuse, cleanup and actual Playnite settings cloning. Step 12 is uncommitted until user approval.

@@ -6,6 +6,14 @@
     xmlns:numeric="http://gu.se/NumericInput">
                                     <ScrollViewer  VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="16">
+                                            <Expander Header="Featured game settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
+                                                <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers><DataTrigger Binding="{Binding GridNode.ViewProperties.ViewId}" Value="FeaturedGame"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                                                </Style></Expander.Style>
+                                                <StackPanel><settingsViews:FeaturedGameSettingsView DataContext="{Binding GridNode.ViewProperties.FeaturedGameSettings}"/>
+                                                <Button Content="Reset featured game settings" Click="ResetFeaturedGame_Click" Margin="0,8,0,0"/></StackPanel>
+                                            </Expander>
                                             <Expander Header="Toolbar settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
                                                 <Expander.Style>
                                                     <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
