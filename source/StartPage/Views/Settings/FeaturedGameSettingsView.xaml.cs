@@ -11,6 +11,16 @@ namespace LandingPage.Views.Settings
     public partial class FeaturedGameSettingsView : UserControl
     {
         public FeaturedGameSettingsView() { InitializeComponent(); }
+        private void BeginSectionEditing_Click(object sender, RoutedEventArgs args)
+        {
+            if (!(DataContext is FeaturedGameSettings settings) || !settings.UseCustomSectionLayout) return;
+            DependencyObject parent = this;
+            while (parent != null && !(parent is StartPageView)) parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
+            if (parent is StartPageView page) page.BeginFeaturedSectionEditing(settings);
+            else settings.EditSectionLayout = true;
+            args.Handled = true;
+        }
+        private void ResetSectionLayout_Click(object sender, RoutedEventArgs args) { (DataContext as FeaturedGameSettings)?.ResetSectionLayout(); }
         private sealed class GameChoice : GenericItemOption { public Guid GameId { get; set; } }
         private void ChooseGame_Click(object sender, RoutedEventArgs e)
         {

@@ -10,11 +10,26 @@ namespace LandingPage
         internal static void Record(LandingPageExtension plugin, string message)
         {
             if (plugin?.SettingsViewModel?.Settings?.EnableDashboardDiagnostics != true) return;
+            try { Write(GetPath(plugin), message); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("StartPage debug log write failed: " + ex.Message); }
+        }
+        internal static System.Threading.Tasks.Task RecordAsync(LandingPageExtension plugin, string message)
+        {
+            if (plugin?.SettingsViewModel?.Settings?.EnableDashboardDiagnostics != true) return System.Threading.Tasks.Task.CompletedTask;
+            // Resolve SDK paths on the caller's UI thread; workers only touch files.
+            try
+            {
+                var path = GetPath(plugin);
+                return System.Threading.Tasks.Task.Run(() => Write(path,message));
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("StartPage debug log write failed: " + ex.Message); return System.Threading.Tasks.Task.CompletedTask; }
+        }
+        private static void Write(string path, string message)
+        {
             try
             {
                 lock (gate)
                 {
-                    var path = GetPath(plugin);
                     System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
                     if (System.IO.File.Exists(path) && new System.IO.FileInfo(path).Length > 4 * 1024 * 1024)
                     {

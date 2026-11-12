@@ -97,7 +97,8 @@ namespace LandingPage.ViewModels
             set
             {
                 SetValue(ref lastHoveredGame, value);
-                if (!Settings.Settings.ShowCurrentlyPlayedBackground || plugin.RunningGames.Count == 0)
+                if (Settings.Settings.BackgroundImageSource == BackgroundImageSource.LastHovered
+                    && (!Settings.Settings.ShowCurrentlyPlayedBackground || plugin.RunningGames.Count == 0))
                     UpdateBackgroundImagePath(false);
             }
         }

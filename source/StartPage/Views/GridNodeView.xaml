@@ -11,6 +11,7 @@
              xmlns:conv="clr-namespace:LandingPage.Converters"
              xmlns:numeric="http://gu.se/NumericInput"
              xmlns:controls="clr-namespace:LandingPage.Controls"
+             xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800"
              d:DataContext="{d:DesignInstance Type=layout:GridNodeViewModel, IsDesignTimeCreatable=False}"
@@ -239,6 +240,13 @@
                     DragLeave="Border_PreviewDragLeave"
                     MouseMove="Border_PreviewMouseMove"
                     Cursor="SizeAll">
+                <Border.Style><Style TargetType="Border"><Style.Triggers>
+                    <MultiDataTrigger><MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding GridNode.ViewProperties.ViewId}" Value="FeaturedGame"/>
+                        <Condition Binding="{Binding GridNode.ViewProperties.FeaturedGameSettings.UseCustomSectionLayout}" Value="True"/>
+                        <Condition Binding="{Binding GridNode.ViewProperties.FeaturedGameSettings.EditSectionLayout}" Value="True"/>
+                    </MultiDataTrigger.Conditions><Setter Property="IsHitTestVisible" Value="False"/></MultiDataTrigger>
+                </Style.Triggers></Style></Border.Style>
                 <Border.ContextMenu>
                     <ContextMenu UseLayoutRounding="True">
                         <MenuItem Header="Panel appearance..." IsEnabled="{Binding HasView}" Click="OpenAppearance_Click"/>
@@ -436,8 +444,11 @@
                                         <Trigger Property="IsOpen" Value="True">
                                             <Setter Property="Child">
                                                 <Setter.Value>
-                                                    <Border Background="{DynamicResource PopupBackgroundBrush}" Padding="10" CornerRadius="10">
-                                                        <ScrollViewer Content="{Binding ViewSettings}" MaxWidth="800" MaxHeight="600"/>
+                                                    <Border controls:FloatingPanel.Enabled="True" Background="{DynamicResource PopupBackgroundBrush}" Padding="10" CornerRadius="10" Width="420" Height="560">
+                                                        <DockPanel>
+                                                            <TextBlock DockPanel.Dock="Top" Text="Widget settings" Foreground="{DynamicResource TextBrush}" FontSize="18" Margin="0,0,0,12"/>
+                                                            <ScrollViewer Content="{Binding ViewSettings}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"/>
+                                                        </DockPanel>
                                                     </Border>
                                                 </Setter.Value>
                                             </Setter>
@@ -449,6 +460,20 @@
                     </Grid>
                 </Grid>
             </Border>
+            <ToggleButton x:Name="FeaturedSectionsButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="8,4" Panel.ZIndex="1000"
+                          IsChecked="{Binding GridNode.ViewProperties.FeaturedGameSettings.EditSectionLayout, Mode=TwoWay}" Click="EditFeaturedSections_Click">
+                <ToggleButton.Style><Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+                    <Setter Property="Visibility" Value="Collapsed"/><Setter Property="Content" Value="Edit sections"/>
+                    <Style.Triggers>
+                        <MultiDataTrigger><MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding EditModeEnabled}" Value="True"/>
+                            <Condition Binding="{Binding GridNode.ViewProperties.ViewId}" Value="FeaturedGame"/>
+                            <Condition Binding="{Binding GridNode.ViewProperties.FeaturedGameSettings.UseCustomSectionLayout}" Value="True"/>
+                        </MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible"/></MultiDataTrigger>
+                        <Trigger Property="IsChecked" Value="True"><Setter Property="Content" Value="Done sections"/></Trigger>
+                    </Style.Triggers>
+                </Style></ToggleButton.Style>
+            </ToggleButton>
         </Grid>
 
     </Grid>

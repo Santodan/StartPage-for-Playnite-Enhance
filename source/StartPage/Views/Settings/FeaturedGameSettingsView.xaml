@@ -1,6 +1,6 @@
 ﻿<UserControl x:Class="LandingPage.Views.Settings.FeaturedGameSettingsView"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:settings="clr-namespace:LandingPage.Settings" xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:numeric="http://gu.se/NumericInput">
+ xmlns:settings="clr-namespace:LandingPage.Settings" xmlns:local="clr-namespace:LandingPage.Views.Settings" xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:numeric="http://gu.se/NumericInput">
  <UserControl.Resources>
   <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
   <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
@@ -15,14 +15,22 @@
     <ComboBoxItem Content="Random game" Tag="{x:Static settings:FeaturedGameSource.Random}"/>
     <ComboBoxItem Content="Random favorite" Tag="{x:Static settings:FeaturedGameSource.RandomFavorite}"/>
     <ComboBoxItem Content="Selected library game" Tag="{x:Static settings:FeaturedGameSource.SelectedGame}"/>
+    <ComboBoxItem Content="Hovered StartPage game" Tag="{x:Static settings:FeaturedGameSource.HoveredGame}"/>
+    <ComboBoxItem Content="Hovered game, otherwise selected game" Tag="{x:Static settings:FeaturedGameSource.HoveredOrSelectedGame}"/>
    </ComboBox>
+   <TextBlock Text="Hover update delay (milliseconds)" Margin="0,6,0,2"/>
+   <numeric:IntBox Value="{Binding HoverDelayMilliseconds}" MinValue="0" MaxValue="1000" Style="{StaticResource {x:Type TextBox}}"/>
+   <CheckBox Content="Keep last hovered game (hover-only mode)" IsChecked="{Binding KeepLastHoveredGame}" Margin="0,4,0,0"/>
+   <TextBlock Text="Hover follows games in StartPage shelves and Most Played without changing the library selection. The combined mode returns to the selected game when the pointer leaves a game. Automatic filters apply to both modes." TextWrapping="Wrap" Margin="0,6,0,4"/>
    <Button Content="Choose pinned game..." Click="ChooseGame_Click" Margin="0,6,0,4"/>
    <TextBlock Text="{Binding PinnedGameName}" TextWrapping="Wrap"/>
    <CheckBox Content="Installed games only (automatic selection)" IsChecked="{Binding InstalledOnly}" Margin="0,6,0,0"/>
    <CheckBox Content="Include hidden games (automatic selection)" IsChecked="{Binding IncludeHidden}" Margin="0,4,0,0"/>
    <TextBlock Text="Random selection stays fixed while switching pages. Use Another game to choose again. Explicitly pinned games ignore the automatic filters." TextWrapping="Wrap" Margin="0,6,0,0"/>
   </StackPanel></Expander>
-  <Expander Header="Content and actions" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+  <Expander Header="Sections and actions" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show game title" IsChecked="{Binding ShowTitle}" Margin="0,3"/>
+   <CheckBox Content="Show section headings" IsChecked="{Binding ShowSectionHeadings}" Margin="0,3"/>
    <CheckBox Content="Show description" IsChecked="{Binding ShowDescription}" Margin="0,3"/>
    <CheckBox Content="Show playtime" IsChecked="{Binding ShowPlaytime}" Margin="0,3"/>
    <CheckBox Content="Show last played" IsChecked="{Binding ShowLastPlayed}" Margin="0,3"/>
@@ -30,18 +38,86 @@
    <CheckBox Content="Show achievement progress" IsChecked="{Binding ShowAchievements}" Margin="0,3"/>
    <CheckBox Content="Show Play / Install button" IsChecked="{Binding ShowPlayButton}" Margin="0,3"/>
    <CheckBox Content="Show Open in library button" IsChecked="{Binding ShowLibraryButton}" Margin="0,3"/>
-   <TextBlock Text="Description length (characters)" Margin="0,6,0,2"/>
-   <numeric:IntBox Value="{Binding DescriptionLength}" MinValue="0" MaxValue="2000" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Description length (characters; 0 = all)" Margin="0,6,0,2"/>
+   <numeric:IntBox Value="{Binding DescriptionLength}" MinValue="0" MaxValue="2147483647" Style="{StaticResource {x:Type TextBox}}"/>
+   <CheckBox Content="Show images from the description" IsChecked="{Binding ShowDescriptionImages}" Margin="0,6,0,0"/>
+   <TextBlock Text="Images appear in their original order with the text. Small images keep their natural size; larger images shrink to fit the section width. Remote images require an internet connection. Turn off Show description to hide all description content." TextWrapping="Wrap" Margin="0,6,0,0"/>
    <TextBlock Text="Achievements use the provider selected in StartPage settings and show only when data is available." TextWrapping="Wrap" Margin="0,6,0,0"/>
+  </StackPanel></Expander>
+  <Expander Header="Game details" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show game details section" IsChecked="{Binding ShowGameDetails}" Margin="0,3"/>
+   <StackPanel IsEnabled="{Binding ShowGameDetails}" Margin="12,4,0,0">
+    <CheckBox Content="Platforms" IsChecked="{Binding ShowPlatforms}" Margin="0,3"/>
+    <CheckBox Content="Genres" IsChecked="{Binding ShowGenres}" Margin="0,3"/>
+    <CheckBox Content="Release date" IsChecked="{Binding ShowReleaseDate}" Margin="0,3"/>
+    <CheckBox Content="Developers" IsChecked="{Binding ShowDevelopers}" Margin="0,3"/>
+    <CheckBox Content="Publishers" IsChecked="{Binding ShowPublishers}" Margin="0,3"/>
+   </StackPanel></StackPanel></Expander>
+  <Expander Header="Library information" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show library information section" IsChecked="{Binding ShowLibraryDetails}" Margin="0,3"/>
+   <StackPanel IsEnabled="{Binding ShowLibraryDetails}" Margin="12,4,0,0">
+    <CheckBox Content="Completion status" IsChecked="{Binding ShowCompletionStatus}" Margin="0,3"/>
+    <CheckBox Content="Categories" IsChecked="{Binding ShowCategories}" Margin="0,3"/>
+    <CheckBox Content="Tags" IsChecked="{Binding ShowTags}" Margin="0,3"/>
+    <CheckBox Content="Features" IsChecked="{Binding ShowFeatures}" Margin="0,3"/>
+    <CheckBox Content="Date added" IsChecked="{Binding ShowDateAdded}" Margin="0,3"/>
+    <CheckBox Content="Installation status" IsChecked="{Binding ShowInstallationStatus}" Margin="0,3"/>
+    <CheckBox Content="Game version" IsChecked="{Binding ShowVersion}" Margin="0,3"/>
+   </StackPanel></StackPanel></Expander>
+  <Expander Header="Scores" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show scores section" IsChecked="{Binding ShowScores}" Margin="0,3"/>
+   <StackPanel IsEnabled="{Binding ShowScores}" Margin="12,4,0,0">
+    <CheckBox Content="User score" IsChecked="{Binding ShowUserScore}" Margin="0,3"/>
+    <CheckBox Content="Critic score" IsChecked="{Binding ShowCriticScore}" Margin="0,3"/>
+    <CheckBox Content="Community score" IsChecked="{Binding ShowCommunityScore}" Margin="0,3"/>
+   </StackPanel></StackPanel></Expander>
+  <Expander Header="Links" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8"><CheckBox Content="Show game links" IsChecked="{Binding ShowLinks}"/><TextBlock Text="Show website links from the game details. Empty fields and sections are hidden automatically." TextWrapping="Wrap" Margin="0,6,0,0"/></StackPanel></Expander>
+  <Expander Header="Scrolling" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <TextBlock Text="Overflow is scrollable automatically. With custom layout, each section scrolls within its own size." TextWrapping="Wrap"/>
+   <CheckBox Content="Automatically scroll overflowing content" IsChecked="{Binding AutoScrollContent}" Margin="0,6,0,4"/>
+   <CheckBox Content="Pause automatic scrolling while hovering" IsChecked="{Binding PauseAutoScrollOnHover}"/>
+   <TextBlock Text="Scroll speed (pixels per second)" Margin="0,6,0,2"/>
+   <numeric:DoubleBox Value="{Binding AutoScrollSpeed}" MinValue="1" MaxValue="120" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Scrolling starts after two seconds and pauses while moving/resizing sections or while Playnite is inactive. If pause-on-hover is checked, move the pointer outside the content to start. It waits at the beginning/end and loops to the top." TextWrapping="Wrap" Margin="0,6,0,0"/>
+  </StackPanel></Expander>
+  <Expander Header="Shared section appearance" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <TextBlock Text="Applies to all sections unless a section overrides it. Works with both automatic and custom section layouts." TextWrapping="Wrap" Margin="0,0,0,6"/>
+   <local:SectionAppearanceSettingsView DataContext="{Binding SectionAppearance}"/>
+  </StackPanel></Expander>
+  <Expander Header="Individual section appearance" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <TextBlock Text="Enable an override to style a section independently. Uncheck it to return to the shared appearance. Custom layout positions replace automatic spacing." TextWrapping="Wrap" Margin="0,0,0,6"/>
+   <ItemsControl ItemsSource="{Binding SectionLayouts}"><ItemsControl.ItemTemplate><DataTemplate>
+    <Expander Header="{Binding Name}" Foreground="{DynamicResource TextBrush}" Margin="0,4"><StackPanel Margin="8,6,0,8">
+     <CheckBox Content="Override shared section appearance" IsChecked="{Binding OverrideAppearance}" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
+     <local:SectionAppearanceSettingsView DataContext="{Binding Appearance}" IsEnabled="{Binding DataContext.OverrideAppearance, RelativeSource={RelativeSource AncestorType=StackPanel}}"/>
+    </StackPanel></Expander>
+   </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+  </StackPanel></Expander>
+  <Expander Header="Section layout" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Use custom section layout" IsChecked="{Binding UseCustomSectionLayout}"/>
+   <TextBlock Text="Press Edit sections on widget to close Appearance and show the section handles. Drag anywhere inside a section, including its text, to move it. Use corner grips to resize. Press Done sections, Escape, or exit dashboard Edit Mode to lock the layout. Positions are relative to this widget; exact values can also be entered below." TextWrapping="Wrap" Margin="0,6,0,8"/>
+   <Button Content="Edit sections on widget" Click="BeginSectionEditing_Click" IsEnabled="{Binding UseCustomSectionLayout}" Margin="0,0,0,8"/>
+   <ItemsControl ItemsSource="{Binding SectionLayouts}" IsEnabled="{Binding UseCustomSectionLayout}"><ItemsControl.ItemTemplate><DataTemplate>
+    <Expander Header="{Binding Name}" Foreground="{DynamicResource TextBrush}" Margin="0,4"><StackPanel Margin="8,6,0,8">
+     <TextBlock Text="Horizontal position"/><numeric:DoubleBox Value="{Binding X}" MinValue="0" MaxValue="5000" Style="{StaticResource {x:Type TextBox}}"/>
+     <TextBlock Text="Vertical position"/><numeric:DoubleBox Value="{Binding Y}" MinValue="0" MaxValue="5000" Style="{StaticResource {x:Type TextBox}}"/>
+     <TextBlock Text="Width"/><numeric:DoubleBox Value="{Binding Width}" MinValue="120" MaxValue="1400" Style="{StaticResource {x:Type TextBox}}"/>
+     <TextBlock Text="Height"/><numeric:DoubleBox Value="{Binding Height}" MinValue="48" MaxValue="2000" Style="{StaticResource {x:Type TextBox}}"/>
+    </StackPanel></Expander>
+   </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+   <Button Content="Reset section layout" Click="ResetSectionLayout_Click" Margin="0,8,0,0"/>
   </StackPanel></Expander>
   <Expander Header="Metadata formatting" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
    <CheckBox Content="Use the same size as description text" IsChecked="{Binding MatchMetadataTextSize}"/>
    <TextBlock Text="Metadata text size" Margin="0,6,0,2"/>
    <numeric:DoubleBox Value="{Binding MetadataTextSize}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
+<Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><StackPanel Margin="8,6,0,8">
    <CheckBox Content="Use the same color as description text" IsChecked="{Binding MatchMetadataTextColor}" Margin="0,8,0,4"/>
    <CheckBox Content="Use custom metadata color (when not matching text)" IsChecked="{Binding UseCustomMetadataColor}"/>
    <TextBlock Text="Metadata text color" Margin="0,6,0,2"/>
    <controls:ColorPicker SelectedColor="{Binding MetadataTextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+
+</StackPanel></Expander>
    <CheckBox Content="Match icon size to metadata text" IsChecked="{Binding MatchMetadataIconSize}" Margin="0,8,0,4"/>
    <TextBlock Text="Metadata icon size"/>
    <numeric:DoubleBox Value="{Binding MetadataIconSize}" MinValue="8" MaxValue="64" Style="{StaticResource {x:Type TextBox}}"/>
@@ -50,15 +126,26 @@
   <Expander Header="Artwork and text" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
    <CheckBox Content="Show artwork" IsChecked="{Binding ShowArtwork}"/>
    <CheckBox Content="Use cover instead of background artwork" IsChecked="{Binding UseCoverArtwork}" Margin="0,4,0,0"/>
+   <TextBlock Text="Artwork sizing" Margin="0,6,0,2"/>
+   <ComboBox SelectedValue="{Binding ArtworkSizing}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Fill widget (crop edges)" Tag="{x:Static settings:FeaturedArtworkSizing.Fill}"/>
+    <ComboBoxItem Content="Fit entire image (no cropping)" Tag="{x:Static settings:FeaturedArtworkSizing.Fit}"/>
+    <ComboBoxItem Content="Fit without enlarging small images" Tag="{x:Static settings:FeaturedArtworkSizing.FitWithoutEnlarging}"/>
+    <ComboBoxItem Content="Stretch to widget (may distort image)" Tag="{x:Static settings:FeaturedArtworkSizing.Stretch}"/>
+    <ComboBoxItem Content="Original size (may crop large images)" Tag="{x:Static settings:FeaturedArtworkSizing.OriginalSize}"/>
+   </ComboBox>
    <TextBlock Text="Artwork opacity" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding ArtworkOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
    <TextBlock Text="Artwork overlay opacity" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding OverlayOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
    <TextBlock Text="Title size" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding TitleSize}" MinValue="12" MaxValue="96" Style="{StaticResource {x:Type TextBox}}"/>
    <TextBlock Text="Text size" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding TextSize}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
    <TextBlock Text="Maximum content width" Margin="0,6,0,2"/><numeric:DoubleBox Value="{Binding ContentWidth}" MinValue="160" MaxValue="1400" Style="{StaticResource {x:Type TextBox}}"/>
+<Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><StackPanel Margin="8,6,0,8">
    <TextBlock Text="Artwork overlay color" Margin="0,6,0,2"/><controls:ColorPicker SelectedColor="{Binding OverlayColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
    <CheckBox Content="Use custom text colors" IsChecked="{Binding UseCustomTextColor}" Margin="0,8,0,4"/>
    <TextBlock Text="Title color"/><controls:ColorPicker SelectedColor="{Binding TitleColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
    <TextBlock Text="Description text color" Margin="0,6,0,2"/><controls:ColorPicker SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+
+</StackPanel></Expander>
    <TextBlock Text="Horizontal content position" Margin="0,6,0,2"/>
    <ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag">
     <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/>

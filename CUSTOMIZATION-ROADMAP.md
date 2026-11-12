@@ -1,4 +1,4 @@
-# StartPage customization roadmap
+﻿# StartPage customization roadmap
 
 Implement one numbered item at a time. Commit only when the user explicitly requests a commit. Build a Release package after each item and wait for user testing and approval before starting the next item. Do not push unless requested.
 
@@ -7,19 +7,21 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 3. [x] **Text widget.** Custom headings and notes with font size, color, alignment, and wrapping.
 4. [x] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
 5. [x] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
-6. [x] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
-7. [x] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
-8. [x] **Multiple dashboard pages and toolbar widget.** Named pages with independent layouts/backgrounds. A placeable toolbar supports configurable native Playnite toolbar items, a page selector, previous/next arrows, and page management.
-9. [x] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
-10. [x] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
-11. [x] **Dashboard transitions.** Optional None/Fade/Slide transitions with duration and direction controls. Prepare the destination before revealing it and coordinate the page/background change. Begin only after the user approves dashboard switching smoothness.
-12. [x] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
-13. [ ] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime.
-14. [ ] **Achievement dashboard.** Per-game completion, recently completed games, closest-to-completion games, and pinned goals, using available achievement-provider data.
-15. [ ] **Shortcut widget.** Configurable game, application, folder, and website buttons with labels and icons.
-16. [ ] **Divider/spacer widget.** Configurable separator lines and empty space for composing sections.
-17. [ ] **More achievements settings.** Remove the Achievement limits and add more settings to the achievements.
-18. [ ] **Background options** Add more options to control the background image.
+6. [x] **Shelf customization.** Per-shelf hover animations: dock-style neighbor magnification, zoom, lift, tilt, bounce, optional glow and dimming, with strength, reach, timing, easing, artwork overflow and reset controls. Implemented and accepted by the user.
+7. [x] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
+8. [x] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
+9. [x] **Multiple dashboard pages and toolbar widget.** Named pages with independent layouts/backgrounds. A placeable toolbar supports configurable native Playnite toolbar items, a page selector, previous/next arrows, and page management.
+10. [x] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
+11. [x] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
+12. [x] **Dashboard transitions.** Optional None/Fade/Slide transitions with duration and direction controls. Prepare the destination before revealing it and coordinate the page/background change. Begin only after the user approves dashboard switching smoothness.
+13. [x] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
+14. [ ] **Selected/hovered game detail widgets.** Separate placeable widgets for a game's title/artwork, description, activity, game details, library information, scores, links, and actions. Each widget can follow Playnite's selected game or the game under the mouse, with a shared selected-or-hovered mode for synchronized layouts. Reuse Featured Game section fields/appearance controls, allow independent placement and resizing through dashboard panels, and persist choices in profiles. See scope below.
+15. [ ] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime.
+16. [ ] **Achievement dashboard.** Per-game completion, recently completed games, closest-to-completion games, and pinned goals, using available achievement-provider data.
+17. [ ] **Shortcut widget.** Configurable game, application, folder, and website buttons with labels and icons.
+18. [ ] **Divider/spacer widget.** Configurable separator lines and empty space for composing sections.
+19. [ ] **More achievements settings.** Remove the Achievement limits and add more settings to the achievements.
+20. [ ] **Background options** Add more options to control the background image.
 
 ## First change: testing in Playnite
 
@@ -219,4 +221,49 @@ Step 11 transition customization follow-up: added Slide and fade, Zoom in/out an
 - Configure background/cover artwork, artwork opacity, overlay color picker/opacity, title/text sizes, optional title/text color pickers, content width and alignment. Text follows the theme by default. Missing artwork leaves usable text/actions. Descriptions are displayed as plain text, without a browser.
 - The achievement section uses the selected StartPage provider and is omitted if data is unavailable. Profiles preserve per-widget settings; pinned game IDs refer to the current Playnite library and may need reselection when sharing.
 - Cached revisits avoid rescanning an unchanged selection. Hidden widgets defer rendering. Removed widgets detach settings/database/selection listeners.
-- Tests cover selection/filter/missing-pin/random behavior, description conversion, live rendered configuration, provider registration, settings editor, cache reuse, cleanup and actual Playnite settings cloning. Step 12 is uncommitted until user approval.
+- Tests cover selection/filter/missing-pin/random behavior, description conversion, live rendered configuration, provider registration, settings editor, cache reuse, cleanup and actual Playnite settings cloning. Step 12 was committed as `52e1eae` after user testing and approval.
+
+
+## Shelf interaction follow-up (awaiting user testing)
+
+Optional per-shelf Dock magnification with neighboring-card falloff, Zoom, Lift, pointer-driven Tilt and Bounce, plus Classic/None choices. Controls include magnification, dock radius, lift, tilt, response duration/easing, dimming, glow color/radius, artwork overflow beyond widget bounds, Windows animation preference and reset. Hover settings do not refresh game data. Render-container state is restored on leave/unload. See `docs/SHELF-HOVER-EFFECTS.md`. This is now roadmap step 6 (Shelf customization) and remains uncommitted. The next pending feature is step 14 (Selected/hovered game detail widgets); Library statistics moves to step 15.
+
+Appearance organization follow-up: all existing appearance color pickers now sit in collapsed Colors sections (general panel, clock/text/featured widgets, toolbar groups, shelf metadata/background/glow). Hover space now uses measured per-item/group layout margins rather than theme-dependent ListBox padding, and adapts resting card size to fixed-height viewport space. Bounds tests cover magnification and reduced shelf height. Awaiting user testing; no commit made.
+
+Featured game sections follow-up: Appearance > Featured game settings now offers individual title visibility and optional Game details (platforms, genres, release date, developers, publishers), Library information (completion, categories, tags, features, date added, installation status, version), Scores (user, critic, community), and Links sections. Each detail field and section heading can be toggled; missing data is omitted. Detail rows use metadata formatting, long content scrolls, and profile snapshots retain all choices. Existing content defaults are preserved. Built and verified with selection/profile round-trip and live WPF section/field/theme/link rendering checks; uncommitted.
+
+Featured section positioning follow-up: Section layout offers opt-in custom positioning, individual width/height and horizontal/vertical coordinates for Title, Description, Activity, Game details, Library information, Scores, Links and Actions. Edit sections on the widget reveals drag handles and resize grips; Done sections locks interaction. The dashboard edit overlay yields input during section editing. Initial custom placement uses the current stacked geometry, positions are saved with profiles, editing is temporary, numeric changes update without rebuilding the game widget, and Reset restores automatic layout. Overflow remains scrollable. Uncommitted.
+
+## Step 14: selected/hovered game detail widgets (planned)
+
+- Expose Featured Game sections as independent dashboard widgets: title/artwork, description, activity (playtime, last played, source, achievements), game details (platforms, genres, release date, developers, publishers), library information (completion, categories, tags, features, date added, installation, version), scores, links, and game actions.
+- Choose the game source per widget: **Selected game**, **Hovered game**, or **Hovered game, otherwise selected game**. Use a shared game context so widgets configured alike stay synchronized.
+- Track hover from StartPage game shelves. Confirm supported native Playnite views during implementation; use native hover information only where it can be obtained reliably. This mode previews a hovered game without changing the actual library selection.
+- Configure hover activation delay to avoid updating every widget while sweeping over covers. On leaving a game, use the selected game in fallback mode; offer keeping the last hovered game in hover-only mode. Show a clear empty state when no game is available.
+- Reuse section field toggles and theme-aware text/color/icon controls. Each widget has independent dashboard position, size, appearance and profile persistence; users can compose a game details page without one large Featured Game widget.
+- Subscribe only while visible, share/cache game context and metadata, cancel stale work, and update only affected content. Preserve the shelf hover performance improvements; avoid rebuilding dashboard layouts or decoding unchanged artwork on pointer movement.
+- Verify synchronized hover/selection updates, fallback/empty states, independent settings, profile round-trips, page-switch cleanup and rapid-hover performance. Build for user testing before any commit or next roadmap step.
+
+This step is planned only. Implement it after the current Featured Game section customization has been tested and the user requests the next step.
+
+Section editing lifecycle follow-up: the explicit Edit sections on widget button starts editing and closes Appearance automatically. Done sections stays above the content; Escape and exiting dashboard Edit Mode also stop section editing and cancel active drag handles. Section editing is cleared on widget unload/page hiding. Position and size choices remain saved when editing stops. No commit made.
+
+Section drag surface follow-up: in section editing, a transparent move handle covers the full section, including text and buttons, while the corner resize grip remains above it. Leaving section editing removes the move surface so normal content interaction returns. Hit tests cover starting a move over title text and reaching the resize grip. Uncommitted.
+
+Featured artwork and edit-mode follow-up: Artwork sizing offers Fit entire image (Uniform, uncropped) or Fill widget (UniformToFill, original behavior), saved with widget profiles. Edit sections now has an entry button on the dashboard edit overlay; section controls are hidden outside dashboard Edit Mode, and leaving that mode locks sections. Starting from Appearance enters dashboard Edit Mode before closing the panel. Uncommitted.
+
+Additional Featured Game artwork sizing: Fill, Fit, Fit without enlarging small images, Stretch, and Original size. Fit/Fill profiles retain their prior settings. All modes update live and persist through profiles; Stretch may distort proportions, and original-size images can be cropped when larger than the widget. Uncommitted.
+
+Section controls and focus follow-up: one right-aligned Edit sections / Done sections toggle now lives above the dashboard edit overlay; the left duplicate and covered widget toggle are removed. The button stays clickable in both section states and is hidden outside dashboard Edit Mode. Application deactivation no longer exits Edit Mode, preserving dashboard/section editing across Alt+Tab. Uncommitted.
+
+Section editing geometry follow-up: labels, outlines and resize grips overlay the content instead of adding a temporary header row or border thickness. Entering/leaving section editing preserves text position, wrapping and section geometry. Initial automatic-layout capture no longer adds editor-only header space. Uncommitted.
+
+Featured game source follow-up: the existing Featured Game widget now supports Hovered StartPage game and Hovered game, otherwise selected game, alongside Selected library game. Hover follows Game Shelves, Most Played and the legacy StartPage game view without changing library selection. A configurable 0-1000 ms delay defaults to 150 ms; hover-only mode can retain the last hovered game to keep widget actions usable. Combined mode returns to the selected game on pointer leave. Shared owner-aware hover context ignores stale leave events, and targeted game lookups avoid full library scans. Timers stop while hidden/closed and settings persist in profiles. This does not implement roadmap step 14's separate widgets. Uncommitted.
+
+Featured descriptions follow-up: length 0 now means the full description; positive limits accept values through the numeric input's integer range rather than the previous 2,000-character cap. Show description remains the explicit hide control. Optional description images are displayed in order alongside native text, with failed/unsupported images omitted. Overflow is scrollable in the widget or individual custom sections. Scrolling settings add optional automatic looping, speed, and pause-on-hover; auto scroll stops during dashboard editing, inactivity and hiding/removal. Native text/image rendering does not execute description HTML scripts. Uncommitted.
+
+Description sizing/scrolling correction: description images no longer decode at an artificial fixed width; they keep natural size and shrink only when the section is narrower. Automatic scrolling uses physical pixel offsets with accumulated sub-pixel progress, previews in general dashboard Edit Mode, pauses during section editing, and follows application activation rather than only the host window's active flag. Debug logs report running/paused reasons and viewport/overflow values. Native image sizing at several widget widths and an actual DispatcherTimer scrolling cycle are covered by regression checks. Uncommitted.
+
+Featured section appearance follow-up: Shared section appearance applies a global style within each Featured Game widget. Individual section appearance offers a full override per section, with opt-in styling, background color/opacity, border color/width, corner radius, padding, automatic-layout spacing, shadow and optional text color. Color pickers are inside collapsed Colors sections; reset controls restore defaults, and unchecking an override returns to the shared style. Styles update live in automatic and custom layouts, persist independently in profiles, and survive resetting section geometry. Existing widgets retain their old appearance until enabled. Built and checked with actual WPF style inheritance/override/reset, per-section text palette and profile cloning tests; uncommitted.
+
+The user approved the completed shelf animation and Featured Game customization changes for commit. Step 14 (separate selected/hovered game detail widgets) is the next implementation step.

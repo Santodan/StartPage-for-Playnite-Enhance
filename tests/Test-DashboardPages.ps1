@@ -37,6 +37,15 @@ using Playnite.SDK.Plugins;
 using StartPage.SDK;
 public static class ToolbarTestVisuals
 {
+    public static System.Windows.FrameworkElement Named(System.Windows.DependencyObject root, string name)
+    {
+        var element = root as System.Windows.FrameworkElement;
+        if (element != null && element.Name == name) return element;
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); ++i)
+        { var found = Named(System.Windows.Media.VisualTreeHelper.GetChild(root,i),name); if (found != null) return found; }
+        return null;
+    }
+
     public static IEnumerable<LandingPage.Controls.DashboardTemplatePreview> Previews(System.Windows.DependencyObject root)
     {
         var preview = root as LandingPage.Controls.DashboardTemplatePreview;
@@ -50,6 +59,14 @@ public static class ToolbarTestVisuals
         if (button != null) yield return button;
         for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); ++i)
             foreach (var child in Buttons(System.Windows.Media.VisualTreeHelper.GetChild(root,i))) yield return child;
+    }
+    public static LandingPage.Views.ShelfGameInfo GameInfo(System.Windows.DependencyObject root)
+    {
+        var info = root as LandingPage.Views.ShelfGameInfo;
+        if (info != null) return info;
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); ++i)
+        { var found = GameInfo(System.Windows.Media.VisualTreeHelper.GetChild(root,i)); if (found != null) return found; }
+        return null;
     }
     public static IEnumerable<TextBlock> Text( System.Windows.DependencyObject root)
     {
@@ -868,6 +885,9 @@ try {
     Set-Setting $replacementSettings 'BackgroundImageUri' ([uri]$imagePath)
     $auditSettingsModel.Settings = $replacementSettings
     if ((Count-RefreshListeners $oldBackgroundSettings $auditBackground) -ne 0 -or (Count-RefreshListeners $replacementSettings $auditBackground) -ne 1) { throw 'Background settings replacement leaked or duplicated refresh subscriptions' }
+    $beforeUnrelatedHover = [DashboardTestProxy]::LibraryEnumerations
+    $auditBackground.LastHoveredGame = $gameA
+    if ([DashboardTestProxy]::LibraryEnumerations -ne $beforeUnrelatedHover) { throw 'Hovering rebuilt a background that does not follow hovered games' }
     $auditBackground.Unsubscribe()
     Set-Setting $auditSettingsModel.Settings 'ShelveInstanceSettings' ([Collections.Generic.Dictionary[guid,LandingPage.Settings.ShelvesSettings]]::new())
     Set-Setting $auditSettingsModel.Settings 'ShelveProperties' ([Collections.ObjectModel.ObservableCollection[LandingPage.Models.ShelveProperties]]::new())
@@ -1067,6 +1087,22 @@ try {
     Wait-Task ($featured.OnViewShownAsync())
     $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     if ($featured.FeaturedGame.Id -ne $featuredGame.Id -or @([ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture').Count -ne 1) { throw 'Pinned featured game did not render' }
+    $artworkControl = $featured.GetType().GetField('artwork',$flags).GetValue($featured)
+    $featured.Settings.ArtworkStretch = [Windows.Media.Stretch]::Uniform
+    if ($artworkControl.Stretch -ne [Windows.Media.Stretch]::Uniform) { throw 'Fit entire artwork mode did not update live' }
+    $featured.Settings.ArtworkStretch = [Windows.Media.Stretch]::UniformToFill
+    if ($artworkControl.Stretch -ne [Windows.Media.Stretch]::UniformToFill) { throw 'Fill artwork mode did not update live' }
+    foreach ($sizing in @(
+        @([LandingPage.Settings.FeaturedArtworkSizing]::Fill,[Windows.Media.Stretch]::UniformToFill,[Windows.Controls.StretchDirection]::Both),
+        @([LandingPage.Settings.FeaturedArtworkSizing]::Fit,[Windows.Media.Stretch]::Uniform,[Windows.Controls.StretchDirection]::Both),
+        @([LandingPage.Settings.FeaturedArtworkSizing]::FitWithoutEnlarging,[Windows.Media.Stretch]::Uniform,[Windows.Controls.StretchDirection]::DownOnly),
+        @([LandingPage.Settings.FeaturedArtworkSizing]::Stretch,[Windows.Media.Stretch]::Fill,[Windows.Controls.StretchDirection]::Both),
+        @([LandingPage.Settings.FeaturedArtworkSizing]::OriginalSize,[Windows.Media.Stretch]::None,[Windows.Controls.StretchDirection]::Both)
+    )) {
+        $featured.Settings.ArtworkSizing = $sizing[0]
+        if ($artworkControl.Stretch -ne $sizing[1] -or $artworkControl.StretchDirection -ne $sizing[2]) { throw ('Artwork sizing did not update live: ' + $sizing[0]) }
+    }
+    $featured.Settings.ArtworkSizing = [LandingPage.Settings.FeaturedArtworkSizing]::Fill
     $featured.Settings.UseCustomTextColor = $true; $featured.Settings.TitleColor = '#12AB34'; $featured.Settings.TitleSize = 40
     $title = [ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture' | Select-Object -First 1
     if ($title.FontSize -ne 40 -or $title.Foreground.Color.ToString() -ne '#FF12AB34') { throw 'Featured text customization did not update live' }
@@ -1074,20 +1110,136 @@ try {
     $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     $metadataText = [ToolbarTestVisuals]::Text($featured) | Where-Object { $_.Text.StartsWith('Playtime:') } | Select-Object -First 1
     if (!$metadataText -or $metadataText.FontSize -ne 23 -or $metadataText.Foreground.Color -ne [Windows.Media.Colors]::Lime) { throw 'Metadata size must match text independently of custom colors while respecting the theme' }
-    $metadataView = $featured.Content.Children[2].Children | Where-Object { $_ -is [LandingPage.Views.ShelfGameInfo] } | Select-Object -First 1
+    $metadataView = [ToolbarTestVisuals]::GameInfo($featured)
     if ($metadataView.Settings.MetadataIconSize -ne 23) { throw 'Metadata icon size did not follow metadata text size' }
     $featured.Settings.MatchMetadataTextSize = $false; $featured.Settings.MetadataTextSize = 18
     $featured.Settings.MatchMetadataTextColor = $false; $featured.Settings.UseCustomMetadataColor = $true; $featured.Settings.MetadataTextColor = '#34CD56'
     $featured.Settings.MatchMetadataIconSize = $false; $featured.Settings.MetadataIconSize = 27
     $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     $metadataText = [ToolbarTestVisuals]::Text($featured) | Where-Object { $_.Text.StartsWith('Playtime:') } | Select-Object -First 1
-    $metadataView = $featured.Content.Children[2].Children | Where-Object { $_ -is [LandingPage.Views.ShelfGameInfo] } | Select-Object -First 1
+    $metadataView = [ToolbarTestVisuals]::GameInfo($featured)
     if ($metadataText.FontSize -ne 18 -or $metadataText.Foreground.Color.ToString() -ne '#FF34CD56' -or $metadataView.Settings.MetadataIconSize -ne 27) { throw 'Independent metadata size/color/icon settings failed' }
     $featured.Settings.MatchMetadataTextSize = $true; $featured.Settings.MatchMetadataTextColor = $true; $featured.Settings.MatchMetadataIconSize = $true
     $featured.Settings.UseCustomTextColor = $true; $featured.Settings.TextSize = 26; $featured.Settings.TextColor = '#3456CD'
     $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     $metadataText = [ToolbarTestVisuals]::Text($featured) | Where-Object { $_.Text.StartsWith('Playtime:') } | Select-Object -First 1
     if ($metadataText.FontSize -ne 26 -or $metadataText.Foreground.Color.ToString() -ne '#FF3456CD') { throw 'Metadata did not follow the description text color/size' }
+    $featuredGame.Version = '2.4.1'; $featuredGame.UserScore = 0; $featuredGame.CriticScore = 88
+    $featuredGame.ReleaseDate = [Playnite.SDK.Models.ReleaseDate]::new(2024,5,4)
+    $featuredGame.Added = [datetime]::Now.AddDays(-3)
+    $featuredGame.Links = [Collections.ObjectModel.ObservableCollection[Playnite.SDK.Models.Link]]::new()
+    $featuredGame.Links.Add([Playnite.SDK.Models.Link]::new('Official website','https://example.com/game'))
+    $featuredGame.Links.Add([Playnite.SDK.Models.Link]::new('Invalid launch target','file:///C:/example.exe'))
+    $featured.Settings.ShowTitle = $false
+    $featured.Settings.ShowGameDetails = $true; $featured.Settings.ShowLibraryDetails = $true
+    $featured.Settings.ShowScores = $true; $featured.Settings.ShowLinks = $true
+    $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $sectionTexts = @([ToolbarTestVisuals]::Text($featured) | ForEach-Object Text)
+    foreach ($expected in @('Game details','Library information','Scores','Links','Version: 2.4.1','User score: 0','Critic score: 88')) {
+        if ($sectionTexts -notcontains $expected) { throw ('Featured section or field missing: ' + $expected) }
+    }
+    if ($sectionTexts -contains 'Featured fixture' -or @($sectionTexts | Where-Object { $_ -eq 'Genres: ' -or $_ -eq 'Community score: ' }).Count) { throw 'Disabled title or empty field remained visible' }
+    $links = @([ToolbarTestVisuals]::Buttons($featured) | ForEach-Object Content)
+    if ($links -notcontains 'Official website' -or $links -contains 'Invalid launch target') { throw 'Featured links were not filtered/rendered correctly' }
+    $featured.Settings.ShowSectionHeadings = $false; $featured.Settings.ShowVersion = $false; $featured.Settings.ShowCriticScore = $false
+    $sectionTexts = @([ToolbarTestVisuals]::Text($featured) | ForEach-Object Text)
+    if ($sectionTexts -contains 'Scores' -or $sectionTexts -contains 'Version: 2.4.1' -or $sectionTexts -contains 'Critic score: 88' -or $sectionTexts -notcontains 'User score: 0') { throw 'Section heading or individual field toggles failed' }
+    $scoreText = [ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'User score: 0' | Select-Object -First 1
+    if ($scoreText.FontSize -ne 26 -or $scoreText.Foreground.Color.ToString() -ne '#FF3456CD') { throw 'Detail sections did not follow metadata formatting' }
+    $featured.Settings.ShowScores = $false; $featured.Settings.ShowLibraryDetails = $false; $featured.Settings.ShowGameDetails = $false; $featured.Settings.ShowLinks = $false
+    $featured.Settings.ShowTitle = $true
+    $featuredGame.Description = '<p>Before image</p><img src="' + ([uri]$imagePath).AbsoluteUri + '"><p>' + ('Long description ' * 500) + '</p>'
+    $featured.Settings.DescriptionLength = 0; $featured.Settings.ShowDescriptionImages = $true
+    $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $descriptionPanel = $featured.GetType().GetField('sectionPanels',$flags).GetValue($featured)[[LandingPage.Settings.FeaturedGameSection]::Description]
+    if (@($descriptionPanel.Children | Where-Object { $_ -is [Windows.Controls.Image] -and $_.Source }).Count -ne 1) { throw 'Local description image did not render' }
+    $descriptionViewport = $featured.GetType().GetField('detailsViewport',$flags).GetValue($featured)
+    if ($descriptionViewport.ScrollableHeight -le 0) { throw 'Unlimited description cannot scroll inside the widget' }
+    $descriptionImage = $descriptionPanel.Children | Where-Object { $_ -is [Windows.Controls.Image] } | Select-Object -First 1
+    $naturalWidth = $descriptionImage.Source.Width
+    if ($descriptionImage.MaxWidth -ne $naturalWidth -or $descriptionImage.ActualWidth -gt $naturalWidth+0.1) { throw 'Description image was enlarged beyond its natural size' }
+    $oldFeaturedWidth = $featured.Width
+    $featured.Width = 900; $window.UpdateLayout(); $wideImageWidth = $descriptionImage.ActualWidth
+    $featured.Width = 800; $window.UpdateLayout()
+    if ([Math]::Abs($descriptionImage.ActualWidth-$wideImageWidth) -gt 0.1) { throw 'Small description image resized unnecessarily with its widget' }
+    $featured.Width = 180; $window.UpdateLayout()
+    if ($descriptionImage.ActualWidth -gt 180) { throw 'Large description image did not shrink to fit its widget' }
+    $featured.Width = $oldFeaturedWidth
+    $featured.SetCurrentValue([LandingPage.Views.FeaturedGameView]::DashboardEditModeProperty,$true)
+    $featured.Settings.AutoScrollContent = $true; $window.UpdateLayout()
+    if ([LandingPage.Controls.ContentAutoScroll]::GetPaused($descriptionViewport)) { throw 'General dashboard Edit Mode prevented auto-scroll preview' }
+    $featured.Settings.AutoScrollContent = $false
+    $featured.Settings.ShowDescriptionImages = $false; $window.UpdateLayout()
+    $descriptionPanel = $featured.GetType().GetField('sectionPanels',$flags).GetValue($featured)[[LandingPage.Settings.FeaturedGameSection]::Description]
+    if (@($descriptionPanel.Children | Where-Object { $_ -is [Windows.Controls.Image] }).Count) { throw 'Description image toggle did not remove images' }
+    $featuredGame.Description = '<p>Featured description</p>'; $featured.Settings.DescriptionLength = 400
+    $featured.SetCurrentValue([LandingPage.Views.FeaturedGameView]::DashboardEditModeProperty,$true)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $sharedSectionStyle = $featured.Settings.SectionAppearance
+    $sharedSectionStyle.Background = '#112233'; $sharedSectionStyle.BackgroundOpacity = 0.4; $sharedSectionStyle.BorderWidth = 2; $sharedSectionStyle.Padding = 11; $sharedSectionStyle.CornerRadius = 9; $sharedSectionStyle.Enabled = $true
+    $window.UpdateLayout()
+    $sectionPanels = $featured.GetType().GetField('sectionPanels',$flags).GetValue($featured)
+    $styledTitle = $sectionPanels[[LandingPage.Settings.FeaturedGameSection]::Title].Parent
+    $styledDescription = $sectionPanels[[LandingPage.Settings.FeaturedGameSection]::Description].Parent
+    if ($styledTitle.Background.Color.ToString() -ne '#FF112233' -or $styledTitle.Background.Opacity -ne 0.4 -or $styledTitle.BorderThickness.Left -ne 2 -or $styledTitle.Padding.Left -ne 11 -or $styledTitle.CornerRadius.TopLeft -ne 9 -or $styledDescription.Background.Color.ToString() -ne '#FF112233') { throw ('Shared section style not applied: title=' + $styledTitle.GetType().Name + ' bg=' + $styledTitle.Background + ' opacity=' + $styledTitle.Background.Opacity + ' border=' + $styledTitle.BorderThickness + ' padding=' + $styledTitle.Padding + ' corners=' + $styledTitle.CornerRadius + ' desc=' + $styledDescription.Background) }
+    $individualTitle = $featured.Settings.GetSectionLayout([LandingPage.Settings.FeaturedGameSection]::Title)
+    $individualTitle.Appearance.Background = '#445566'; $individualTitle.Appearance.Padding = 5; $individualTitle.Appearance.Enabled = $true; $individualTitle.OverrideAppearance = $true
+    $sharedSectionStyle.Background = '#ABCDEF'; $window.UpdateLayout()
+    if ($styledTitle.Background.Color.ToString() -ne '#FF445566' -or $styledTitle.Padding.Left -ne 5 -or $styledDescription.Background.Color.ToString() -ne '#FFABCDEF') { throw 'Individual appearance did not override shared settings independently' }
+    $individualTitle.Appearance.TextColor = '#00AAFF'; $individualTitle.Appearance.CustomizeText = $true
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $appearanceTitleText = [ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture' | Select-Object -First 1
+    if ($appearanceTitleText.Foreground.Color.ToString() -ne '#FF00AAFF') { throw 'Individual section text color was not applied' }
+    $individualTitle.OverrideAppearance = $false; $window.UpdateLayout()
+    if ($styledTitle.Background.Color.ToString() -ne '#FFABCDEF' -or $styledTitle.Padding.Left -ne 11) { throw 'Disabling override did not restore shared section appearance' }
+    $sharedSectionStyle.Enabled = $false; $window.UpdateLayout()
+    if ($styledTitle.BorderThickness.Left -ne 0 -or $styledTitle.Padding.Left -ne 0) { throw 'Disabling shared section styling did not restore default geometry' }
+    $featured.Settings.UseCustomSectionLayout = $true; $featured.Settings.EditSectionLayout = $true
+    $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $sectionCanvas = $featured.GetType().GetField('sectionCanvas',$flags).GetValue($featured)
+    $titleFrame = $sectionCanvas.Children | Where-Object { $_.GetType().GetField('Layout',$flags).GetValue($_).Section -eq [LandingPage.Settings.FeaturedGameSection]::Title } | Select-Object -First 1
+    if (!$titleFrame) { throw 'Custom layout did not create the title section frame' }
+    $titleLayout = $featured.Settings.GetSectionLayout([LandingPage.Settings.FeaturedGameSection]::Title)
+    $sharedSectionStyle.Enabled = $true; $window.UpdateLayout()
+    if ($titleFrame.Background.Color.ToString() -ne '#FFABCDEF' -or $titleFrame.BorderThickness.Left -ne 2 -or $titleFrame.Padding.Left -ne 11) { throw 'Shared appearance did not apply to custom-layout section frames' }
+    $sharedSectionStyle.Enabled = $false; $window.UpdateLayout()
+    $oldX = $titleLayout.X; $oldY = $titleLayout.Y; $oldWidth = $titleLayout.Width; $oldHeight = $titleLayout.Height
+    $moveHandle = $titleFrame.GetType().GetField('MoveHandle',$flags).GetValue($titleFrame)
+    $resizeHandle = $titleFrame.GetType().GetField('ResizeHandle',$flags).GetValue($titleFrame)
+    $titleInside = [ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture' | Select-Object -First 1
+    $textPoint = $titleInside.TranslatePoint([Windows.Point]::new(3,3),$titleFrame)
+    $textHit = $titleFrame.InputHitTest($textPoint)
+    while ($textHit -and $textHit -isnot [Windows.Controls.Primitives.Thumb]) { $textHit = [Windows.Media.VisualTreeHelper]::GetParent($textHit) }
+    if (![object]::ReferenceEquals($textHit,$moveHandle)) { throw 'Text inside an editable section does not hit the move handle' }
+    $resizeHit = $titleFrame.InputHitTest([Windows.Point]::new($titleFrame.ActualWidth-6,$titleFrame.ActualHeight-6))
+    while ($resizeHit -and $resizeHit -isnot [Windows.Controls.Primitives.Thumb]) { $resizeHit = [Windows.Media.VisualTreeHelper]::GetParent($resizeHit) }
+    if (![object]::ReferenceEquals($resizeHit,$resizeHandle)) { throw 'Body drag surface blocks the resize grip' }
+    $drag = [Windows.Controls.Primitives.DragDeltaEventArgs]::new(40,30); $drag.RoutedEvent = [Windows.Controls.Primitives.Thumb]::DragDeltaEvent
+    $moveHandle.RaiseEvent($drag)
+    $resize = [Windows.Controls.Primitives.DragDeltaEventArgs]::new(50,20); $resize.RoutedEvent = [Windows.Controls.Primitives.Thumb]::DragDeltaEvent
+    $resizeHandle.RaiseEvent($resize); $window.UpdateLayout()
+    if ($titleLayout.X -ne $oldX+40 -or $titleLayout.Y -ne $oldY+30 -or $titleLayout.Width -ne $oldWidth+50 -or $titleLayout.Height -ne $oldHeight+20 -or [Windows.Controls.Canvas]::GetLeft($titleFrame) -ne $titleLayout.X -or $titleFrame.ActualWidth -ne $titleLayout.Width) { throw 'Dragging/resizing did not update section settings and visible geometry' }
+    $beforeLockText = [ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture' | Select-Object -First 1
+    $beforeLockBounds = $beforeLockText.TransformToAncestor($featured).TransformBounds([Windows.Rect]::new(0,0,$beforeLockText.ActualWidth,$beforeLockText.ActualHeight))
+    $savedSectionX = $titleLayout.X; $savedSectionY = $titleLayout.Y; $savedSectionWidth = $titleLayout.Width; $savedSectionHeight = $titleLayout.Height
+    $featured.Settings.EditSectionLayout = $false; $window.UpdateLayout()
+    $afterLockText = [ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture' | Select-Object -First 1
+    $afterLockBounds = $afterLockText.TransformToAncestor($featured).TransformBounds([Windows.Rect]::new(0,0,$afterLockText.ActualWidth,$afterLockText.ActualHeight))
+    if ($beforeLockBounds -ne $afterLockBounds -or $titleLayout.X -ne $savedSectionX -or $titleLayout.Y -ne $savedSectionY -or $titleLayout.Width -ne $savedSectionWidth -or $titleLayout.Height -ne $savedSectionHeight) { throw 'Leaving section editing moved/resized its content or changed saved geometry' }
+    $titleFrame = $sectionCanvas.Children | Where-Object { $_.GetType().GetField('Layout',$flags).GetValue($_).Section -eq [LandingPage.Settings.FeaturedGameSection]::Title } | Select-Object -First 1
+    $beforeLocked = $titleLayout.X
+    $titleFrame.GetType().GetField('MoveHandle',$flags).GetValue($titleFrame).RaiseEvent($drag)
+    if ($titleLayout.X -ne $beforeLocked) { throw 'Read-only sections allowed dragging' }
+    $titleLayout.X = 120; $titleLayout.Width = 300; $window.UpdateLayout()
+    if ([Windows.Controls.Canvas]::GetLeft($titleFrame) -ne 120 -or $titleFrame.ActualWidth -ne 300) { throw 'Numeric layout edits did not update the section live' }
+    $featured.Settings.PinnedGameId = [guid]::NewGuid()
+    Wait-Task ($featured.OnViewShownAsync())
+    $window.UpdateLayout()
+    if (@([ToolbarTestVisuals]::Text($featured) | Where-Object { $_.Text.StartsWith('Choose a pinned game') }).Count -ne 1) { throw 'Missing game message disappeared in custom section layout' }
+    $featured.Settings.PinnedGameId = $featuredGame.Id
+    Wait-Task ($featured.OnViewShownAsync())
+    $featured.Settings.ResetSectionLayout(); $window.UpdateLayout()
+    if ($featured.Settings.UseCustomSectionLayout -or $featured.Settings.EditSectionLayout -or @([ToolbarTestVisuals]::Text($featured) | Where-Object Text -eq 'Featured fixture').Count -ne 1) { throw 'Reset did not restore automatic section layout' }
     $loadedFeaturedGame = $featured.FeaturedGame
     Wait-Task ($featured.OnViewHiddenAsync()); Wait-Task ($featured.OnViewShownAsync())
     if (![object]::ReferenceEquals($loadedFeaturedGame,$featured.FeaturedGame)) { throw 'Unchanged featured widget lost its cached selection' }
@@ -1096,11 +1248,217 @@ try {
     $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     if (@([ToolbarTestVisuals]::Text($editor) | Where-Object Text -eq 'Featured game source').Count -ne 1) { throw 'Featured game settings editor did not render' }
     [void]$layout.Children.Remove($editor)
+    [void]$view.Content.Children.Add($editor)
+    $sectionNode = [LandingPage.Models.Layout.GridNode]::new()
+    $sectionNode.ViewProperties = [LandingPage.Models.Layout.ViewProperties]::new()
+    $sectionNode.ViewProperties.ViewId = 'FeaturedGame'; $sectionNode.ViewProperties.FeaturedGameSettings = $featured.Settings
+    $sectionModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($sectionNode)
+    $sectionModel.View = [Windows.Controls.Grid]::new()
+    $featured.Settings.UseCustomSectionLayout = $true
+    $sectionModel.EditModeEnabled = $true; $featured.Settings.EditSectionLayout = $true
+    $sectionModel.EditModeEnabled = $false
+    if ($featured.Settings.EditSectionLayout) { throw 'Exiting dashboard Edit Mode left section editing enabled' }
+    $view.GetType().GetMethod('ShowAppearance',$flags).Invoke($view,@($sectionModel))
+    $editor.GetType().GetMethod('BeginSectionEditing_Click',$flags).Invoke($editor,@($null,[Windows.RoutedEventArgs]::new([Windows.Controls.Button]::ClickEvent)))
+    if (!$featured.Settings.EditSectionLayout -or $view.FindName('AppearanceOverlay').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Explicit section edit action did not start editing and close Appearance' }
+    $sectionModel.EditModeEnabled = $true
+    $sectionModel.IsLeaf = $true; $sectionModel.HasView = $true
+    $sectionNodeView = [LandingPage.Views.GridNodeView]::new(); $sectionNodeView.DataContext = $sectionModel
+    [void]$view.Content.Children.Add($sectionNodeView); $window.UpdateLayout()
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $doneSections = $sectionNodeView.FindName('FeaturedSectionsButton')
+    if ($doneSections.Visibility -ne [Windows.Visibility]::Visible -or $doneSections.Content -ne 'Done sections' -or !$doneSections.IsHitTestVisible) { throw 'Single right section button is unavailable while editing sections' }
+    $buttonPoint = $doneSections.TranslatePoint([Windows.Point]::new($doneSections.ActualWidth/2,$doneSections.ActualHeight/2),$sectionNodeView)
+    $buttonHit = $sectionNodeView.InputHitTest($buttonPoint)
+    while ($buttonHit -and $buttonHit -isnot [Windows.Controls.Primitives.ToggleButton]) { $buttonHit = [Windows.Media.VisualTreeHelper]::GetParent($buttonHit) }
+    if (![object]::ReferenceEquals($buttonHit,$doneSections)) { throw ('Dashboard edit overlay blocks the right section button: button=' + $doneSections.ActualWidth + 'x' + $doneSections.ActualHeight + ' node=' + $sectionNodeView.ActualWidth + 'x' + $sectionNodeView.ActualHeight + ' point=' + $buttonPoint + ' hit=' + $buttonHit) }
+    $doneSections.SetCurrentValue([Windows.Controls.Primitives.ToggleButton]::IsCheckedProperty,$false)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($featured.Settings.EditSectionLayout -or $doneSections.Content -ne 'Edit sections' -or [Windows.Controls.Panel]::GetZIndex($doneSections) -lt 1) { throw 'Done sections did not lock the layout or stay above section content' }
+    $buttonHit = $sectionNodeView.InputHitTest($buttonPoint)
+    while ($buttonHit -and $buttonHit -isnot [Windows.Controls.Primitives.ToggleButton]) { $buttonHit = [Windows.Media.VisualTreeHelper]::GetParent($buttonHit) }
+    if (![object]::ReferenceEquals($buttonHit,$doneSections)) { throw 'Dashboard editing overlay blocks the section entry button before editing starts' }
+    $doneSections.SetCurrentValue([Windows.Controls.Primitives.ToggleButton]::IsCheckedProperty,$true)
+    $doneSections.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+    $window.UpdateLayout()
+    if (!$featured.Settings.EditSectionLayout -or $doneSections.Content -ne 'Done sections') { throw 'Right button failed to enter section editing' }
+    $vm.RootNodeViewModel.EditModeEnabled = $true
+    $plugin.GetType().GetMethod('OnApplicattionDeactivated',$flags).Invoke($plugin,@($null,[EventArgs]::Empty))
+    if (!$vm.RootNodeViewModel.EditModeEnabled -or !$featured.Settings.EditSectionLayout) { throw 'Alt+Tab ended dashboard or section editing' }
+    $escapeSections = [Windows.Input.KeyEventArgs]::new([Windows.Input.Keyboard]::PrimaryDevice,[Windows.PresentationSource]::FromVisual($featured),0,[Windows.Input.Key]::Escape)
+    $escapeSections.RoutedEvent = [Windows.Input.Keyboard]::PreviewKeyDownEvent
+    $featured.RaiseEvent($escapeSections)
+    if ($featured.Settings.EditSectionLayout -or !$escapeSections.Handled) { throw 'Escape did not lock custom section editing' }
+    $featured.Settings.EditSectionLayout = $true
+    $featured.SetCurrentValue([LandingPage.Views.FeaturedGameView]::DashboardEditModeProperty,$false)
+    $sectionModel.EditModeEnabled = $false; $window.UpdateLayout()
+    if ($featured.Settings.EditSectionLayout -or $doneSections.Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Leaving dashboard Edit Mode kept the button visible or section editing active' }
+    $vm.RootNodeViewModel.EditModeEnabled = $false
+    $featured.Settings.ResetSectionLayout()
+    [void]$view.Content.Children.Remove($sectionNodeView)
+    [void]$view.Content.Children.Remove($editor)
+    $hoverPreviewGame = [Playnite.SDK.Models.Game]::new(); $hoverPreviewGame.Name = 'Hovered preview'; $hoverPreviewGame.IsInstalled = $true
+    [DashboardTestProxy]::FeaturedFixtureGames.Add($hoverPreviewGame)
+    $selectionArgs = [Playnite.SDK.Events.OnGameSelectedEventArgs]::new([Collections.Generic.List[Playnite.SDK.Models.Game]]::new(),[Collections.Generic.List[Playnite.SDK.Models.Game]]::new()); $selectionArgs.NewValue.Add($featuredGame)
+    $plugin.OnGameSelected($selectionArgs)
+    $setHover = $plugin.GetType().GetMethod('SetFeaturedHoveredGame',$flags)
+    $hoverOwnerA = [object]::new(); $hoverOwnerB = [object]::new(); $hoverGroup = [object]::new()
+    $queriesBeforeHover = [DashboardTestProxy]::LibraryEnumerations
+    $featured.Settings.HoverDelayMilliseconds = 0; $featured.Settings.Source = [LandingPage.Settings.FeaturedGameSource]::HoveredGame
+    [void]$setHover.Invoke($plugin,@($hoverPreviewGame,$hoverOwnerB,$hoverGroup)); Wait-Task ($featured.OnViewShownAsync())
+    if ($featured.FeaturedGame.Id -ne $hoverPreviewGame.Id) { throw 'Hovered game did not reach the Featured Game widget' }
+    [void]$setHover.Invoke($plugin,@($null,$hoverOwnerA,$hoverGroup))
+    if ($plugin.GetType().GetProperty('FeaturedHoveredGame',$flags).GetValue($plugin).Id -ne $hoverPreviewGame.Id) { throw 'A stale hover leave cleared a newer hover owner' }
+    [void]$setHover.Invoke($plugin,@($null,$hoverOwnerB,$hoverGroup)); Wait-Task ($featured.OnViewShownAsync())
+    if ($featured.FeaturedGame.Id -ne $hoverPreviewGame.Id) { throw 'Hover-only mode did not keep the last game' }
+    $featured.Settings.KeepLastHoveredGame = $false; Wait-Task ($featured.OnViewShownAsync())
+    if ($featured.FeaturedGame) { throw 'Hover-only empty state retained a game despite disabling keep-last' }
+    $featured.Settings.Source = [LandingPage.Settings.FeaturedGameSource]::HoveredOrSelectedGame; Wait-Task ($featured.OnViewShownAsync())
+    if ($featured.FeaturedGame.Id -ne $featuredGame.Id) { throw 'Combined source did not fall back to the selected game' }
+    $featured.Settings.HoverDelayMilliseconds = 60
+    [void]$setHover.Invoke($plugin,@($hoverPreviewGame,$hoverOwnerB,$hoverGroup))
+    $previewTimer = $featured.GetType().GetField('hoverTimer',$flags).GetValue($featured)
+    if (!$previewTimer.IsEnabled -or $featured.FeaturedGame.Id -ne $featuredGame.Id) { throw 'Hover delay did not defer a preview update' }
+    $hoverDeadline = [datetime]::UtcNow.AddSeconds(3)
+    while ($featured.FeaturedGame.Id -ne $hoverPreviewGame.Id -and [datetime]::UtcNow -lt $hoverDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5 }
+    if ($featured.FeaturedGame.Id -ne $hoverPreviewGame.Id) { throw 'Delayed hover preview never updated' }
+    Wait-Task ($featured.OnViewHiddenAsync())
+    [void]$setHover.Invoke($plugin,@($null,$hoverOwnerB,$hoverGroup))
+    if ($previewTimer.IsEnabled) { throw 'Hidden widget kept its hover timer running' }
+    Wait-Task ($featured.OnViewShownAsync())
+    if ($featured.FeaturedGame.Id -ne $featuredGame.Id -or [DashboardTestProxy]::LibraryEnumerations -ne $queriesBeforeHover) { throw 'Hover/selection fallback queried the full library or lost its selection on returning' }
+    $featured.Settings.Source = [LandingPage.Settings.FeaturedGameSource]::Pinned
+    Wait-Task ($featured.OnViewShownAsync())
     $plugin.OnViewRemoved('FeaturedGame',$featuredInstance)
     if (!$featured.GetType().GetField('closed',$flags).GetValue($featured) -or $featured.GetType().GetField('subscribed',$flags).GetValue($featured)) { throw 'Removed featured widget retained subscriptions' }
     [void]$layout.Children.Remove($featured)
     [DashboardTestProxy]::FeaturedFixtureGames.Clear()
     'PASS: featured game registration, pinned rendering, live theme/color/size controls, cached revisits, settings editor and removal cleanup.'
+    $hoverSettings = [LandingPage.Models.ShelveProperties]::new()
+    $hoverSettings.HoverEffect = [LandingPage.Models.ShelfHoverEffect]::Dock; $hoverSettings.HoverScale = 1.4; $hoverSettings.HoverRadius = 2
+    $hoverSettings.HoverGlow = $true; $hoverSettings.HoverDimOthers = $true
+    $hoverList = [Windows.Controls.ListBox]::new(); $hoverList.Width = 500; $hoverList.Height = 230; $hoverList.Padding = [Windows.Thickness]::new(3)
+    $hoverList.ItemsPanel = [Windows.Markup.XamlReader]::Parse('<ItemsPanelTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>')
+    $hoverList.ItemTemplate = [Windows.Markup.XamlReader]::Parse('<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"><Border x:Name="HoverArtwork" Width="100" Height="120" Background="Gray"><TextBlock Text="{Binding Game.Name}"/></Border></DataTemplate>')
+    $hoverStyle = [Windows.Style]::new([Windows.Controls.ListBoxItem])
+    $hoverStyle.Setters.Add([Windows.Setter]::new([LandingPage.Controls.ShelfHover]::SettingsProperty,$hoverSettings))
+    $hoverStyle.Setters.Add([Windows.Setter]::new([Windows.UIElement]::OpacityProperty,0.8))
+    $hoverStyle.Setters.Add([Windows.Setter]::new([Windows.UIElement]::RenderTransformProperty,[Windows.Media.TranslateTransform]::new(2,3)))
+    $hoverList.ItemContainerStyle = $hoverStyle
+    $hoverThirdGame = [Playnite.SDK.Models.Game]::new(); $hoverThirdGame.Name = 'Third hover card'
+    foreach ($hoverGame in @($gameA,$gameB,$hoverThirdGame)) { [void]$hoverList.Items.Add([LandingPage.Models.GameModel]::new($hoverGame)) }
+    [void]$scene.Children.Add($hoverList); $window.UpdateLayout()
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $middleCard = $hoverList.ItemContainerGenerator.ContainerFromIndex(1)
+    $leftCard = $hoverList.ItemContainerGenerator.ContainerFromIndex(0)
+    $controllerProperty = [LandingPage.Controls.ShelfHover].GetField('ControllerProperty',[Reflection.BindingFlags]'Static,NonPublic').GetValue($null)
+    $hoverController = $middleCard.GetValue($controllerProperty)
+    if (!$hoverController -or $middleCard.RenderTransform -isnot [Windows.Media.TransformGroup]) { throw 'Shelf hover did not attach to realized game containers' }
+    Set-Field $hoverController 'AnimationsEnabled' ([Func[bool]]{ return $false })
+    $centerPoint = $hoverController.GetType().GetMethod('Center',$flags).Invoke($hoverController,@($middleCard))
+    $applyHover = $hoverController.GetType().GetMethod('ApplyAt',$flags)
+    $beforeHoverQueries = [DashboardTestProxy]::LibraryEnumerations
+    [void]$applyHover.Invoke($hoverController,@($centerPoint,$middleCard))
+    $states = $hoverController.GetType().GetField('items',$flags).GetValue($hoverController)
+    $middleState = $states[$middleCard]; $leftState = $states[$leftCard]
+    if (!$middleState.Floating -or [Math]::Abs($middleState.Scale.ScaleX - 1.4) -gt 0.001 -or $leftState.Scale.ScaleX -le 1 -or $leftState.Scale.ScaleX -ge 1.4) { throw 'Dock overlay did not magnify focus and neighbors' }
+    if ($middleCard.Opacity -ne 0 -or $middleState.Floating.Effect -isnot [Windows.Media.Effects.DropShadowEffect]) { throw 'Overlay did not replace the original drawing/glow' }
+    $artworkVisual = [ToolbarTestVisuals]::Named($middleCard,'HoverArtwork')
+    if ($artworkVisual.ActualWidth -ne 100 -or $artworkVisual.ActualHeight -ne 120 -or !$middleCard.LayoutTransform.Value.IsIdentity) { throw 'Hover changed normal card dimensions' }
+    $window.UpdateLayout()
+    $viewport = [Windows.Media.VisualTreeHelper]::GetParent($middleCard)
+    while ($viewport -and $viewport -isnot [Windows.Controls.ScrollContentPresenter]) { $viewport = [Windows.Media.VisualTreeHelper]::GetParent($viewport) }
+    $layer = $view.FindName('ShelfHoverLayer')
+    $viewportBounds = $viewport.TransformToAncestor($scene).TransformBounds([Windows.Rect]::new(0,0,$viewport.ActualWidth,$viewport.ActualHeight))
+    $floatingBounds = $middleState.Floating.TransformToAncestor($scene).TransformBounds([Windows.Rect]::new(0,0,$middleState.Floating.ActualWidth,$middleState.Floating.ActualHeight))
+    if ($floatingBounds.Top -ge $viewportBounds.Top) { throw 'Magnified artwork did not extend above the shelf viewport' }
+    if ([Windows.Media.VisualTreeHelper]::GetParent($middleState.Floating) -ne $layer -or $layer.IsHitTestVisible) { throw 'Artwork is not in the dashboard overlay or intercepts input' }
+    $floating = $middleState.Floating
+    $pixelWidth = [int]$scene.ActualWidth; $pixelHeight = [int]$scene.ActualHeight
+    $pixels = [Windows.Media.Imaging.RenderTargetBitmap]::new($pixelWidth,$pixelHeight,96,96,[Windows.Media.PixelFormats]::Pbgra32)
+    # A narrow presenter can still contain full-width fixed-size artwork.
+    # The overlay must reproduce drawing bounds at 1:1 before magnification.
+    $sourcePresenter = [Windows.Media.VisualTreeHelper]::GetParent($middleState.Source)
+    $sourcePresenter.Width = 24
+    $window.UpdateLayout()
+    $hoverController.GetType().GetMethod('PositionFloating',$flags).Invoke($hoverController,@())
+    $drawingBounds = [Windows.Media.VisualTreeHelper]::GetDescendantBounds($sourcePresenter)
+    if ($middleState.Floating.Width -lt 100 -or $middleState.Floating.Height -lt 120 -or $middleState.Floating.Fill.Stretch -ne [Windows.Media.Stretch]::None -or $middleState.Floating.Fill.Viewbox.Width -ne $middleState.Floating.Width) { throw ('Constrained presenter squeezed the artwork overlay: ' + $middleState.Floating.Width + 'x' + $middleState.Floating.Height + ' bounds=' + $middleState.Floating.Fill.Viewbox) }
+    $sourcePresenter.ClearValue([Windows.FrameworkElement]::WidthProperty)
+    $window.UpdateLayout()
+    $hoverController.GetType().GetMethod('PositionFloating',$flags).Invoke($hoverController,@())
+    $stableWidth = $middleState.Floating.Width; $stableHeight = $middleState.Floating.Height
+    $stableLeft = [Windows.Controls.Canvas]::GetLeft($middleState.Floating)
+    $stableTop = [Windows.Controls.Canvas]::GetTop($middleState.Floating)
+    $hoverText = [Windows.Media.VisualTreeHelper]::GetChild($middleState.Source,0)
+    $hoverText.RenderTransform = [Windows.Media.TranslateTransform]::new(-200,-100)
+    $window.UpdateLayout()
+    for ($pointerPass = 0; $pointerPass -lt 12; ++$pointerPass) {
+        $hoverController.GetType().GetMethod('PositionFloating',$flags).Invoke($hoverController,@())
+        [void]$applyHover.Invoke($hoverController,@($centerPoint,$middleCard))
+    }
+    if ($middleState.Floating.Width -ne $stableWidth -or $middleState.Floating.Height -ne $stableHeight -or [Windows.Controls.Canvas]::GetLeft($middleState.Floating) -ne $stableLeft -or [Windows.Controls.Canvas]::GetTop($middleState.Floating) -ne $stableTop) { throw 'Changing hover decorations moved or resized the overlay viewport' }
+    $hoverText.ClearValue([Windows.UIElement]::RenderTransformProperty)
+    $pixels.Render($view.FindName('ShelfHoverLayer'))
+    $buffer = [byte[]]::new($pixelWidth*$pixelHeight*4); $pixels.CopyPixels($buffer,$pixelWidth*4,0)
+    if (($buffer | Measure-Object -Maximum).Maximum -eq 0) { throw 'Floating artwork is invisible when original item is hidden' }
+    [void]$applyHover.Invoke($hoverController,@($centerPoint,$null))
+    if ($middleState.Floating -or [Math]::Abs($middleCard.Opacity - 0.8) -gt 0.001) { throw 'Leaving the shelf did not remove the overlay and restore opacity' }
+    $hoverSettings.HoverDirection = [LandingPage.Models.ShelfHoverDirection]::Down
+    [void]$applyHover.Invoke($hoverController,@($centerPoint,$middleCard))
+    if ($middleState.Floating.RenderTransformOrigin.Y -ne 0 -or $middleState.Move.Y -ne $hoverSettings.HoverLift) { throw 'Downward animation did not use the top anchor and positive lift' }
+    $hoverSettings.HoverDirection = [LandingPage.Models.ShelfHoverDirection]::Up
+    [void]$applyHover.Invoke($hoverController,@($centerPoint,$middleCard))
+    if ($middleState.Floating.RenderTransformOrigin.Y -ne 1 -or $middleState.Move.Y -ne -$hoverSettings.HoverLift) { throw 'Upward animation did not restore the bottom anchor and negative lift' }
+    $hoverSettings.HoverEffect = [LandingPage.Models.ShelfHoverEffect]::Tilt
+    $rightPoint = [Windows.Point]::new($centerPoint.X + 40,$centerPoint.Y)
+    [void]$applyHover.Invoke($hoverController,@($rightPoint,$middleCard))
+    if ($middleState.Rotate.Angle -le 0) { throw 'Tilt did not follow pointer movement' }
+    Set-Field $hoverController 'AnimationsEnabled' ([Func[bool]]{ return $true })
+    $hoverSettings.HoverDuration = 50
+    foreach ($animatedMode in @('Zoom','Lift','Bounce')) {
+        $hoverSettings.HoverEffect = [Enum]::Parse([LandingPage.Models.ShelfHoverEffect],$animatedMode)
+        [void]$applyHover.Invoke($hoverController,@($centerPoint,$null))
+        [void]$applyHover.Invoke($hoverController,@($centerPoint,$middleCard))
+        $animationDeadline = [datetime]::UtcNow.AddMilliseconds(160)
+        while ([datetime]::UtcNow -lt $animationDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5 }
+        if ([Math]::Abs($middleState.Scale.ScaleX - 1.4) -gt 0.01) { throw ('Hover animation did not settle: ' + $animatedMode) }
+    }
+    Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $true
+    [void]$applyHover.Invoke($hoverController,@($centerPoint,$middleCard))
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $hoverController.GetType().GetMethod('EndDiagnostics',$flags).Invoke($hoverController,@('fixture complete'))
+    Wait-Task ($hoverController.GetType().GetField('diagnosticWrite',$flags).GetValue($hoverController))
+    $logDeadline = [datetime]::UtcNow.AddSeconds(3)
+    while (![IO.File]::ReadAllText($diagnosticFile).Contains('Shelf hover performance:') -and [datetime]::UtcNow -lt $logDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 10 }
+    if (![IO.File]::ReadAllText($diagnosticFile).Contains('maxFrameGapMs=')) { throw 'Hover diagnostic summary or rendering cleanup failed' }
+    Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $false
+    if ([DashboardTestProxy]::LibraryEnumerations -ne $beforeHoverQueries) { throw 'Hovering games queried the library' }
+    # Reproduce grouped shelves and repeat layout: hover must never resize normal cards.
+    $hoverSettings.HoverEffect = [LandingPage.Models.ShelfHoverEffect]::Dock
+    $groupStyle = [Windows.Controls.GroupStyle]::new()
+    $groupStyle.Panel = [Windows.Markup.XamlReader]::Parse('<ItemsPanelTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>')
+    $groupContainerStyle = [Windows.Style]::new([Windows.Controls.GroupItem])
+    $groupTemplate = [Windows.Markup.XamlReader]::Parse('<ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="GroupItem"><GroupBox Header="{Binding Name}"><GroupBox.Template><ControlTemplate TargetType="GroupBox"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Border x:Name="GroupHeader" Height="24"><ContentPresenter ContentSource="Header"/></Border><ContentPresenter Grid.Row="1"/></Grid></ControlTemplate></GroupBox.Template><ItemsPresenter/></GroupBox></ControlTemplate>')
+    $groupContainerStyle.Setters.Add([Windows.Setter]::new([Windows.Controls.Control]::TemplateProperty,$groupTemplate))
+    $groupStyle.ContainerStyle = $groupContainerStyle; $hoverList.GroupStyle.Add($groupStyle)
+    $hoverList.Items.GroupDescriptions.Add([Windows.Data.PropertyGroupDescription]::new('Game.Name'))
+    for ($layoutPass = 0; $layoutPass -lt 5; ++$layoutPass) { $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle) }
+    $groupedArt = [ToolbarTestVisuals]::Named($hoverList,'HoverArtwork')
+    $groupedCard = [Windows.Media.VisualTreeHelper]::GetParent($groupedArt)
+    while ($groupedCard -and $groupedCard -isnot [Windows.Controls.ListBoxItem]) { $groupedCard = [Windows.Media.VisualTreeHelper]::GetParent($groupedCard) }
+    if (!$groupedCard) { throw 'Grouped hover fixture did not produce a card' }
+    $groupController = $groupedCard.GetValue($controllerProperty)
+    $fitBefore = $groupedCard.LayoutTransform.Value.M11
+    for ($layoutPass = 0; $layoutPass -lt 12; ++$layoutPass) {
+        $groupController.GetType().GetMethod('PositionFloating',$flags).Invoke($groupController,@())
+        $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    }
+    if ($groupedArt.ActualHeight -lt 100 -or $groupedCard.LayoutTransform.Value.M11 -lt 0.5 -or [Math]::Abs($groupedCard.LayoutTransform.Value.M11 - $fitBefore) -gt 0.01) { throw 'Repeated grouped reservation shrank artwork toward zero' }
+    [void]$scene.Children.Remove($hoverList); $window.UpdateLayout()
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($hoverList.Padding -ne [Windows.Thickness]::new(3) -or $middleCard.RenderTransform -isnot [Windows.Media.TranslateTransform] -or $middleCard.RenderTransform.X -ne 2) { throw 'Unloading hover effects lost original transforms/padding' }
+    'PASS: visible overflow above shelf bounds, unchanged card layout, dock neighbors, glow/dimming, animated tilt/zoom/lift/bounce, grouped stability, cleanup and no hover queries.'
     $window.Close()
     'PASS: toolbar serialization, native catalog/commands/menus/toggles/search/progress/extensions, clickable page navigation, missing providers, menu-state restoration, and settings refresh.'
     'PASS: legacy migration, independent layout/backgrounds, save/reload/order, nested traversal, real page switching and widget callbacks, deletion, last-page protection, temporary-file persistence, context-menu navigation, and in-app manager open/close.'

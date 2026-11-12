@@ -35,6 +35,8 @@ namespace LandingPage.ViewModels.Layout
             set
             {
                 SetValue(ref editModeEnabled, value);
+                if (!value && GridNode.ViewProperties?.FeaturedGameSettings?.EditSectionLayout == true)
+                    GridNode.ViewProperties.FeaturedGameSettings.EditSectionLayout = false;
                 foreach (FrameworkElement child in View.Children)
                 {
                     if (child.DataContext is GridNodeViewModel model)

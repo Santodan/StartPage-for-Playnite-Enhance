@@ -97,3 +97,5 @@ Dashboard page transitions are configurable under **Manage dashboard pages... > 
 Custom transition presets can be created and previewed inside **Manage dashboard pages > Dashboard transitions > Custom transition editor**, then saved or shared as JSON. See [Transition presets](docs/TRANSITION-PRESETS.md) and the [Gentle slide example](docs/transition-presets/gentle-slide.json).
 
 The **Featured game** widget shows a pinned or automatically selected game with artwork, description, actions and optional metadata/achievements. Add it in Edit Mode and configure it through **Appearance > Featured game settings**. See [Featured game widget](docs/FEATURED-GAME.md).
+
+Game shelves now have optional per-shelf hover effects under **Shelf settings > Hover animations**, including dock-style neighbor magnification, lift, tilt, bounce, glow and dimming. See [Shelf hover effects](docs/SHELF-HOVER-EFFECTS.md).

@@ -55,7 +55,6 @@
             <Setter Property="VirtualizingPanel.CacheLength" Value="5"/>
             <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="MaxWidth" Value="1544"/>
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Visible"/>
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="lp:ScrollViewerHelper.UseHorizontalScrolling" Value="True"/>
@@ -382,7 +381,7 @@
                 </ContextMenu>
             </Grid.ContextMenu>
             <ItemsControl ItemsSource="{Binding ShelveViewModels}" VerticalAlignment="Bottom" x:Name="ShelvesItemsControl" VerticalContentAlignment="Bottom"
-                                      Grid.IsSharedSizeScope="True" HorizontalAlignment="Center"
+                                      Grid.IsSharedSizeScope="True" HorizontalAlignment="Stretch"
                           Visibility="{Binding ShelveViewModels.Count, Converter={StaticResource InvertedObjectEqualityToVisibilityConverter}, ConverterParameter={StaticResource Zero}}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>

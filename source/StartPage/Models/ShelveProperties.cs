@@ -72,10 +72,55 @@ namespace LandingPage.Models
 
     public enum ShelfTitleDisplay { Default, Show, Hide }
 
+    public enum ShelfHoverEffect { Classic, None, Dock, Zoom, Lift, Tilt, Bounce }
+    public enum ShelfHoverDirection { Up, Down }
+    public enum ShelfHoverEasing { Smooth, Linear, Spring }
+
     public enum ShelfDisplayStyle { CoverRow, CoverGrid, CompactList, WideCards }
 
     public partial class ShelveProperties : ObservableObject
     {
+        private ShelfHoverEffect hoverEffect = ShelfHoverEffect.Classic;
+        public ShelfHoverEffect HoverEffect { get => hoverEffect; set => SetValue(ref hoverEffect, value); }
+        private ShelfHoverDirection hoverDirection = ShelfHoverDirection.Up;
+        public ShelfHoverDirection HoverDirection { get => hoverDirection; set => SetValue(ref hoverDirection, value); }
+        private ShelfHoverEasing hoverEasing = ShelfHoverEasing.Smooth;
+        public ShelfHoverEasing HoverEasing { get => hoverEasing; set => SetValue(ref hoverEasing, value); }
+        private double hoverScale = 1.25;
+        public double HoverScale { get => hoverScale; set => SetValue(ref hoverScale, ClampHover(value, 1, 1.5)); }
+        private double hoverRadius = 2;
+        public double HoverRadius { get => hoverRadius; set => SetValue(ref hoverRadius, ClampHover(value, 0.5, 4)); }
+        private double hoverLift = 12;
+        public double HoverLift { get => hoverLift; set => SetValue(ref hoverLift, ClampHover(value, 0, 40)); }
+        private double hoverTilt = 6;
+        public double HoverTilt { get => hoverTilt; set => SetValue(ref hoverTilt, ClampHover(value, 0, 15)); }
+        private int hoverDuration = 160;
+        public int HoverDuration { get => hoverDuration; set => SetValue(ref hoverDuration, Math.Max(50, Math.Min(400, value))); }
+        private bool hoverDimOthers = false;
+        public bool HoverDimOthers { get => hoverDimOthers; set => SetValue(ref hoverDimOthers, value); }
+        private double hoverOtherOpacity = 0.65;
+        public double HoverOtherOpacity { get => hoverOtherOpacity; set => SetValue(ref hoverOtherOpacity, ClampHover(value, 0.2, 1)); }
+        private bool hoverGlow = false;
+        public bool HoverGlow { get => hoverGlow; set => SetValue(ref hoverGlow, value); }
+        private string hoverGlowColor = "#62B6FF";
+        public string HoverGlowColor { get => hoverGlowColor; set { System.Windows.Media.ColorConverter.ConvertFromString(value ?? string.Empty); SetValue(ref hoverGlowColor, value); } }
+        private double hoverGlowRadius = 16;
+        public double HoverGlowRadius { get => hoverGlowRadius; set => SetValue(ref hoverGlowRadius, ClampHover(value, 0, 24)); }
+        private bool hoverShowDetails = true;
+        public bool HoverShowDetails { get => hoverShowDetails; set => SetValue(ref hoverShowDetails, value); }
+        private bool hoverReserveSpace = true;
+        public bool HoverReserveSpace { get => hoverReserveSpace; set => SetValue(ref hoverReserveSpace, value); }
+        private bool hoverRespectWindowsAnimations = true;
+        public bool HoverRespectWindowsAnimations { get => hoverRespectWindowsAnimations; set => SetValue(ref hoverRespectWindowsAnimations, value); }
+        private static double ClampHover(double value, double min, double max) => double.IsNaN(value) || double.IsInfinity(value) ? min : Math.Max(min, Math.Min(max, value));
+        public void ResetHoverAppearance()
+        {
+            HoverEffect = ShelfHoverEffect.Classic; HoverDirection = ShelfHoverDirection.Up; HoverEasing = ShelfHoverEasing.Smooth; HoverScale = 1.25;
+            HoverRadius = 2; HoverLift = 12; HoverTilt = 6; HoverDuration = 160; HoverDimOthers = false;
+            HoverOtherOpacity = 0.65; HoverGlow = false; HoverGlowColor = "#62B6FF"; HoverGlowRadius = 16;
+            HoverReserveSpace = true; HoverRespectWindowsAnimations = true;
+        }
+
         private ShelfDisplayStyle displayStyle;
         public ShelfDisplayStyle DisplayStyle { get => displayStyle; set => SetValue(ref displayStyle, value); }
         private double cardWidth = 160;

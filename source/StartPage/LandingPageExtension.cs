@@ -287,10 +287,30 @@ namespace LandingPage
         }
 
         internal event EventHandler FeaturedSelectionChanged;
+        internal event EventHandler FeaturedHoverChanged;
+        internal Game FeaturedSelectedGame { get; private set; }
+        internal Game FeaturedHoveredGame { get; private set; }
+        internal Game LastFeaturedHoveredGame { get; private set; }
+        private object featuredHoverOwner, featuredHoverGroup;
+        internal void SetFeaturedHoveredGame(Game game, object owner, object group)
+        {
+            if (game == null && !ReferenceEquals(owner,featuredHoverOwner)) return;
+            featuredHoverOwner = game == null ? null : owner;
+            featuredHoverGroup = game == null ? null : group;
+            if (game != null) LastFeaturedHoveredGame = game;
+            if (ReferenceEquals(FeaturedHoveredGame,game)) return;
+            FeaturedHoveredGame = game; FeaturedHoverChanged?.Invoke(this,EventArgs.Empty);
+        }
+        internal void ClearFeaturedHoveredGame(object group)
+        {
+            if (ReferenceEquals(group,featuredHoverGroup)) SetFeaturedHoveredGame(null,featuredHoverOwner,group);
+        }
+
 
         public override void OnGameSelected(OnGameSelectedEventArgs args)
         {
             ExtensionDiagnostics.Record(this, "Lifecycle: OnGameSelected");
+            FeaturedSelectedGame = args.NewValue?.FirstOrDefault();
             FeaturedSelectionChanged?.Invoke(this, EventArgs.Empty);
             if (viewModel != null)
             {
@@ -620,13 +640,7 @@ namespace LandingPage
 
         private void OnApplicattionDeactivated(object sender, EventArgs e)
         {
-            if (startPageViewModel != null)
-            {
-                if (startPageViewModel.RootNodeViewModel.EditModeEnabled)
-                {
-                    startPageViewModel.ExitEditModeCommand.Execute(null);
-                }
-            }
+            ExtensionDiagnostics.Record(this,"Application deactivated; dashboard edit state preserved.");
         }
 
         public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)

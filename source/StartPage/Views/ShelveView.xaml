@@ -51,7 +51,6 @@
             <Setter Property="VirtualizingPanel.CacheLength" Value="5"/>
             <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="MaxWidth" Value="1544"/>
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Visible"/>
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="lp:ScrollViewerHelper.UseHorizontalScrolling" Value="True"/>
@@ -148,27 +147,14 @@
                           MaxWidth="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=ListBox}, Path=DataContext.ShelveSettings.MaxCoverWidth}" 
                           x:Name="ImageGrid">
                         <Grid.Width>
-                            <MultiBinding Converter="{StaticResource HeightToWidthMultiConverter}">
-                                <MultiBinding.Bindings>
-                                    <Binding RelativeSource="{RelativeSource Mode=Self}" 
-                                             Path="ActualHeight" 
-                                             Mode="OneWay">
-                                    </Binding>
-                                    <mu:LandingPageSettings Path="Settings.CoverAspectRatio"/>
-                                </MultiBinding.Bindings>
-                            </MultiBinding>
+                            <Binding RelativeSource="{RelativeSource AncestorType=ListBox}" Path="DataContext.ShelveSettings.MaxCoverWidth"/>
                         </Grid.Width>
-                        <Grid.MaxHeight>
+                        <Grid.Height>
                             <MultiBinding Converter="{StaticResource WidthToHeightMultiConverter}">
-                                <MultiBinding.Bindings>
-                                    <Binding RelativeSource="{RelativeSource Mode=Self}" 
-                                             Path="MaxWidth" 
-                                             Mode="OneWay">
-                                    </Binding>
-                                    <mu:LandingPageSettings Path="Settings.CoverAspectRatio"/>
-                                </MultiBinding.Bindings>
+                                <Binding RelativeSource="{RelativeSource AncestorType=ListBox}" Path="DataContext.ShelveSettings.MaxCoverWidth"/>
+                                <mu:LandingPageSettings Path="Settings.CoverAspectRatio"/>
                             </MultiBinding>
-                        </Grid.MaxHeight>
+                        </Grid.Height>
                         <Grid.OpacityMask>
                             <VisualBrush Stretch="None" AutoLayoutContent="True">
                                 <VisualBrush.Visual>
@@ -325,10 +311,10 @@
                     <ControlTemplate TargetType="{x:Type GroupBox}">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition SharedSizeGroup="GroupHeaderSize"/>
-                                <RowDefinition/>
+                                <RowDefinition Height="Auto" SharedSizeGroup="GroupHeaderSize"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Padding="5,0">
+                            <Border x:Name="GroupHeader" Grid.Row="0" Padding="5,0">
                                 <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource NormalBrush}" Padding="0">
                                     <TextBlock Style="{StaticResource BaseTextBlockStyle}" Margin="{TemplateBinding Padding}">
                                         <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" ContentSource="Header"
@@ -400,6 +386,7 @@
         <Style x:Key="GameListItem" TargetType="ListBoxItem">
             <EventSetter Event="MouseDoubleClick" Handler="ListBoxItem_MouseDoubleClick"/>
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListBoxItem_MouseUp"/>
+            <Setter Property="controls:ShelfHover.Settings" Value="{Binding DataContext.ShelveProperties, RelativeSource={RelativeSource AncestorType=ListBox}}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Margin" Value="7"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -417,34 +404,7 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleX)"
-                                                 To="1.05"
-                                                 Duration="0:0:0.1"/>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleY)"
-                                                 To="1.05"
-                                                 Duration="0:0:0.1"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleX)"
-                                                 To="1"
-                                                 Duration="0:0:0.1"/>
-                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleY)"
-                                                 To="1"
-                                                 Duration="0:0:0.1"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-            </Style.Triggers>
+
         </Style>
         <Style x:Key="GameGroupItem" TargetType="ListBoxItem">
             <Setter Property="Margin" Value="0"/>
@@ -459,7 +419,7 @@
     </UserControl.Resources>
     <UserControl.Template>
         <ControlTemplate TargetType="local:ShelveView">
-            <DockPanel Grid.Row="1" UseLayoutRounding="True" SnapsToDevicePixels="True" VerticalAlignment="Bottom" LastChildFill="False" HorizontalAlignment="Left"
+            <DockPanel Grid.Row="1" UseLayoutRounding="True" SnapsToDevicePixels="True" VerticalAlignment="Bottom" LastChildFill="True" HorizontalAlignment="Stretch"
                                    x:Name="ShelveDockPanel">
                 <DockPanel.Style>
                     <Style TargetType="DockPanel">
@@ -562,9 +522,8 @@
                     <Popup StaysOpen="True" utils:PopupHelper.IsNotTopmost="True" Placement="Right" PlacementTarget="{Binding ElementName=ShelveDockPanel, Path=Tag}" x:Name="SettingsPopup" Opened="ShelfSettings_Opened" Closed="ShelfSettings_Closed"
                                                    IsOpen="{Binding Tag.IsChecked, ElementName=ShelveDockPanel, Mode=TwoWay, Delay=100}"
                                                    DataContext="{x:Null}">
-                        <Border Background="{DynamicResource PopupBackgroundBrush}" Padding="8" CornerRadius="8" MinWidth="260" MaxWidth="400" PreviewKeyDown="ShelfSettings_PreviewKeyDown">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                          MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height, Converter={StaticResource MultiplyConverter}, ConverterParameter=0.8}">
+                        <Border controls:FloatingPanel.Enabled="True" Background="{DynamicResource PopupBackgroundBrush}" Padding="8" CornerRadius="8" MinWidth="260" Width="320" Height="560" PreviewKeyDown="ShelfSettings_PreviewKeyDown">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Grid.IsSharedSizeScope="True">
                                 <DockPanel Margin="2,2,2,8">
                                     <Button Content="Close" DockPanel.Dock="Right" Click="CloseShelfSettings_Click" Padding="10,3"/>
@@ -573,6 +532,7 @@
                                 <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
                                     <Expander.Header><TextBlock Text="Shelf appearance" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
                                     <StackPanel Margin="0,5,0,0">
+                                <CheckBox Content="Show game details popup on hover" IsChecked="{Binding ShelveProperties.HoverShowDetails}" Foreground="{DynamicResource TextBrush}" Margin="2,8,2,4"/>
                                 <TextBox Text="{Binding ShelveProperties.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
                                 <TextBlock Text="Display style" Margin="2,8,2,2"/>
                                 <ComboBox SelectedValue="{Binding ShelveProperties.DisplayStyle}" SelectedValuePath="Tag" Margin="2">
@@ -584,6 +544,49 @@
                                 <TextBlock Text="Card width (grid/list/wide styles)" Margin="2,6,2,2"/>
                                 <numeric:DoubleBox Value="{Binding ShelveProperties.CardWidth, UpdateSourceTrigger=PropertyChanged}" MinValue="80" MaxValue="500" Margin="2" Style="{StaticResource {x:Type TextBox}}"/>
 
+                                    </StackPanel>
+                                </Expander>
+                                <Expander Header="Hover animations" Margin="2,8,2,4" Foreground="{DynamicResource TextBrush}">
+                                    <StackPanel Margin="0,5,0,0">
+                                        <TextBlock Text="Effect"/>
+                                        <ComboBox SelectedValue="{Binding ShelveProperties.HoverEffect}" SelectedValuePath="Tag">
+                                            <ComboBoxItem Content="Classic (original subtle zoom)" Tag="{x:Static lpm:ShelfHoverEffect.Classic}"/>
+                                            <ComboBoxItem Content="None" Tag="{x:Static lpm:ShelfHoverEffect.None}"/>
+                                            <ComboBoxItem Content="Dock magnification (nearby games grow)" Tag="{x:Static lpm:ShelfHoverEffect.Dock}"/>
+                                            <ComboBoxItem Content="Zoom" Tag="{x:Static lpm:ShelfHoverEffect.Zoom}"/>
+                                            <ComboBoxItem Content="Lift" Tag="{x:Static lpm:ShelfHoverEffect.Lift}"/>
+                                            <ComboBoxItem Content="Tilt with pointer" Tag="{x:Static lpm:ShelfHoverEffect.Tilt}"/>
+                                            <ComboBoxItem Content="Bounce" Tag="{x:Static lpm:ShelfHoverEffect.Bounce}"/>
+                                        </ComboBox>
+                                        <TextBlock Text="Classic retains the original 5% zoom. Other effects use the controls below. Dock follows pointer proximity, including neighboring games." TextWrapping="Wrap" Margin="0,5,0,8"/>
+                                        <TextBlock Text="Animation direction" Margin="0,5,0,2"/>
+                                        <ComboBox SelectedValue="{Binding ShelveProperties.HoverDirection}" SelectedValuePath="Tag">
+                                            <ComboBoxItem Content="Up (for shelves at the bottom)" Tag="{x:Static lpm:ShelfHoverDirection.Up}"/>
+                                            <ComboBoxItem Content="Down (for shelves at the top)" Tag="{x:Static lpm:ShelfHoverDirection.Down}"/>
+                                        </ComboBox>
+                                        <TextBlock Text="Maximum magnification" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding ShelveProperties.HoverScale}" MinValue="1" MaxValue="1.5" Style="{StaticResource {x:Type TextBox}}"/>
+                                        <TextBlock Text="Dock reach (card widths)" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding ShelveProperties.HoverRadius}" MinValue="0.5" MaxValue="4" Style="{StaticResource {x:Type TextBox}}"/>
+                                        <TextBlock Text="Lift distance (pixels)" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding ShelveProperties.HoverLift}" MinValue="0" MaxValue="40" Style="{StaticResource {x:Type TextBox}}"/>
+                                        <TextBlock Text="Tilt angle (degrees)" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding ShelveProperties.HoverTilt}" MinValue="0" MaxValue="15" Style="{StaticResource {x:Type TextBox}}"/>
+                                        <TextBlock Text="Response duration (milliseconds)" Margin="0,5,0,2"/><numeric:IntBox Value="{Binding ShelveProperties.HoverDuration}" MinValue="50" MaxValue="400" Style="{StaticResource {x:Type TextBox}}"/>
+                                        <TextBlock Text="Easing" Margin="0,6,0,2"/>
+                                        <ComboBox SelectedValue="{Binding ShelveProperties.HoverEasing}" SelectedValuePath="Tag">
+                                            <ComboBoxItem Content="Smooth" Tag="{x:Static lpm:ShelfHoverEasing.Smooth}"/>
+                                            <ComboBoxItem Content="Linear" Tag="{x:Static lpm:ShelfHoverEasing.Linear}"/>
+                                            <ComboBoxItem Content="Spring" Tag="{x:Static lpm:ShelfHoverEasing.Spring}"/>
+                                        </ComboBox>
+                                        <CheckBox Content="Dim other games while hovering" IsChecked="{Binding ShelveProperties.HoverDimOthers}" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,4"/>
+                                        <TextBlock Text="Unfocused opacity"/><numeric:DoubleBox Value="{Binding ShelveProperties.HoverOtherOpacity}" MinValue="0.2" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+                                        <CheckBox Content="Glow around the focused game" IsChecked="{Binding ShelveProperties.HoverGlow}" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,4"/>
+<Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><StackPanel Margin="8,6,0,8">
+                                        <TextBlock Text="Glow color"/><controls:ColorPicker SelectedColor="{Binding ShelveProperties.HoverGlowColor, Mode=TwoWay}"/>
+
+</StackPanel></Expander>
+                                        <TextBlock Text="Glow radius" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding ShelveProperties.HoverGlowRadius}" MinValue="0" MaxValue="24" Style="{StaticResource {x:Type TextBox}}"/>
+                                        <CheckBox Content="Allow enlarged artwork outside the widget" IsChecked="{Binding ShelveProperties.HoverReserveSpace}" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,4"/>
+                                        <CheckBox Content="Follow Windows animation preference" IsChecked="{Binding ShelveProperties.HoverRespectWindowsAnimations}" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text="With Windows animations disabled, focus sizes still change but without motion. Close this menu and move over games to try the effect." TextWrapping="Wrap" Margin="0,6,0,4"/>
+                                        <Button Content="Reset hover animations" Click="ResetShelfHover_Click" Margin="0,6,0,0"/>
                                     </StackPanel>
                                 </Expander>
                                 <Expander Header="Metadata and badges" Margin="2,8,2,4" Foreground="{DynamicResource TextBrush}">
@@ -598,10 +601,13 @@
                                             <StackPanel>
                                                 <CheckBox Content="Customize metadata text" IsChecked="{Binding ShelveProperties.CustomizeMetadataText}" Margin="0,4,0,4"/>
                                                 <StackPanel IsEnabled="{Binding ShelveProperties.CustomizeMetadataText}">
+<Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><StackPanel Margin="8,6,0,8">
                                                     <TextBlock Text="Title color"/>
                                                     <controls:ColorPicker SelectedColor="{Binding ShelveProperties.MetadataTitleColor, Mode=TwoWay}"/>
                                                     <TextBlock Text="Info color" Margin="0,4,0,0"/>
                                                     <controls:ColorPicker SelectedColor="{Binding ShelveProperties.MetadataTextColor, Mode=TwoWay}"/>
+
+</StackPanel></Expander>
                                                     <TextBlock Text="Title size" Margin="0,4,0,0"/>
                                                     <numeric:DoubleBox Value="{Binding ShelveProperties.MetadataTitleSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="72" Style="{StaticResource {x:Type TextBox}}"/>
                                                     <TextBlock Text="Info size" Margin="0,4,0,0"/>
@@ -622,8 +628,11 @@
                                         <Expander Header="Translucent background" Foreground="{DynamicResource TextBrush}" Margin="0,4,0,4">
                                             <StackPanel>
                                                 <CheckBox Content="Show overlay background" IsChecked="{Binding ShelveProperties.ShowMetadataBackground}" Margin="0,4,0,4"/>
+<Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><StackPanel Margin="8,6,0,8">
                                                 <TextBlock Text="Background color"/>
                                                 <controls:ColorPicker SelectedColor="{Binding ShelveProperties.MetadataBackground, Mode=TwoWay}"/>
+
+</StackPanel></Expander>
                                                 <TextBlock Text="Background opacity" Margin="0,4,0,0"/>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="65"/></Grid.ColumnDefinitions>

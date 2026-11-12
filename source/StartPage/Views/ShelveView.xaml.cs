@@ -72,6 +72,11 @@ namespace LandingPage.Views
                 CloseShelfSettings();
         }
 
+        private void ResetShelfHover_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ShelveViewModel model) model.ShelveProperties.ResetHoverAppearance();
+        }
+
         private void CloseShelfSettings_Click(object sender, RoutedEventArgs e) => CloseShelfSettings();
 
         private void ShelfSettings_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -99,6 +104,9 @@ namespace LandingPage.Views
         private void ShelfLayoutChanged(object sender, PropertyChangedEventArgs args)
         {
             if (args.PropertyName == nameof(ShelveProperties.DisplayStyle)) ApplyDisplayStyle();
+            if (args.PropertyName == nameof(ShelveProperties.HoverShowDetails) && observedShelf?.HoverShowDetails == false
+                && DataContext is ShelveViewModel shelf && shelf.ParentViewModel is ShelvesViewModel)
+                shelf.ParentViewModel.ShowDetails = false;
         }
 
         private ListBox styledList;
@@ -113,8 +121,8 @@ namespace LandingPage.Views
             var original = style == ShelfDisplayStyle.CoverRow;
             if (Template.FindName("ShelveDockPanel", this) is DockPanel dock)
             {
-                dock.LastChildFill = !original;
-                dock.HorizontalAlignment = original ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+                dock.LastChildFill = true;
+                dock.HorizontalAlignment = HorizontalAlignment.Stretch;
                 dock.VerticalAlignment = original ? VerticalAlignment.Bottom : VerticalAlignment.Top;
             }
             GameListBox.VerticalAlignment = original ? VerticalAlignment.Bottom : VerticalAlignment.Stretch;
@@ -145,7 +153,6 @@ namespace LandingPage.Views
                 ScrollViewer.SetVerticalScrollBarVisibility(GameListBox, grid || compact ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled);
                 GameListBox.SetValue(ScrollViewerHelper.UseHorizontalScrollingProperty, !grid && !compact);
             }
-            lastContraint = null;
             InvalidateMeasure();
         }
 
@@ -189,91 +196,32 @@ namespace LandingPage.Views
             }
         }
 
-        protected Size? lastContraint = null;
-
-        protected override Size MeasureOverride(Size constraint)
-        {
-            if (constraint != lastContraint)
-            {
-                _ = Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    lastContraint = ApplyWidthUpdate(this) ? constraint : (Size?)null;
-                }), DispatcherPriority.Background);
-            }
-
-            return base.MeasureOverride(constraint);
-        }
-
-        private bool ApplyWidthUpdate(object sender)
-        {
-            if (DataContext is ShelveViewModel model && model.ShelveProperties.DisplayStyle != ShelfDisplayStyle.CoverRow)
-                return true;
-            var updated = 0;
-            var notUpdated = 0;
-            var newWidth = ActualWidth;
-            var listBoxes = new[] { GameListBox };
-            foreach (var listBox in listBoxes)
-            {
-                if (listBox is ListBox)
-                {
-                    var itemCount = listBox.ItemsSource?.Cast<object>().Count() ?? 0;
-                    if (listBox.IsVisible && itemCount > 0)
-                    {
-                        FrameworkElement container = null;
-                        for (int i = 0; i < itemCount; ++i)
-                        {
-                            if (listBox.ItemContainerGenerator.ContainerFromIndex(i) is FrameworkElement element)
-                            {
-                                container = element;
-                                break;
-                            }
-                        }
-                        if (container != null)
-                        {
-                            var desiredWidth = listBox.DesiredSize.Width;
-                            var itemWidth = container.ActualWidth + container.Margin.Left + container.Margin.Right;
-                            var scrollViewer = UiHelper.FindVisualChildren<ScrollViewer>(listBox).FirstOrDefault();
-                            // itemWidth = desiredWidth / itemCount;
-                            var availableWidth = newWidth - 60;
-                            FrameworkElement panel = VisualTreeHelper.GetParent(this) as FrameworkElement;
-                            while (panel != null && !(panel is GridNodeView))
-                            {
-                                panel = VisualTreeHelper.GetParent(panel) as FrameworkElement;
-                            }
-                            if (panel != null) availableWidth = panel.ActualWidth - 60;
-                            var newListWidth = Math.Floor(availableWidth / Math.Max(itemWidth, 1)) * itemWidth;
-                            if (listBox.MaxWidth != newListWidth)
-                            {
-                                listBox.MaxWidth = Math.Max(0, newListWidth);
-                                ++updated;
-                                continue;
-                            }
-                        }
-                    }
-                }
-
-                ++notUpdated;
-            }
-            return notUpdated == 0 && updated > 0;
-        }
-
         private void StackPanel_MouseEnter(object sender, MouseEventArgs e)
         {
+            var diagnostics = LandingPageExtension.Instance?.SettingsViewModel?.Settings?.EnableDashboardDiagnostics == true;
+            var watch = diagnostics ? System.Diagnostics.Stopwatch.StartNew() : null;
             if (sender is FrameworkElement element && element.DataContext is GameModel model && model.Game != ShelveViewModel.DummyGame)
             {
                 if (DataContext is ShelveViewModel viewModel && viewModel.ParentViewModel is ShelvesViewModel)
                 {
-                    if (UiHelper.FindVisualChildren<Grid>(element, "ImageGrid").FirstOrDefault() is Grid imageGrid)
+                    var showDetails = viewModel.ShelveSettings.ShowDetails && viewModel.ShelveProperties.HoverShowDetails;
+                    // A hidden details panel should not rebuild its target or game model.
+                    if (showDetails)
                     {
-                        Dispatcher.Invoke(() => {
-                            viewModel.ParentViewModel.PopupTarget = element;
-                        }, System.Windows.Threading.DispatcherPriority.Normal);
+                        viewModel.ParentViewModel.PopupTarget = element;
+                        viewModel.ParentViewModel.CurrentlyHoveredGameModel = model;
                     }
-
                     viewModel.ParentViewModel.CurrentlyHoveredGame = model.Game;
-                    viewModel.ParentViewModel.CurrentlyHoveredGameModel = model;
-                    viewModel.ParentViewModel.ShowDetails = viewModel.ShelveSettings.ShowDetails;
+                    LandingPageExtension.Instance?.SetFeaturedHoveredGame(model.Game,element,viewModel.ParentViewModel);
+                    viewModel.ParentViewModel.ShowDetails = showDetails;
                 }
+            }
+            if (watch != null)
+            {
+                var details = (DataContext as ShelveViewModel)?.ParentViewModel?.ShowDetails;
+                var message = $"Shelf hover enter: details={details}, updateMs={watch.Elapsed.TotalMilliseconds:F2}.";
+                var plugin = LandingPageExtension.Instance;
+                ExtensionDiagnostics.RecordAsync(plugin,message);
             }
         }
 
@@ -292,6 +240,7 @@ namespace LandingPage.Views
                 {
                     viewModel.ParentViewModel.ShowDetails = false;
                     viewModel.ParentViewModel.CurrentlyHoveredGame = null;
+                    LandingPageExtension.Instance?.SetFeaturedHoveredGame(null,element,viewModel.ParentViewModel);
                 }
             }
         }

@@ -1,0 +1,26 @@
+<UserControl x:Class="LandingPage.Views.Settings.SectionAppearanceSettingsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:numeric="http://gu.se/NumericInput">
+ <UserControl.Resources>
+  <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+  <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+ </UserControl.Resources>
+ <StackPanel>
+  <CheckBox Content="Use custom section appearance" IsChecked="{Binding Enabled}" Margin="0,4"/>
+  <StackPanel IsEnabled="{Binding Enabled}">
+   <TextBlock Text="Background opacity"/><numeric:DoubleBox Value="{Binding BackgroundOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Border width" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding BorderWidth}" MinValue="0" MaxValue="10" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Corner radius" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding CornerRadius}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Internal padding" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding Padding}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Spacing (automatic layout)" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding Margin}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+   <CheckBox Content="Shadow" IsChecked="{Binding Shadow}" Margin="0,6,0,4"/>
+   <Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,4"><StackPanel Margin="8,6,0,8">
+    <TextBlock Text="Background color"/><controls:ColorPicker SelectedColor="{Binding Background, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+    <TextBlock Text="Border color" Margin="0,5,0,2"/><controls:ColorPicker SelectedColor="{Binding BorderColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+    <CheckBox Content="Override section text color" IsChecked="{Binding CustomizeText}" Margin="0,6,0,4"/>
+    <controls:ColorPicker SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+   </StackPanel></Expander>
+  </StackPanel>
+  <Button Content="Reset section appearance" Click="Reset_Click" Margin="0,6,0,0"/>
+ </StackPanel>
+</UserControl>

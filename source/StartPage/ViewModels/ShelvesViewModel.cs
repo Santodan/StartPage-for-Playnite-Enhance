@@ -390,6 +390,7 @@ namespace LandingPage.ViewModels
         public Task OnViewHiddenAsync()
         {
             isVisible = false;
+            plugin.ClearFeaturedHoveredGame(this);
             dispatcherTimer.Stop();
             ShowDetails = false;
             // Keep lightweight database notifications: hidden pages only become dirty,
@@ -411,6 +412,7 @@ namespace LandingPage.ViewModels
         public void OnViewClosed()
         {
             closed = true;
+            plugin.ClearFeaturedHoveredGame(this);
             isVisible = false;
             dispatcherTimer.Stop();
             Unsubscribe();

@@ -201,6 +201,7 @@
                 </local:GridNodeView.Style>
             </local:GridNodeView>
         </ScrollViewer>
+        <Canvas x:Name="ShelfHoverLayer" Panel.ZIndex="800" IsHitTestVisible="False" ClipToBounds="True"/>
         </Grid>
         <Image x:Name="DashboardTransitionImage" Visibility="Collapsed" Panel.ZIndex="900" Stretch="Fill" IsHitTestVisible="False"/>
         <Button Content="{DynamicResource LOC_SPG_ExitEditMode}" Command="{Binding ExitEditModeCommand}" HorizontalAlignment="Center" VerticalAlignment="Bottom"
@@ -424,7 +425,7 @@
         </Button>
         <Grid x:Name="PagesOverlay" shell:WindowChrome.IsHitTestVisibleInChrome="True" Visibility="Collapsed" Panel.ZIndex="1100" Background="#66000000"
               Focusable="True" KeyboardNavigation.TabNavigation="Cycle" PreviewKeyDown="PagesOverlay_PreviewKeyDown" MouseDown="PagesOverlay_MouseDown">
-            <Border HorizontalAlignment="Right" Width="440" MaxWidth="{Binding ActualWidth, ElementName=PagesOverlay}"
+            <Border controls:FloatingPanel.Enabled="True" HorizontalAlignment="Right" Width="440" MaxWidth="{Binding ActualWidth, ElementName=PagesOverlay}"
                     Margin="16,64,16,24" Padding="16" CornerRadius="12" Background="{DynamicResource PopupBackgroundBrush}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
@@ -634,7 +635,7 @@
         <Grid x:Name="ProfilesOverlay" Visibility="Collapsed" Panel.ZIndex="1200" Background="#66000000"
               shell:WindowChrome.IsHitTestVisibleInChrome="True" Focusable="True" KeyboardNavigation.TabNavigation="Cycle"
               PreviewKeyDown="ProfilesOverlay_PreviewKeyDown" MouseDown="ProfilesOverlay_MouseDown">
-            <Border HorizontalAlignment="Right" Width="480" MaxWidth="{Binding ActualWidth, ElementName=ProfilesOverlay}"
+            <Border controls:FloatingPanel.Enabled="True" HorizontalAlignment="Right" Width="480" MaxWidth="{Binding ActualWidth, ElementName=ProfilesOverlay}"
                     Margin="16,64,16,24" Padding="16" CornerRadius="12" Background="{DynamicResource PopupBackgroundBrush}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
@@ -783,7 +784,7 @@
         <Grid x:Name="AppearanceOverlay" Visibility="Collapsed" Panel.ZIndex="1000"
               Background="#66000000" Focusable="True" KeyboardNavigation.TabNavigation="Cycle"
               PreviewKeyDown="AppearanceOverlay_PreviewKeyDown" MouseDown="AppearanceOverlay_MouseDown">
-            <Border HorizontalAlignment="Right" Width="420" MaxWidth="{Binding ActualWidth, ElementName=AppearanceOverlay}"
+            <Border controls:FloatingPanel.Enabled="True" HorizontalAlignment="Right" Width="420" MaxWidth="{Binding ActualWidth, ElementName=AppearanceOverlay}"
                     Margin="16,64,16,24" Padding="8" CornerRadius="12" Background="{DynamicResource PopupBackgroundBrush}">
                 <Grid>
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>

@@ -29,6 +29,7 @@ namespace LandingPage.Views
         public LandingPageView()
         {
             InitializeComponent();
+            Unloaded += (sender,args) => LandingPageExtension.Instance?.ClearFeaturedHoveredGame(this);
         }
 
         public LandingPageView(LandingPageViewModel model)
@@ -162,6 +163,7 @@ namespace LandingPage.Views
         {
             if (sender is FrameworkElement element && element.DataContext is GameModel model)
             {
+                if (model.Game != null && !string.IsNullOrWhiteSpace(model.Game.Name)) LandingPageExtension.Instance?.SetFeaturedHoveredGame(model.Game,element,this);
                 if (DataContext is LandingPageViewModel viewModel)
                 {
                     viewModel.CurrentlyHoveredGame = model.Game;
@@ -173,6 +175,7 @@ namespace LandingPage.Views
         {
             if (sender is FrameworkElement element && element.DataContext is GameModel model)
             {
+                LandingPageExtension.Instance?.SetFeaturedHoveredGame(null,element,this);
                 if (DataContext is LandingPageViewModel viewModel)
                 {
                     viewModel.CurrentlyHoveredGame = null;

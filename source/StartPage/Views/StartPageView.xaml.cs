@@ -402,6 +402,23 @@ namespace LandingPage.Views
             AppearanceOverlay.Focus();
         }
 
+        internal void BeginFeaturedSectionEditing(LandingPage.Settings.FeaturedGameSettings settings)
+        {
+            if (DataContext is ViewModels.StartPageViewModel model) model.RootNodeViewModel.EditModeEnabled = true;
+            settings.EditSectionLayout = true;
+            CloseAppearance();
+            FindFeaturedSectionEditor(this,settings)?.FocusSectionEditor();
+        }
+        private static FeaturedGameView FindFeaturedSectionEditor(DependencyObject root, LandingPage.Settings.FeaturedGameSettings settings)
+        {
+            if (root is FeaturedGameView featured && ReferenceEquals(featured.Settings,settings)) return featured;
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); ++i)
+            {
+                var found = FindFeaturedSectionEditor(VisualTreeHelper.GetChild(root,i),settings);
+                if (found != null) return found;
+            }
+            return null;
+        }
         private void CloseAppearance()
         {
             // Move focus first so the last edited color/text field commits its binding.

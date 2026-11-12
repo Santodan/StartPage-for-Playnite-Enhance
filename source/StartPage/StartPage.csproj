@@ -54,11 +54,19 @@
       <DependentUpon>ColorPicker.xaml</DependentUpon>
     </Compile>
     <Compile Include="Controls\WidgetPalette.cs" />
+    <Compile Include="Controls\ShelfHover.cs" />
+    <Compile Include="Controls\FloatingPanel.cs" />
+    <Compile Include="Controls\FeaturedSectionFrame.cs" />
+    <Compile Include="Controls\SectionAppearanceBorder.cs" />
+    <Compile Include="Controls\ContentAutoScroll.cs" />
     <Compile Include="ExtensionDiagnostics.cs" />
     <Compile Include="Settings\FeaturedGameSettings.cs" />
     <Compile Include="Models\FeaturedGameSelection.cs" />
+    <Compile Include="Models\FeaturedDescription.cs" />
     <Compile Include="Views\FeaturedGameView.cs" />
     <Compile Include="Views\Settings\FeaturedGameSettingsView.xaml.cs"><DependentUpon>FeaturedGameSettingsView.xaml</DependentUpon></Compile>
+    <Compile Include="Views\Settings\SectionAppearanceSettingsView.xaml.cs"><DependentUpon>SectionAppearanceSettingsView.xaml</DependentUpon></Compile>
+    <Page Include="Views\Settings\SectionAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\FeaturedGameSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Compile Include="Models\DashboardTransitionPreset.cs" />
     <Compile Include="Settings\ClockSettings.cs" />

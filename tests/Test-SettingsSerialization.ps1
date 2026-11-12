@@ -39,6 +39,9 @@ try {
     $rules.IncludedNamePatterns = '*Quest*'; $rules.ExcludedInstallPathPatterns = 'D:\Games\Demos\*'
     $rules.IncludedPublisherNamePatterns = 'glob:*[A-Z]*'
     $rules.NeverPlayedOnly = $true
+    $rules.HoverEffect = [LandingPage.Models.ShelfHoverEffect]::Dock; $rules.HoverScale = 1.35
+    $rules.HoverGlow = $true; $rules.HoverGlowColor = '#123456'; $rules.HoverDuration = 220
+
     $shelves = [Collections.ObjectModel.ObservableCollection[LandingPage.Models.ShelveProperties]]::new(); $shelves.Add($rules)
     [LandingPage.LandingPageSettings].GetProperty('ShelveProperties').SetValue($settings,$shelves)
     $instanceSettings = [Collections.Generic.Dictionary[guid,LandingPage.Settings.ShelvesSettings]]::new()
@@ -53,6 +56,11 @@ try {
     $properties.FeaturedGameSettings.MatchMetadataTextSize = $false; $properties.FeaturedGameSettings.MetadataTextSize = 19
     $properties.FeaturedGameSettings.MatchMetadataTextColor = $false; $properties.FeaturedGameSettings.MetadataTextColor = '#123456'
     $properties.FeaturedGameSettings.MatchMetadataIconSize = $false; $properties.FeaturedGameSettings.MetadataIconSize = 25
+    $properties.FeaturedGameSettings.UseCustomSectionLayout = $true; $properties.FeaturedGameSettings.EditSectionLayout = $true
+    $sectionLayout = $properties.FeaturedGameSettings.GetSectionLayout([LandingPage.Settings.FeaturedGameSection]::Description)
+    $sectionLayout.X = 90; $sectionLayout.Y = 75; $sectionLayout.Width = 345; $sectionLayout.Height = 123
+    $properties.FeaturedGameSettings.SectionAppearance.Enabled = $true; $properties.FeaturedGameSettings.SectionAppearance.Background = '#112233'
+    $sectionLayout.OverrideAppearance = $true; $sectionLayout.Appearance.Enabled = $true; $sectionLayout.Appearance.Background = '#334455'
     $featuredPin = $properties.FeaturedGameSettings.PinnedGameId
     $properties.ToolbarSettings.NotificationBadgeStyle = [LandingPage.Settings.NotificationBadgeStyle]::Count
     $toolbarEntry = [LandingPage.Settings.ToolbarEntry]::new(); $toolbarEntry.Id = 'native.sort'; $properties.ToolbarSettings.Items.Add($toolbarEntry)
@@ -89,11 +97,17 @@ try {
     if ($restoredRules.IncludedNamePatterns -ne '*Quest*' -or !$restoredRules.NeverPlayedOnly -or [object]::ReferenceEquals($restoredRules,$rules)) { throw 'Cancel settings failed to restore an independent clone' }
     $restoredInstances = [LandingPage.LandingPageSettings].GetProperty('ShelveInstanceSettings').GetValue($restored)
     $modernRules = @($restoredInstances.Values)[0].ShelveProperties[0]
+    if ($modernRules.HoverEffect -ne [LandingPage.Models.ShelfHoverEffect]::Dock -or $modernRules.HoverScale -ne 1.35 -or !$modernRules.HoverGlow -or $modernRules.HoverGlowColor -ne '#123456' -or $modernRules.HoverDuration -ne 220) { throw 'Playnite settings clone lost shelf hover settings' }
+
     if ($modernRules.ExcludedInstallPathPatterns -ne 'D:\Games\Demos\*' -or $modernRules.IncludedPublisherNamePatterns -ne 'glob:*[A-Z]*') { throw 'Cloning lost per-widget shelf filters' }
     $pages = [LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($restored)
     if ($pages.Count -ne 1 -or $pages[0].Layout.ViewProperties.TextSettings.Text -ne 'Preserve page widget') { throw 'Settings cloning lost dashboard page data' }
 
     $featuredSettings = $pages[0].Layout.ViewProperties.FeaturedGameSettings
+    $sectionLayout = $featuredSettings.GetSectionLayout([LandingPage.Settings.FeaturedGameSection]::Description)
+    if (!$featuredSettings.SectionAppearance.Enabled -or $featuredSettings.SectionAppearance.Background -ne '#112233' -or !$sectionLayout.OverrideAppearance -or $sectionLayout.Appearance.Background -ne '#334455') { throw 'Actual Playnite serializer lost shared/individual section appearance' }
+    if (!$featuredSettings.UseCustomSectionLayout -or $featuredSettings.EditSectionLayout -or $featuredSettings.SectionLayouts.Count -ne 8 -or $sectionLayout.X -ne 90 -or $sectionLayout.Y -ne 75 -or $sectionLayout.Width -ne 345 -or $sectionLayout.Height -ne 123) { throw 'Playnite settings clone lost or duplicated section geometry or persisted temporary edit mode' }
+
     if ($featuredSettings.MatchMetadataTextSize -or $featuredSettings.MetadataTextSize -ne 19 -or $featuredSettings.MatchMetadataTextColor -or $featuredSettings.MetadataTextColor -ne '#123456' -or $featuredSettings.MatchMetadataIconSize -or $featuredSettings.MetadataIconSize -ne 25) { throw 'Playnite settings clone lost featured metadata formatting' }
     if ($pages[0].Layout.ViewProperties.FeaturedGameSettings.PinnedGameId -ne $featuredPin -or $pages[0].Layout.ViewProperties.FeaturedGameSettings.TitleSize -ne 42) { throw 'Playnite settings clone lost featured game settings' }
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.NotificationBadgeStyle -ne [LandingPage.Settings.NotificationBadgeStyle]::Count) { throw 'Playnite settings clone lost notification badge preference' }

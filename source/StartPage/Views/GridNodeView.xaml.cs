@@ -38,6 +38,17 @@ namespace LandingPage.Views
             e.Handled = true;
         }
 
+        private void EditFeaturedSections_Click(object sender, RoutedEventArgs args)
+        {
+            if (!(DataContext is GridNodeViewModel model) || !model.EditModeEnabled || model.GridNode.ViewProperties?.FeaturedGameSettings?.UseCustomSectionLayout != true) return;
+            if ((sender as System.Windows.Controls.Primitives.ToggleButton)?.IsChecked == true)
+            {
+                DependencyObject parent = this;
+                while (parent != null && !(parent is StartPageView)) parent = VisualTreeHelper.GetParent(parent);
+                (parent as StartPageView)?.BeginFeaturedSectionEditing(model.GridNode.ViewProperties.FeaturedGameSettings);
+            }
+            args.Handled = true;
+        }
         private void Border_PreviewDragEnter(object sender, DragEventArgs e)
         {
             if (e.OriginalSource == sender && DataContext is GridNodeViewModel viewModel)
