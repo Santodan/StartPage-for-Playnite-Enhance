@@ -3,9 +3,20 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:LandingPage.Controls"
     xmlns:settingsViews="clr-namespace:LandingPage.Views.Settings"
+    xmlns:local="clr-namespace:LandingPage.Views"
     xmlns:numeric="http://gu.se/NumericInput">
                                     <ScrollViewer  VerticalScrollBarVisibility="Auto">
                                         <StackPanel Margin="16">
+                                            <Expander Header="Game detail settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
+                                                <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers><DataTrigger Binding="{Binding GridNode.ViewProperties.IsGameDetailWidget}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                                                </Style></Expander.Style>
+                                                <StackPanel>
+                                                    <settingsViews:GameDetailSettingsView DataContext="{Binding GridNode.ViewProperties.GameDetailSettings}" WidgetId="{Binding DataContext.GridNode.ViewProperties.ViewId, RelativeSource={RelativeSource AncestorType=local:PanelAppearanceView}}"/>
+                                                    <Button Content="Reset game detail settings" Click="ResetGameDetail_Click" Margin="0,8,0,0"/>
+                                                </StackPanel>
+                                            </Expander>
                                             <Expander Header="Featured game settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
                                                 <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                                                     <Setter Property="Visibility" Value="Collapsed"/>

@@ -1,0 +1,96 @@
+﻿<UserControl x:Class="LandingPage.Views.Settings.GameDetailSettingsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:settings="clr-namespace:LandingPage.Settings" xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:numeric="http://gu.se/NumericInput">
+ <UserControl.Resources>
+  <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+  <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+  <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+ </UserControl.Resources>
+ <StackPanel>
+  <Expander Header="Game source" IsExpanded="True"><StackPanel Margin="8,6,0,8">
+   <ComboBox SelectedValue="{Binding Source}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Selected library game" Tag="{x:Static settings:FeaturedGameSource.SelectedGame}"/>
+    <ComboBoxItem Content="Hovered StartPage game" Tag="{x:Static settings:FeaturedGameSource.HoveredGame}"/>
+    <ComboBoxItem Content="Hovered game, otherwise selected game" Tag="{x:Static settings:FeaturedGameSource.HoveredOrSelectedGame}"/>
+    <ComboBoxItem Content="Pinned game" Tag="{x:Static settings:FeaturedGameSource.Pinned}"/>
+   </ComboBox>
+   <Button Content="Choose pinned game..." Click="ChooseGame_Click" Margin="0,6,0,4"/>
+   <TextBlock Text="{Binding PinnedGameName}" TextWrapping="Wrap"/>
+   <TextBlock Text="Hover delay (milliseconds)" Margin="0,6,0,2"/><numeric:IntBox Value="{Binding HoverDelayMilliseconds}" MinValue="0" MaxValue="1000" Style="{StaticResource {x:Type TextBox}}"/>
+   <CheckBox Content="Keep last hovered game (hover-only mode)" IsChecked="{Binding KeepLastHoveredGame}" Margin="0,4"/>
+   <CheckBox Content="Installed games only" IsChecked="{Binding InstalledOnly}" Margin="0,4"/>
+   <CheckBox Content="Include hidden games" IsChecked="{Binding IncludeHidden}" Margin="0,4"/>
+   <TextBlock Text="Use the same source and hover delay across widgets to compose a synchronized game details page. Hover follows StartPage shelves and Most Played without changing library selection." TextWrapping="Wrap" Margin="0,6,0,0"/>
+  </StackPanel></Expander>
+  <Expander x:Name="TitleOptions" Header="Title"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show game title" IsChecked="{Binding ShowTitle}"/>
+   <TextBlock Text="Title size"/><numeric:DoubleBox Value="{Binding TitleSize}" MinValue="12" MaxValue="96" Style="{StaticResource {x:Type TextBox}}"/>
+  </StackPanel></Expander>
+  <Expander x:Name="DescriptionOptions" Header="Description"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show description" IsChecked="{Binding ShowDescription}"/>
+   <TextBlock Text="Character limit (0 = all)"/><numeric:IntBox Value="{Binding DescriptionLength}" MinValue="0" MaxValue="2147483647" Style="{StaticResource {x:Type TextBox}}"/>
+   <CheckBox Content="Preserve HTML formatting (same renderer as the library)" IsChecked="{Binding PreserveDescriptionFormatting}" Margin="0,6,0,0"/>
+   <CheckBox Content="Show description images" IsChecked="{Binding ShowDescriptionImages}" Margin="0,6,0,0"/>
+  </StackPanel></Expander>
+  <Expander x:Name="ArtworkOptions" Header="Artwork"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show artwork" IsChecked="{Binding ShowArtwork}"/>
+   <CheckBox Content="Use cover instead of background" IsChecked="{Binding UseCoverArtwork}" Margin="0,4"/>
+   <TextBlock Text="Artwork sizing"/>
+   <ComboBox SelectedValue="{Binding ArtworkSizing}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Fill (crop edges)" Tag="{x:Static settings:FeaturedArtworkSizing.Fill}"/>
+    <ComboBoxItem Content="Fit entire image" Tag="{x:Static settings:FeaturedArtworkSizing.Fit}"/>
+    <ComboBoxItem Content="Fit without enlarging" Tag="{x:Static settings:FeaturedArtworkSizing.FitWithoutEnlarging}"/>
+    <ComboBoxItem Content="Stretch (may distort)" Tag="{x:Static settings:FeaturedArtworkSizing.Stretch}"/>
+    <ComboBoxItem Content="Original size" Tag="{x:Static settings:FeaturedArtworkSizing.OriginalSize}"/>
+   </ComboBox>
+   <TextBlock Text="Image opacity"/><numeric:DoubleBox Value="{Binding ArtworkOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Overlay opacity"/><numeric:DoubleBox Value="{Binding OverlayOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+   <Expander Header="Colors"><StackPanel Margin="8,6,0,8"><TextBlock Text="Overlay color"/><controls:ColorPicker SelectedColor="{Binding OverlayColor, Mode=TwoWay, ValidatesOnExceptions=True}"/></StackPanel></Expander>
+  </StackPanel></Expander>
+  <Expander x:Name="ActivityOptions" Header="Activity"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Playtime" IsChecked="{Binding ShowPlaytime}"/><CheckBox Content="Last played" IsChecked="{Binding ShowLastPlayed}"/>
+   <CheckBox Content="Source name and icon" IsChecked="{Binding ShowSource}"/><CheckBox Content="Achievement progress" IsChecked="{Binding ShowAchievements}"/>
+  </StackPanel></Expander>
+  <Expander x:Name="DetailsOptions" Header="Game details"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show game details" IsChecked="{Binding ShowGameDetails}"/><CheckBox Content="Platforms" IsChecked="{Binding ShowPlatforms}"/>
+   <CheckBox Content="Genres" IsChecked="{Binding ShowGenres}"/><CheckBox Content="Release date" IsChecked="{Binding ShowReleaseDate}"/>
+   <CheckBox Content="Developers" IsChecked="{Binding ShowDevelopers}"/><CheckBox Content="Publishers" IsChecked="{Binding ShowPublishers}"/>
+  </StackPanel></Expander>
+  <Expander x:Name="LibraryOptions" Header="Library information"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show library information" IsChecked="{Binding ShowLibraryDetails}"/><CheckBox Content="Completion status" IsChecked="{Binding ShowCompletionStatus}"/>
+   <CheckBox Content="Categories" IsChecked="{Binding ShowCategories}"/><CheckBox Content="Tags" IsChecked="{Binding ShowTags}"/>
+   <CheckBox Content="Features" IsChecked="{Binding ShowFeatures}"/><CheckBox Content="Date added" IsChecked="{Binding ShowDateAdded}"/>
+   <CheckBox Content="Installation status" IsChecked="{Binding ShowInstallationStatus}"/><CheckBox Content="Version" IsChecked="{Binding ShowVersion}"/>
+  </StackPanel></Expander>
+  <Expander x:Name="ScoresOptions" Header="Scores"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show scores" IsChecked="{Binding ShowScores}"/><CheckBox Content="User score" IsChecked="{Binding ShowUserScore}"/>
+   <CheckBox Content="Critic score" IsChecked="{Binding ShowCriticScore}"/><CheckBox Content="Community score" IsChecked="{Binding ShowCommunityScore}"/>
+  </StackPanel></Expander>
+  <Expander x:Name="LinksOptions" Header="Links"><StackPanel Margin="8,6,0,8"><CheckBox Content="Show game website links" IsChecked="{Binding ShowLinks}"/></StackPanel></Expander>
+  <Expander x:Name="ActionsOptions" Header="Actions"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Play / Install button" IsChecked="{Binding ShowPlayButton}"/><CheckBox Content="Open in library button" IsChecked="{Binding ShowLibraryButton}"/>
+  </StackPanel></Expander>
+  <Expander x:Name="FormattingOptions" Header="Text and layout"><StackPanel Margin="8,6,0,8">
+   <CheckBox Content="Show section headings" IsChecked="{Binding ShowSectionHeadings}"/>
+   <TextBlock Text="Text size"/><numeric:DoubleBox Value="{Binding TextSize}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Maximum content width"/><numeric:DoubleBox Value="{Binding ContentWidth}" MinValue="160" MaxValue="1400" Style="{StaticResource {x:Type TextBox}}"/>
+   <TextBlock Text="Horizontal position"/><ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/><ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/><ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/><ComboBoxItem Content="Stretch" Tag="{x:Static HorizontalAlignment.Stretch}"/>
+   </ComboBox>
+   <TextBlock Text="Vertical position"/><ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/><ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/><ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
+   </ComboBox>
+   <Expander Header="Colors"><StackPanel Margin="8,6,0,8">
+    <CheckBox Content="Use custom text colors" IsChecked="{Binding UseCustomTextColor}"/>
+    <TextBlock Text="Title color"/><controls:ColorPicker SelectedColor="{Binding TitleColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+    <TextBlock Text="Text color"/><controls:ColorPicker SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+   </StackPanel></Expander>
+  </StackPanel></Expander>
+  <Expander x:Name="ScrollingOptions" Header="Scrolling"><StackPanel Margin="8,6,0,8">
+   <TextBlock Text="Overflow scrolls within this widget. Each widget has its own scrolling settings." TextWrapping="Wrap"/>
+   <CheckBox Content="Automatically scroll content" IsChecked="{Binding AutoScrollContent}"/>
+   <CheckBox Content="Pause while hovering" IsChecked="{Binding PauseAutoScrollOnHover}"/>
+   <TextBlock Text="Speed (pixels per second)"/><numeric:DoubleBox Value="{Binding AutoScrollSpeed}" MinValue="1" MaxValue="120" Style="{StaticResource {x:Type TextBox}}"/>
+  </StackPanel></Expander>
+ </StackPanel>
+</UserControl>

@@ -15,6 +15,11 @@ namespace LandingPage.Views
 
         private void Done_Click(object sender, RoutedEventArgs e) => Done?.Invoke(this, e);
 
+        private void ResetGameDetail_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)
+                model.GridNode.ViewProperties.GameDetailSettings = Models.GameDetailWidgets.CreateSettings(model.GridNode.ViewProperties.ViewId);
+        }
         private void ResetFeaturedGame_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)

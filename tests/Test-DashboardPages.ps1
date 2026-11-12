@@ -1332,6 +1332,64 @@ try {
     $plugin.OnViewRemoved('FeaturedGame',$featuredInstance)
     if (!$featured.GetType().GetField('closed',$flags).GetValue($featured) -or $featured.GetType().GetField('subscribed',$flags).GetValue($featured)) { throw 'Removed featured widget retained subscriptions' }
     [void]$layout.Children.Remove($featured)
+    $detailWidgets = @(); $detailNodes = @(); $detailIds = @()
+    $availableDetails = @($plugin.GetAvailableStartPageViews().Views)
+    $detailQueries = [DashboardTestProxy]::LibraryEnumerations
+    $featuredGame.CoverImage = $imagePath; $featuredGame.BackgroundImage = $imagePath
+    foreach ($definition in [LandingPage.Models.GameDetailWidgets]::Definitions) {
+        if (@($availableDetails | Where-Object ViewId -eq $definition.Id).Count -ne 1) { throw ('Detail widget missing from Add menu: ' + $definition.Id) }
+        $detailId = [guid]::NewGuid(); $detailWidget = $plugin.GetStartPageView($definition.Id,$detailId)
+        $detailProps = [LandingPage.Models.Layout.ViewProperties]::new(); $detailProps.ViewId = $definition.Id; $detailProps.InstanceId = $detailId
+        $detailProps.GameDetailSettings.HoverDelayMilliseconds = 0
+        $detailNode = [LandingPage.Models.Layout.GridNode]::new(); $detailNode.ViewProperties = $detailProps
+        $detailModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($detailNode); $detailModel.IsLeaf = $true; $detailModel.HasView = $true
+        [void]$detailModel.View.Children.Add($detailWidget)
+        $detailNodeView = [LandingPage.Views.GridNodeView]::new(); $detailNodeView.DataContext = $detailModel
+        [void]$layout.Children.Add($detailNodeView); $window.UpdateLayout()
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        Wait-Task ($detailWidget.OnViewShownAsync())
+        if (![object]::ReferenceEquals($detailWidget.Settings,$detailProps.GameDetailSettings) -or $detailWidget.FeaturedGame.Id -ne $featuredGame.Id) { throw ('Detail widget did not bind to its own settings/selected game: ' + $definition.Id) }
+        $renderedSections = $detailWidget.GetType().GetField('sectionPanels',$flags).GetValue($detailWidget)
+        if ($definition.IsArtwork) {
+            if ($renderedSections.Count -ne 0 -or !$detailWidget.GetType().GetField('artwork',$flags).GetValue($detailWidget).Source) { throw 'Artwork detail widget rendered unrelated content or no image' }
+        } elseif ($renderedSections.Count -ne 1 -or !$renderedSections.ContainsKey($definition.Section)) { throw ('Standalone widget rendered the wrong sections: ' + $definition.Id) }
+        $detailEditor = [LandingPage.Views.Settings.GameDetailSettingsView]::new(); $detailEditor.WidgetId = $definition.Id; $detailEditor.DataContext = $detailProps.GameDetailSettings
+        [void]$layout.Children.Add($detailEditor); $window.UpdateLayout()
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        if ($detailEditor.FindName('ArtworkOptions').Visibility -ne $(if ($definition.IsArtwork) { [Windows.Visibility]::Visible } else { [Windows.Visibility]::Collapsed })) { throw 'Detail settings show fields from the wrong widget type' }
+        [void]$layout.Children.Remove($detailEditor)
+        $detailWidgets += $detailWidget; $detailNodes += $detailNodeView; $detailIds += $detailId
+    }
+    if ([DashboardTestProxy]::LibraryEnumerations -ne $detailQueries) { throw 'Selected detail widgets scanned the entire library' }
+    $detailWidgets[1].Settings.TextSize = 31
+    if ($detailWidgets[2].Settings.TextSize -eq 31) { throw 'Independent detail widgets share formatting settings' }
+    [void]$setHover.Invoke($plugin,@($hoverPreviewGame,$hoverOwnerB,$hoverGroup))
+    # The update must finish before lower-priority input/background work, without
+    # requiring each widget to await a thread-pool task.
+    $fastPreviewReady = [bool[]]@($false)
+    $previewFrame = [Windows.Threading.DispatcherFrame]::new()
+    [void]$app.Dispatcher.BeginInvoke([Action]{
+        $fastPreviewReady[0] = @($detailWidgets | Where-Object { $_.FeaturedGame.Id -ne $hoverPreviewGame.Id }).Count -eq 0
+        $previewFrame.Continue = $false
+    },[Windows.Threading.DispatcherPriority]::Input)
+    [Windows.Threading.Dispatcher]::PushFrame($previewFrame)
+    if (!$fastPreviewReady[0]) { throw 'Hover previews waited behind input/background work or asynchronous lookup tasks' }
+    foreach ($detailWidget in $detailWidgets) { Wait-Task ($detailWidget.OnViewShownAsync()); if ($detailWidget.FeaturedGame.Id -ne $hoverPreviewGame.Id) { throw 'Detail widgets did not synchronize to the hovered game' } }
+    [void]$setHover.Invoke($plugin,@($null,$hoverOwnerB,$hoverGroup))
+    foreach ($detailWidget in $detailWidgets) { Wait-Task ($detailWidget.OnViewShownAsync()); if ($detailWidget.FeaturedGame.Id -ne $featuredGame.Id) { throw 'Detail widgets did not synchronize selected fallback' } }
+    $titleSectionsBeforeSameGame = $detailWidgets[1].GetType().GetField('sectionPanels',$flags).GetValue($detailWidgets[1])[[LandingPage.Settings.FeaturedGameSection]::Title]
+    [void]$setHover.Invoke($plugin,@($featuredGame,$hoverOwnerB,$hoverGroup))
+    foreach ($detailWidget in $detailWidgets) { $fastLookup = $detailWidget.OnViewShownAsync(); if (!$fastLookup.IsCompleted) { throw 'Indexed context lookup waited for a worker thread' }; Wait-Task $fastLookup }
+    $titleSectionsAfterSameGame = $detailWidgets[1].GetType().GetField('sectionPanels',$flags).GetValue($detailWidgets[1])[[LandingPage.Settings.FeaturedGameSection]::Title]
+    if (![object]::ReferenceEquals($titleSectionsBeforeSameGame,$titleSectionsAfterSameGame)) { throw 'Preview rebuilt an unchanged game section' }
+    [void]$setHover.Invoke($plugin,@($null,$hoverOwnerB,$hoverGroup))
+    for ($detailIndex = 0; $detailIndex -lt $detailWidgets.Count; ++$detailIndex) {
+        $definition = [LandingPage.Models.GameDetailWidgets]::Definitions[$detailIndex]
+        $plugin.OnViewRemoved($definition.Id,$detailIds[$detailIndex])
+        if (!$detailWidgets[$detailIndex].GetType().GetField('closed',$flags).GetValue($detailWidgets[$detailIndex]) -or $detailWidgets[$detailIndex].GetType().GetField('subscribed',$flags).GetValue($detailWidgets[$detailIndex])) { throw 'Removed detail widget retained subscriptions' }
+        [void]$layout.Children.Remove($detailNodes[$detailIndex])
+    }
+    'PASS: nine standalone detail widgets, Add catalog, actual ancestor settings binding, isolated sections/artwork, contextual editors, synchronized selected/hovered sources, no library scans and removal cleanup.'
     [DashboardTestProxy]::FeaturedFixtureGames.Clear()
     'PASS: featured game registration, pinned rendering, live theme/color/size controls, cached revisits, settings editor and removal cleanup.'
     $hoverSettings = [LandingPage.Models.ShelveProperties]::new()

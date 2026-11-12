@@ -18,6 +18,13 @@ $serializerField = [Playnite.SDK.Data.Serialization].GetField('serializer',[Refl
 $previousSerializer = $serializerField.GetValue($null)
 try {
     $serializerField.SetValue($null, [Playnite.Common.DataSerializer]::new())
+    $detailProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $detailProperties.ViewId = 'GameDetailDescription'
+    $detailProperties.GameDetailSettings.Source = [LandingPage.Settings.FeaturedGameSource]::HoveredGame
+    $detailProperties.GameDetailSettings.DescriptionLength = 0; $detailProperties.GameDetailSettings.TextSize = 29
+    $detailProperties.Appearance.Enabled = $true; $detailProperties.Appearance.Background = '#123456'
+    $detailCloneMethod = [Playnite.SDK.Data.Serialization].GetMethods() | Where-Object { $_.Name -eq 'GetClone' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 } | Select-Object -First 1
+    $actualDetailCopy = $detailCloneMethod.MakeGenericMethod([LandingPage.Models.Layout.ViewProperties]).Invoke($null,@($detailProperties))
+    if ($actualDetailCopy.GameDetailSettings.Source -ne [LandingPage.Settings.FeaturedGameSource]::HoveredGame -or $actualDetailCopy.GameDetailSettings.TextSize -ne 29 -or $actualDetailCopy.GameDetailSettings.DescriptionLength -ne 0 -or $actualDetailCopy.Appearance.Background -ne '#123456') { throw 'Actual Playnite settings serialization lost independent detail widget configuration' }
     $settings = [LandingPage.LandingPageSettings]::new()
     $mostOptions = [Collections.ObjectModel.ObservableCollection[LandingPage.Models.GameActivity.MostPlayedOptions]]::new()
     foreach ($timeframe in @('Last14Days','Last3Month','Last6Month','LastYear')) {

@@ -99,3 +99,5 @@ Custom transition presets can be created and previewed inside **Manage dashboard
 The **Featured game** widget shows a pinned or automatically selected game with artwork, description, actions and optional metadata/achievements. Add it in Edit Mode and configure it through **Appearance > Featured game settings**. See [Featured game widget](docs/FEATURED-GAME.md).
 
 Game shelves now have optional per-shelf hover effects under **Shelf settings > Hover animations**, including dock-style neighbor magnification, lift, tilt, bounce, glow and dimming. See [Shelf hover effects](docs/SHELF-HOVER-EFFECTS.md).
+
+Build a game details dashboard with independent **Game: Artwork**, **Game: Title**, **Game: Description**, **Game: Activity**, **Game: Details**, **Game: Library information**, **Game: Scores**, **Game: Links** and **Game: Actions** widgets. They can follow selected or hovered games together. See [Game detail widgets](docs/GAME-DETAIL-WIDGETS.md).

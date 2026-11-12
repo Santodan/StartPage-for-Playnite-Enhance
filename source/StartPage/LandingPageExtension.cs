@@ -299,7 +299,9 @@ namespace LandingPage
             featuredHoverGroup = game == null ? null : group;
             if (game != null) LastFeaturedHoveredGame = game;
             if (ReferenceEquals(FeaturedHoveredGame,game)) return;
-            FeaturedHoveredGame = game; FeaturedHoverChanged?.Invoke(this,EventArgs.Empty);
+            FeaturedHoveredGame = game;
+            ExtensionDiagnostics.RecordAsync(this,$"Game preview hover context: game={game?.Id}, last={LastFeaturedHoveredGame?.Id}.");
+            FeaturedHoverChanged?.Invoke(this,EventArgs.Empty);
         }
         internal void ClearFeaturedHoveredGame(object group)
         {
@@ -782,6 +784,9 @@ namespace LandingPage
                 Description = "Local images, banners, and logos with an optional website link. Configure in Appearance.",
                 AllowMultipleInstances = true
             });
+            foreach (var definition in Models.GameDetailWidgets.Definitions)
+                views.Add(new StartPageViewArgsBase { ViewId = definition.Id, Name = definition.Name,
+                    Description = "An independent game detail widget. Follow the selected or hovered game and configure fields in Appearance.", AllowMultipleInstances = true });
             views.Add(new StartPageViewArgsBase { ViewId = "FeaturedGame", Name = "Featured game",
                 Description = "Pinned or automatic featured game with artwork, description and actions. Configure in Appearance.", AllowMultipleInstances = true });
             return args;
@@ -794,10 +799,11 @@ namespace LandingPage
 
         public object GetStartPageView(string id, Guid instanceId)
         {
-            if (id == "FeaturedGame")
+            var detail = Models.GameDetailWidgets.Find(id);
+            if (id == "FeaturedGame" || detail != null)
             {
                 if (featuredGameViews == null) featuredGameViews = new Dictionary<Guid, FeaturedGameView>();
-                var featured = new FeaturedGameView(); featuredGameViews[instanceId] = featured;
+                var featured = new FeaturedGameView(detail); featuredGameViews[instanceId] = featured;
                 return featured;
             }
             if (id == "RecentAchivements")
@@ -880,7 +886,7 @@ namespace LandingPage
 
         public void OnViewRemoved(string viewId, Guid instanceId)
         {
-            if (viewId == "FeaturedGame" && featuredGameViews?.TryGetValue(instanceId, out var featured) == true)
+            if ((viewId == "FeaturedGame" || Models.GameDetailWidgets.Find(viewId) != null) && featuredGameViews?.TryGetValue(instanceId, out var featured) == true)
             { featured.OnViewClosed(); featuredGameViews.Remove(instanceId); }
             if (viewId == "GameShelves")
             {

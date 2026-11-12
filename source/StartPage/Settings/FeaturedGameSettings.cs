@@ -116,6 +116,8 @@ namespace LandingPage.Settings
         public bool ShowLinks { get => showLinks; set => SetValue(ref showLinks, value); }
         private bool showDescription = true;
         public bool ShowDescription { get => showDescription; set => SetValue(ref showDescription, value); }
+        private bool preserveDescriptionFormatting = true;
+        public bool PreserveDescriptionFormatting { get => preserveDescriptionFormatting; set => SetValue(ref preserveDescriptionFormatting,value); }
         private bool showDescriptionImages;
         public bool ShowDescriptionImages { get => showDescriptionImages; set => SetValue(ref showDescriptionImages,value); }
         private bool autoScrollContent;

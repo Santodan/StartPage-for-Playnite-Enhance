@@ -1,4 +1,4 @@
-# Featured game widget
+﻿# Featured game widget
 
 Enter StartPage Edit Mode, select an empty panel and add **Featured game**. Open **Appearance > Featured game settings** to configure it.
 
@@ -17,7 +17,7 @@ Each instance has its own artwork, content and formatting settings. Choose backg
 
 Optional metadata includes playtime, last played, source name/icon and achievement progress. Achievements come from the provider selected in StartPage settings; missing provider data is omitted.
 
-Enable **Play / Install** and **Open in library** buttons as needed. They use Playnite's native actions. Game actions are disabled while editing the dashboard layout. Description HTML is converted to plain text rather than rendered in a browser.
+Enable **Play / Install** and **Open in library** buttons as needed. They use Playnite's native actions. Game actions are disabled while editing the dashboard layout. Descriptions preserve HTML formatting by default using the same Playnite control as library descriptions. Under Description, disable **Preserve HTML formatting** to use plain text instead. **Show description images** controls embedded images independently. Set description length to **0** to show the full description; positive limits count text rather than HTML tags. Existing scrolling and automatic scrolling settings also apply to formatted descriptions. HTML/CSS support follows Playnite's library renderer.
 
 Settings persist with the widget, including dashboard profiles and independent copies. Pinned IDs refer to the current library; reselect a missing pin when importing a profile from another library. Reset featured game settings restores the defaults without changing the panel appearance.
 

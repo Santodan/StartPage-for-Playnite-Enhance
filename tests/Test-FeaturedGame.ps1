@@ -95,3 +95,22 @@ if ($styledSection.Appearance.Background -ne '#654321' -or $styledCopy.SectionAp
 $styledCopy.ResetSectionLayout()
 if (!$styledCopy.GetSectionLayout([LandingPage.Settings.FeaturedGameSection]::Description).OverrideAppearance -or $styledCopy.GetSectionLayout([LandingPage.Settings.FeaturedGameSection]::Description).Appearance.Background -ne '#ABCDEF') { throw 'Resetting section positions discarded section appearance' }
 'PASS: shared/local appearance persistence, independent profile copies and appearance preservation on layout reset.'
+
+foreach ($imageHtml in @(
+    '<img src="" data-src="https://example.com/lazy.png">',
+    '<img src="data:image/gif;base64,AAAA" data-original="https://example.com/original.png">',
+    '<img data-lazy-src="//example.com/lazy.png">',
+    '<img srcset="https://example.com/small.png 1x, https://example.com/large.png 2x">'
+)) {
+    if (@([LandingPage.Models.FeaturedDescription]::Parse($imageHtml,0,$true) | Where-Object ImageUri).Count -ne 1) { throw ('Description lazy image was not recognized: ' + $imageHtml) }
+}
+'PASS: lazy-loaded, placeholder, protocol-relative and srcset description images.'
+
+$htmlSource = '<h2>Heading</h2><p><b>Bold</b> and <i>italic</i><br>Next line</p><ul><li>First</li><li>Second</li></ul>'
+if ([LandingPage.Models.FeaturedDescription]::Html($htmlSource,0,$true) -ne $htmlSource) { throw 'Unlimited formatted description changed its markup' }
+$limitedHtml = [LandingPage.Models.FeaturedDescription]::Html('<p><b>Long description</b></p>',4,$true)
+if ($limitedHtml -ne ('<p><b>Long'+[char]0x2026+'</b></p>')) { throw 'Formatted truncation did not preserve/close tags' }
+if ([LandingPage.Models.FeaturedDescription]::Html('<p>A<img src="https://example.com/a.png">B</p>',0,$false).Contains('<img')) { throw 'HTML image toggle retained an image' }
+if (![LandingPage.Models.FeaturedDescription]::Html('<img src="" data-src="https://example.com/lazy.png">',0,$true).Contains('src="https://example.com/lazy.png"')) { throw 'HTML renderer did not receive a usable lazy image source' }
+if (![LandingPage.Settings.FeaturedGameSettings]::new().PreserveDescriptionFormatting) { throw 'HTML formatting should be enabled by default' }
+'PASS: HTML structure, unlimited markup, balanced truncation, image filtering and lazy image normalization.'

@@ -40,6 +40,7 @@
    <CheckBox Content="Show Open in library button" IsChecked="{Binding ShowLibraryButton}" Margin="0,3"/>
    <TextBlock Text="Description length (characters; 0 = all)" Margin="0,6,0,2"/>
    <numeric:IntBox Value="{Binding DescriptionLength}" MinValue="0" MaxValue="2147483647" Style="{StaticResource {x:Type TextBox}}"/>
+   <CheckBox Content="Preserve HTML formatting (same renderer as the library)" IsChecked="{Binding PreserveDescriptionFormatting}" Margin="0,6,0,0"/>
    <CheckBox Content="Show images from the description" IsChecked="{Binding ShowDescriptionImages}" Margin="0,6,0,0"/>
    <TextBlock Text="Images appear in their original order with the text. Small images keep their natural size; larger images shrink to fit the section width. Remote images require an internet connection. Turn off Show description to hide all description content." TextWrapping="Wrap" Margin="0,6,0,0"/>
    <TextBlock Text="Achievements use the provider selected in StartPage settings and show only when data is available." TextWrapping="Wrap" Margin="0,6,0,0"/>

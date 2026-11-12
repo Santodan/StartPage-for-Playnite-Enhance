@@ -30,6 +30,10 @@ namespace LandingPage.Views
             var view = (FeaturedGameView)sender;
             if (!(bool)args.NewValue && view.Settings?.EditSectionLayout == true) view.Settings.EditSectionLayout = false;
         }
+        private readonly GameDetailWidgetDefinition standalone;
+        private bool IsStandalone => standalone != null;
+        private bool CustomSectionLayout => !IsStandalone && Settings.UseCustomSectionLayout;
+        private bool Includes(FeaturedGameSection section) => !IsStandalone || standalone.Section == section;
         private FeaturedGameSettings observed;
         private readonly Grid surface = new Grid { ClipToBounds = true, MinHeight = 180 };
         private readonly Image artwork = new Image { Stretch = Stretch.UniformToFill, IsHitTestVisible = false };
@@ -40,7 +44,8 @@ namespace LandingPage.Views
         private readonly Dictionary<FeaturedGameSection,StackPanel> sectionPanels = new Dictionary<FeaturedGameSection,StackPanel>();
         private StackPanel currentSection;
         private Panel ContentPanel => currentSection ?? details;
-        private bool visible, closed, dirty = true, subscribed, shuffle, renderPending;
+        private bool visible, closed, dirty = true, subscribed, shuffle, renderPending, refreshQueued, forceRender = true;
+        private long previewRequestedAt;
         private Game game;
         private string artworkPath;
         private readonly System.Windows.Threading.DispatcherTimer hoverTimer;
@@ -49,18 +54,21 @@ namespace LandingPage.Views
         public Game FeaturedGame => game;
         private IPlayniteAPI Api => LandingPageExtension.Instance.PlayniteApi;
 
-        public FeaturedGameView()
+        public FeaturedGameView() : this(null) { }
+        internal FeaturedGameView(GameDetailWidgetDefinition standalone)
         {
-            hoverTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background,Dispatcher);
+            this.standalone = standalone;
+            if (IsStandalone) { surface.MinHeight = 0; details.Margin = new Thickness(8); }
+            hoverTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Loaded,Dispatcher);
             hoverTimer.Tick += async (sender,args) => { hoverTimer.Stop(); if (visible && !closed) await RefreshSafely(); };
             surface.Children.Add(artwork); surface.Children.Add(shade); detailsViewport.Content = details; surface.Children.Add(detailsViewport); Content = surface;
             Focusable = true;
-            Settings = new FeaturedGameSettings();
+            Settings = IsStandalone ? GameDetailWidgets.CreateSettings(standalone.Id) : new FeaturedGameSettings();
             SetBinding(DashboardEditModeProperty,new Binding("DataContext.EditModeEnabled") { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor,typeof(GridNodeView),1), FallbackValue = false });
-            SetBinding(SettingsProperty, new Binding("DataContext.GridNode.ViewProperties.FeaturedGameSettings")
+            SetBinding(SettingsProperty, new Binding(IsStandalone ? "DataContext.GridNode.ViewProperties.GameDetailSettings" : "DataContext.GridNode.ViewProperties.FeaturedGameSettings")
             { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(GridNodeView), 1), FallbackValue = Settings, TargetNullValue = Settings });
             Loaded += async (sender,args) => { if (!closed) { visible = true; Subscribe(); await RefreshSafely(); } };
-            Unloaded += (sender,args) => { visible = false; hoverTimer.Stop(); UpdateAutoScrollActivity(); Settings.EditSectionLayout = false; };
+            Unloaded += (sender,args) => { visible = false; hoverTimer.Stop(); UpdateAutoScrollActivity(); if (Settings.EditSectionLayout) Settings.EditSectionLayout = false; };
             PreviewKeyDown += (sender,args) => {
                 if (args.Key == System.Windows.Input.Key.Escape && Settings.EditSectionLayout)
                 { Settings.EditSectionLayout = false; args.Handled = true; }
@@ -78,7 +86,7 @@ namespace LandingPage.Views
         private void SettingChanged(object sender, PropertyChangedEventArgs args)
         {
             if (args.PropertyName == nameof(FeaturedGameSettings.HasCustomSectionPositions)) return;
-            if (args.PropertyName == nameof(FeaturedGameSettings.UseCustomSectionLayout) && Settings.UseCustomSectionLayout && !Settings.HasCustomSectionPositions)
+            if (args.PropertyName == nameof(FeaturedGameSettings.UseCustomSectionLayout) && CustomSectionLayout && !Settings.HasCustomSectionPositions)
             {
                 foreach (var pair in sectionPanels)
                 {
@@ -96,7 +104,7 @@ namespace LandingPage.Views
             {
                 if (args.PropertyName == nameof(FeaturedGameSettings.Source)
                     && (Settings.Source == FeaturedGameSource.Random || Settings.Source == FeaturedGameSource.RandomFavorite)) shuffle = true;
-                dirty = true; QueueRefresh();
+                previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp(); forceRender = true; dirty = true; QueueRefresh();
             }
             else if (visible) RenderGame();
             else renderPending = true;
@@ -111,16 +119,27 @@ namespace LandingPage.Views
             LandingPageExtension.Instance.FeaturedSelectionChanged += SelectionChanged;
             LandingPageExtension.Instance.FeaturedHoverChanged += HoverChanged;
         }
-        private void GamesUpdated(object sender, ItemUpdatedEventArgs<Game> args) { dirty = true; QueueRefresh(); }
-        private void GamesChanged(object sender, ItemCollectionChangedEventArgs<Game> args) { dirty = true; QueueRefresh(); }
+        private void GamesUpdated(object sender, ItemUpdatedEventArgs<Game> args)
+        {
+            if (IsStandalone)
+            {
+                var context = LandingPageExtension.Instance;
+                if (!args.UpdatedItems.Any(item => item.NewData?.Id == game?.Id || item.NewData?.Id == context.FeaturedSelectedGame?.Id
+                    || item.NewData?.Id == context.FeaturedHoveredGame?.Id || (UsesHover && item.NewData?.Id == context.LastFeaturedHoveredGame?.Id)
+                    || (Settings.Source == FeaturedGameSource.Pinned && item.NewData?.Id == Settings.PinnedGameId))) return;
+            }
+            previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp(); forceRender = true; dirty = true; QueueRefresh();
+        }
+        private void GamesChanged(object sender, ItemCollectionChangedEventArgs<Game> args) { previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp(); forceRender = true; dirty = true; QueueRefresh(); }
         private void SelectionChanged(object sender, EventArgs args)
         {
             if (Settings.Source == FeaturedGameSource.SelectedGame || Settings.Source == FeaturedGameSource.HoveredOrSelectedGame)
-            { dirty = true; if (!hoverTimer.IsEnabled) QueueRefresh(); }
+            { previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp(); dirty = true; if (!hoverTimer.IsEnabled) QueueRefresh(); }
         }
         private void HoverChanged(object sender, EventArgs args)
         {
             if (!UsesHover) return;
+            previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp();
             dirty = true; hoverTimer.Stop();
             if (!visible || closed) return;
             if (Settings.HoverDelayMilliseconds == 0) QueueRefresh();
@@ -128,8 +147,12 @@ namespace LandingPage.Views
         }
         private void QueueRefresh()
         {
-            if (!visible || closed) return;
-            Dispatcher.BeginInvoke(new Action(async () => { if (visible && !closed) await RefreshSafely(); }), System.Windows.Threading.DispatcherPriority.Background);
+            if (!visible || closed || refreshQueued) return;
+            refreshQueued = true;
+            Dispatcher.BeginInvoke(new Action(async () => {
+                refreshQueued = false;
+                if (visible && !closed) await RefreshSafely();
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
         private async Task RefreshSafely()
         {
@@ -147,29 +170,43 @@ namespace LandingPage.Views
             while (dirty && visible && !closed)
             {
                 dirty = false;
-                var options = DashboardProfiles.Clone(Settings);
-                var selectedId = Api.MainView?.SelectedGames?.FirstOrDefault()?.Id ?? LandingPageExtension.Instance.FeaturedSelectedGame?.Id;
+                var mustRender = forceRender || renderPending; forceRender = false;
+                var debug = LandingPageExtension.Instance.Settings.EnableDashboardDiagnostics;
+                var watch = debug ? System.Diagnostics.Stopwatch.StartNew() : null;
+                var queueMs = previewRequestedAt == 0 ? 0 : (System.Diagnostics.Stopwatch.GetTimestamp()-previewRequestedAt)*1000d/System.Diagnostics.Stopwatch.Frequency;
+                var options = Settings;
+                var selectedId = LandingPageExtension.Instance.FeaturedSelectedGame?.Id ?? Api.MainView?.SelectedGames?.FirstOrDefault()?.Id;
                 var hoverGame = LandingPageExtension.Instance.FeaturedHoveredGame;
                 if (hoverGame == null && options.Source == FeaturedGameSource.HoveredGame && options.KeepLastHoveredGame) hoverGame = LandingPageExtension.Instance.LastFeaturedHoveredGame;
                 var hoveredId = hoverGame?.Id;
-                var currentId = game?.Id; var doShuffle = shuffle; shuffle = false;
-                var next = await Task.Run(() => {
-                    if (options.Source == FeaturedGameSource.Pinned) return Api.Database.Games.Get(options.PinnedGameId);
-                    if (options.Source == FeaturedGameSource.SelectedGame || options.Source == FeaturedGameSource.HoveredGame || options.Source == FeaturedGameSource.HoveredOrSelectedGame)
-                    {
-                        var candidates = new List<Game>();
-                        if (selectedId.HasValue && Api.Database.Games.Get(selectedId.Value) is Game selected) candidates.Add(selected);
-                        if (hoveredId.HasValue && Api.Database.Games.Get(hoveredId.Value) is Game hovered) candidates.Add(hovered);
-                        return FeaturedGameSelection.Select(candidates,options,currentId,doShuffle,selectedId,hoveredId);
-                    }
-                    return FeaturedGameSelection.Select(Api.Database.Games.ToList(),options,currentId,doShuffle,selectedId);
-                });
+                Game next;
+                if (options.Source == FeaturedGameSource.Pinned) next = Api.Database.Games.Get(options.PinnedGameId);
+                else if (options.Source == FeaturedGameSource.SelectedGame || options.Source == FeaturedGameSource.HoveredGame || options.Source == FeaturedGameSource.HoveredOrSelectedGame)
+                {
+                    // These are indexed in-memory lookups. Keep them on the dispatcher:
+                    // cloning every setting and scheduling a worker adds latency per widget.
+                    var candidates = new List<Game>();
+                    if (selectedId.HasValue && Api.Database.Games.Get(selectedId.Value) is Game selected) candidates.Add(selected);
+                    if (hoveredId.HasValue && hoveredId != selectedId && Api.Database.Games.Get(hoveredId.Value) is Game hovered) candidates.Add(hovered);
+                    next = FeaturedGameSelection.Select(candidates,options,game?.Id,false,selectedId,hoveredId);
+                }
+                else
+                {
+                    var snapshot = DashboardProfiles.Clone(options);
+                    var currentId = game?.Id; var doShuffle = shuffle; shuffle = false;
+                    next = await Task.Run(() => FeaturedGameSelection.Select(Api.Database.Games.ToList(),snapshot,currentId,doShuffle,selectedId));
+                }
                 if (closed) return;
-                if (dirty) continue;
+                if (dirty) { forceRender |= mustRender; continue; }
+                var lookupMs = watch?.Elapsed.TotalMilliseconds ?? 0;
+                var changed = !ReferenceEquals(game,next);
                 if (game?.Id != next?.Id) detailsViewport.ScrollToTop();
                 game = next;
-                if (visible) RenderGame();
-                else renderPending = true;
+                if (visible && (changed || mustRender)) RenderGame();
+                else if (!visible) renderPending = true;
+                if (debug)
+                    _ = ExtensionDiagnostics.RecordAsync(LandingPageExtension.Instance,$"Game preview update: widget={standalone?.Id ?? "FeaturedGame"}, source={options.Source}, game={game?.Id}, requestedToStartMs={queueMs:F1}, configuredHoverDelayMs={options.HoverDelayMilliseconds}, lookupMs={lookupMs:F2}, renderMs={(watch.Elapsed.TotalMilliseconds-lookupMs):F2}, reused={!(changed || mustRender)}.");
+                previewRequestedAt = 0;
             }
         }
         private TextBlock AddText(string text, bool title = false)
@@ -186,30 +223,31 @@ namespace LandingPage.Views
             if (closed) return;
             renderPending = false;
             details.Children.Clear(); sectionCanvas.Children.Clear(); sectionPanels.Clear(); currentSection = null;
-            detailsViewport.Content = Settings.UseCustomSectionLayout ? (UIElement)sectionCanvas : details;
+            detailsViewport.Content = CustomSectionLayout ? (UIElement)sectionCanvas : details;
             details.MaxWidth = Settings.ContentWidth; details.HorizontalAlignment = Settings.Alignment; details.VerticalAlignment = Settings.VerticalAlignment;
             detailsViewport.HorizontalAlignment = Settings.Alignment; detailsViewport.VerticalAlignment = Settings.VerticalAlignment; detailsViewport.MaxWidth = Settings.ContentWidth + 48;
-            if (Settings.UseCustomSectionLayout)
+            if (CustomSectionLayout)
             {
                 detailsViewport.HorizontalAlignment = HorizontalAlignment.Stretch; detailsViewport.VerticalAlignment = VerticalAlignment.Stretch;
                 detailsViewport.MaxWidth = double.PositiveInfinity; detailsViewport.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
             }
             else detailsViewport.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
-            ConfigureAutoScroll(detailsViewport,!Settings.UseCustomSectionLayout);
+            ConfigureAutoScroll(detailsViewport,!CustomSectionLayout);
             artwork.Stretch = Settings.ArtworkStretch;
             artwork.StretchDirection = Settings.ArtworkShrinkOnly ? StretchDirection.DownOnly : StretchDirection.Both;
-            artwork.Opacity = Settings.ShowArtwork ? Settings.ArtworkOpacity : 0;
-            shade.Background = Brush(Settings.OverlayColor); shade.Opacity = Settings.OverlayOpacity;
+            var showArtwork = Settings.ShowArtwork && (!IsStandalone || standalone.IsArtwork);
+            artwork.Opacity = showArtwork ? Settings.ArtworkOpacity : 0;
+            shade.Background = Brush(Settings.OverlayColor); shade.Opacity = !IsStandalone || standalone.IsArtwork ? Settings.OverlayOpacity : 0;
             if (game == null)
             {
                 artwork.Source = null; artworkPath = null; currentSection = null; detailsViewport.Content = details;
                 AddText(Settings.Source == FeaturedGameSource.HoveredGame ? "Hover over a game in a StartPage shelf."
                     : Settings.Source == FeaturedGameSource.HoveredOrSelectedGame ? "Hover over a shelf game or select a game in the library."
-                    : Settings.Source == FeaturedGameSource.Pinned ? "Choose a pinned game in Appearance > Featured game settings." : "No matching game is available. Change the selection or filters in Featured game settings.");
+                    : Settings.Source == FeaturedGameSource.Pinned ? "Choose a pinned game in this widget's Appearance settings." : "No matching game is available. Change the selection or filters in this widget's Appearance settings.");
                 return;
             }
-            var path = Settings.ShowArtwork ? (Settings.UseCoverArtwork ? game.CoverImage : game.BackgroundImage) : null;
-            if (Settings.ShowArtwork && string.IsNullOrWhiteSpace(path)) path = game.CoverImage;
+            var path = showArtwork ? (Settings.UseCoverArtwork ? game.CoverImage : game.BackgroundImage) : null;
+            if (showArtwork && string.IsNullOrWhiteSpace(path)) path = game.CoverImage;
             if (path != artworkPath)
             {
                 artworkPath = path; artwork.Source = null;
@@ -220,13 +258,13 @@ namespace LandingPage.Views
                     else artwork.Source = new Converters.UriToBitmapImageConverter().Convert(path,typeof(ImageSource),null,System.Globalization.CultureInfo.CurrentCulture) as ImageSource;
                 }
             }
-            if (Settings.ShowTitle) { StartSection(FeaturedGameSection.Title); AddText(game.Name,true); }
-            if (Settings.ShowDescription) RenderDescription();
+            if (Includes(FeaturedGameSection.Title) && Settings.ShowTitle) { StartSection(FeaturedGameSection.Title); AddText(game.Name,true); }
+            if (Includes(FeaturedGameSection.Description) && Settings.ShowDescription) RenderDescription();
             var metadataSize = Settings.MatchMetadataTextSize ? Settings.TextSize : Settings.MetadataTextSize;
             var metadataColor = Settings.MatchMetadataTextColor
                 ? (Settings.UseCustomTextColor ? Brush(Settings.TextColor) : null)
                 : (Settings.UseCustomMetadataColor ? Brush(Settings.MetadataTextColor) : null);
-            if (Settings.ShowPlaytime || Settings.ShowLastPlayed || Settings.ShowSource || Settings.ShowAchievements)
+            if (Includes(FeaturedGameSection.Activity) && (Settings.ShowPlaytime || Settings.ShowLastPlayed || Settings.ShowSource || Settings.ShowAchievements))
             {
                 StartSection(FeaturedGameSection.Activity);
                 ContentPanel.Children.Add(new ShelfGameInfo { Model = new GameModel(game), IncludeTitle = false,
@@ -238,7 +276,7 @@ namespace LandingPage.Views
                 } });
             }
             RenderSections();
-            if (Settings.ShowPlayButton || Settings.ShowLibraryButton || Settings.Source == FeaturedGameSource.Random || Settings.Source == FeaturedGameSource.RandomFavorite)
+            if (Includes(FeaturedGameSection.Actions) && (Settings.ShowPlayButton || Settings.ShowLibraryButton || Settings.Source == FeaturedGameSource.Random || Settings.Source == FeaturedGameSource.RandomFavorite))
             {
                 StartSection(FeaturedGameSection.Actions);
                 var actions = new WrapPanel { Margin = new Thickness(0,10,0,0) }; ContentPanel.Children.Add(actions);
@@ -251,7 +289,7 @@ namespace LandingPage.Views
         private void StartSection(FeaturedGameSection section)
         {
             currentSection = new StackPanel(); sectionPanels[section] = currentSection;
-            if (!Settings.UseCustomSectionLayout)
+            if (!CustomSectionLayout)
             {
                 details.Children.Add(new SectionAppearanceBorder(Settings.GetSectionLayout(section),Settings,currentSection) { Child = currentSection });
                 return;
@@ -263,7 +301,7 @@ namespace LandingPage.Views
         }
         private void UpdateAutoScrollActivity()
         {
-            ContentAutoScroll.SetEnabled(detailsViewport,visible && !closed && !Settings.UseCustomSectionLayout && Settings.AutoScrollContent);
+            ContentAutoScroll.SetEnabled(detailsViewport,visible && !closed && !CustomSectionLayout && Settings.AutoScrollContent);
             foreach (FeaturedSectionFrame frame in sectionCanvas.Children)
                 ContentAutoScroll.SetEnabled(frame.Viewport,visible && !closed && Settings.AutoScrollContent);
         }
@@ -277,14 +315,31 @@ namespace LandingPage.Views
         }
         private void RenderDescription()
         {
+            if (Settings.PreserveDescriptionFormatting && !string.IsNullOrWhiteSpace(game.Description))
+            {
+                var html = FeaturedDescription.Html(game.Description,Settings.DescriptionLength,Settings.ShowDescriptionImages);
+                var formatted = LibraryDescriptionRenderer.Create(html,Settings.TextSize,
+                    TryFindResource("FontFamily") as FontFamily ?? FontFamily,
+                    Settings.UseCustomTextColor ? Brush(Settings.TextColor) : null);
+                if (formatted != null)
+                {
+                    StartSection(FeaturedGameSection.Description); ContentPanel.Children.Add(formatted);
+                    ExtensionDiagnostics.RecordAsync(LandingPageExtension.Instance,$"Description renderer: library HTML, game={game.Id}, imagesEnabled={Settings.ShowDescriptionImages}, characterLimit={Settings.DescriptionLength}.");
+                    return;
+                }
+            }
             var parts = FeaturedDescription.Parse(game.Description,Settings.DescriptionLength,Settings.ShowDescriptionImages);
+            ExtensionDiagnostics.RecordAsync(LandingPageExtension.Instance,$"Description content: game={game.Id}, imagesEnabled={Settings.ShowDescriptionImages}, parsedImages={parts.Count(part => part.ImageUri != null)}, characterLimit={Settings.DescriptionLength}.");
             if (parts.Count == 0) return;
             StartSection(FeaturedGameSection.Description);
             foreach (var part in parts)
             {
                 if (part.ImageUri == null) { if (!string.IsNullOrWhiteSpace(part.Text)) AddText(part.Text); continue; }
                 var image = new Image { HorizontalAlignment = HorizontalAlignment.Left, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, Margin = new Thickness(0,0,0,10) };
-                image.ImageFailed += (sender,args) => { image.Visibility = Visibility.Collapsed; args.Handled = true; };
+                image.ImageFailed += (sender,args) => {
+                    image.Visibility = Visibility.Collapsed; args.Handled = true;
+                    ExtensionDiagnostics.RecordAsync(LandingPageExtension.Instance,$"Description image failed: game={game?.Id}, source={part.ImageUri}, error={args.ErrorException?.Message}.");
+                };
                 try
                 {
                     var bitmap = new System.Windows.Media.Imaging.BitmapImage();
@@ -323,14 +378,14 @@ namespace LandingPage.Views
         }
         private void RenderSections()
         {
-            if (Settings.ShowGameDetails) AddSection("Game details",new Dictionary<string,string> {
+            if (Includes(FeaturedGameSection.GameDetails) && Settings.ShowGameDetails) AddSection("Game details",new Dictionary<string,string> {
                 ["Platforms"] = Settings.ShowPlatforms ? Names(game.Platforms) : null,
                 ["Genres"] = Settings.ShowGenres ? Names(game.Genres) : null,
                 ["Release date"] = Settings.ShowReleaseDate ? game.ReleaseDate?.ToString() : null,
                 ["Developers"] = Settings.ShowDevelopers ? Names(game.Developers) : null,
                 ["Publishers"] = Settings.ShowPublishers ? Names(game.Publishers) : null
             });
-            if (Settings.ShowLibraryDetails) AddSection("Library information",new Dictionary<string,string> {
+            if (Includes(FeaturedGameSection.LibraryInformation) && Settings.ShowLibraryDetails) AddSection("Library information",new Dictionary<string,string> {
                 ["Completion status"] = Settings.ShowCompletionStatus ? game.CompletionStatus?.Name : null,
                 ["Categories"] = Settings.ShowCategories ? Names(game.Categories) : null,
                 ["Tags"] = Settings.ShowTags ? Names(game.Tags) : null,
@@ -339,12 +394,12 @@ namespace LandingPage.Views
                 ["Installation"] = Settings.ShowInstallationStatus ? (game.IsInstalled ? "Installed" : "Not installed") : null,
                 ["Version"] = Settings.ShowVersion ? game.Version : null
             });
-            if (Settings.ShowScores) AddSection("Scores",new Dictionary<string,string> {
+            if (Includes(FeaturedGameSection.Scores) && Settings.ShowScores) AddSection("Scores",new Dictionary<string,string> {
                 ["User score"] = Settings.ShowUserScore ? game.UserScore?.ToString(CultureInfo.CurrentCulture) : null,
                 ["Critic score"] = Settings.ShowCriticScore ? game.CriticScore?.ToString(CultureInfo.CurrentCulture) : null,
                 ["Community score"] = Settings.ShowCommunityScore ? game.CommunityScore?.ToString(CultureInfo.CurrentCulture) : null
             });
-            if (Settings.ShowLinks && game.Links != null)
+            if (Includes(FeaturedGameSection.Links) && Settings.ShowLinks && game.Links != null)
             {
                 var links = game.Links.Where(link => Uri.TryCreate(link.Url,UriKind.Absolute,out var uri)
                     && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)).ToList();
@@ -361,6 +416,11 @@ namespace LandingPage.Views
         private void AddButton(Panel parent, string text, Action action)
         {
             var button = new Button { Content = text, Padding = new Thickness(12,6,12,6), Margin = new Thickness(0,0,8,4) };
+            if (IsStandalone)
+            {
+                button.FontSize = Settings.TextSize;
+                if (Settings.UseCustomTextColor) button.Foreground = Brush(Settings.TextColor);
+            }
             WindowChrome.SetIsHitTestVisibleInChrome(button,true);
             button.Click += (sender,args) =>
             {
@@ -374,7 +434,7 @@ namespace LandingPage.Views
         }
         public Task InitializeAsync() => Task.CompletedTask;
         public Task OnViewShownAsync() { if (closed) return Task.CompletedTask; visible = true; Subscribe(); UpdateAutoScrollActivity(); if (renderPending && !dirty) RenderGame(); return RefreshSafely(); }
-        public Task OnViewHiddenAsync() { visible = false; hoverTimer.Stop(); UpdateAutoScrollActivity(); Settings.EditSectionLayout = false; return Task.CompletedTask; }
+        public Task OnViewHiddenAsync() { visible = false; hoverTimer.Stop(); UpdateAutoScrollActivity(); if (Settings.EditSectionLayout) Settings.EditSectionLayout = false; return Task.CompletedTask; }
         public Task OnDayChangedAsync(DateTime time) { dirty = true; return visible ? RefreshSafely() : Task.CompletedTask; }
         public void OnViewClosed()
         {

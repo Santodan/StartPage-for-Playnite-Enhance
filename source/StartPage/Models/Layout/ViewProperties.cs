@@ -18,12 +18,17 @@ namespace LandingPage.Models.Layout
         public Settings.TextWidgetSettings TextSettings { get => textSettings; set => SetValue(ref textSettings, value ?? new Settings.TextWidgetSettings()); }
         private Settings.ImageWidgetSettings imageSettings = new Settings.ImageWidgetSettings();
         public Settings.ImageWidgetSettings ImageSettings { get => imageSettings; set => SetValue(ref imageSettings, value ?? new Settings.ImageWidgetSettings()); }
+        private Settings.FeaturedGameSettings gameDetailSettings;
+        public Settings.FeaturedGameSettings GameDetailSettings { get => gameDetailSettings ?? (gameDetailSettings = GameDetailWidgets.CreateSettings(ViewId)); set => SetValue(ref gameDetailSettings,value ?? GameDetailWidgets.CreateSettings(ViewId)); }
+        [DontSerialize, Newtonsoft.Json.JsonIgnore]
+        public bool IsGameDetailWidget => GameDetailWidgets.Find(ViewId) != null;
+        public bool ShouldSerializeGameDetailSettings() => ViewId?.StartsWith("GameDetail",StringComparison.Ordinal) == true;
         private Settings.FeaturedGameSettings featuredGameSettings = new Settings.FeaturedGameSettings();
         public Settings.FeaturedGameSettings FeaturedGameSettings { get => featuredGameSettings; set => SetValue(ref featuredGameSettings, value ?? new Settings.FeaturedGameSettings()); }
         private Settings.ToolbarWidgetSettings toolbarSettings = new Settings.ToolbarWidgetSettings();
         public Settings.ToolbarWidgetSettings ToolbarSettings { get => toolbarSettings; set => SetValue(ref toolbarSettings, value ?? new Settings.ToolbarWidgetSettings()); }
         private string viewId;
-        public string ViewId { get => viewId; set => SetValue(ref viewId, value); }
+        public string ViewId { get => viewId; set { SetValue(ref viewId,value); OnPropertyChanged(nameof(IsGameDetailWidget)); } }
         private Guid instanceId = Guid.NewGuid();
         public Guid InstanceId { get => instanceId; set => SetValue(ref instanceId, value); }
         private Guid pluginId; 
