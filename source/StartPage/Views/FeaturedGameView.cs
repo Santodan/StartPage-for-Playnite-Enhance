@@ -44,7 +44,7 @@ namespace LandingPage.Views
         private readonly Dictionary<FeaturedGameSection,StackPanel> sectionPanels = new Dictionary<FeaturedGameSection,StackPanel>();
         private StackPanel currentSection;
         private Panel ContentPanel => currentSection ?? details;
-        private bool visible, closed, dirty = true, subscribed, shuffle, renderPending, refreshQueued, forceRender = true;
+        private bool visible, closed, dirty = true, subscribed, shuffle, renderPending, refreshQueued, forceRender = true, usingFallback;
         private long previewRequestedAt;
         private Game game;
         private string artworkPath;
@@ -83,8 +83,18 @@ namespace LandingPage.Views
             view.dirty = true;
             if (view.visible) view.QueueRefresh();
         }
+        // Database/import events may arrive on workers. Defer before accessing any
+        // dependency property, timer, bound state or WPF visual; never block imports.
+        private bool DeferToDispatcher(Action callback)
+        {
+            if(Dispatcher.CheckAccess()) return closed;
+            if(!Dispatcher.HasShutdownStarted && !Dispatcher.HasShutdownFinished)
+                Dispatcher.BeginInvoke(new Action(() => { if(!closed) callback(); }),System.Windows.Threading.DispatcherPriority.Loaded);
+            return true;
+        }
         private void SettingChanged(object sender, PropertyChangedEventArgs args)
         {
+            if(DeferToDispatcher(() => SettingChanged(sender,args))) return;
             if (args.PropertyName == nameof(FeaturedGameSettings.HasCustomSectionPositions)) return;
             if (args.PropertyName == nameof(FeaturedGameSettings.UseCustomSectionLayout) && CustomSectionLayout && !Settings.HasCustomSectionPositions)
             {
@@ -118,9 +128,11 @@ namespace LandingPage.Views
             Api.Database.Games.ItemCollectionChanged += GamesChanged;
             LandingPageExtension.Instance.FeaturedSelectionChanged += SelectionChanged;
             LandingPageExtension.Instance.FeaturedHoverChanged += HoverChanged;
+            LandingPageExtension.Instance.FeaturedFallbackChanged += FallbackChanged;
         }
         private void GamesUpdated(object sender, ItemUpdatedEventArgs<Game> args)
         {
+            if(DeferToDispatcher(() => GamesUpdated(sender,args))) return;
             if (IsStandalone)
             {
                 var context = LandingPageExtension.Instance;
@@ -130,14 +142,16 @@ namespace LandingPage.Views
             }
             previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp(); forceRender = true; dirty = true; QueueRefresh();
         }
-        private void GamesChanged(object sender, ItemCollectionChangedEventArgs<Game> args) { previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp(); forceRender = true; dirty = true; QueueRefresh(); }
+        private void GamesChanged(object sender, ItemCollectionChangedEventArgs<Game> args) { if(DeferToDispatcher(() => GamesChanged(sender,args))) return; previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp(); forceRender = true; dirty = true; QueueRefresh(); }
         private void SelectionChanged(object sender, EventArgs args)
         {
+            if(DeferToDispatcher(() => SelectionChanged(sender,args))) return;
             if (Settings.Source == FeaturedGameSource.SelectedGame || Settings.Source == FeaturedGameSource.HoveredOrSelectedGame)
             { previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp(); dirty = true; if (!hoverTimer.IsEnabled) QueueRefresh(); }
         }
         private void HoverChanged(object sender, EventArgs args)
         {
+            if(DeferToDispatcher(() => HoverChanged(sender,args))) return;
             if (!UsesHover) return;
             previewRequestedAt = System.Diagnostics.Stopwatch.GetTimestamp();
             dirty = true; hoverTimer.Stop();
@@ -145,8 +159,15 @@ namespace LandingPage.Views
             if (Settings.HoverDelayMilliseconds == 0) QueueRefresh();
             else { hoverTimer.Interval = TimeSpan.FromMilliseconds(Settings.HoverDelayMilliseconds); hoverTimer.Start(); }
         }
+        private void FallbackChanged(object sender,EventArgs args)
+        {
+            if(DeferToDispatcher(() => FallbackChanged(sender,args))) return;
+            if(Settings.Source == FeaturedGameSource.Pinned || (!usingFallback && !UsesHover && Settings.Source != FeaturedGameSource.SelectedGame)) return;
+            dirty = true; QueueRefresh();
+        }
         private void QueueRefresh()
         {
+            if(DeferToDispatcher(QueueRefresh)) return;
             if (!visible || closed || refreshQueued) return;
             refreshQueued = true;
             Dispatcher.BeginInvoke(new Action(async () => {
@@ -196,6 +217,8 @@ namespace LandingPage.Views
                     var currentId = game?.Id; var doShuffle = shuffle; shuffle = false;
                     next = await Task.Run(() => FeaturedGameSelection.Select(Api.Database.Games.ToList(),snapshot,currentId,doShuffle,selectedId));
                 }
+                usingFallback = next == null && options.Source != FeaturedGameSource.Pinned;
+                if(usingFallback) next = LandingPageExtension.Instance.GetPreviewFallback(options);
                 if (closed) return;
                 if (dirty) { forceRender |= mustRender; continue; }
                 var lookupMs = watch?.Elapsed.TotalMilliseconds ?? 0;
@@ -241,9 +264,7 @@ namespace LandingPage.Views
             if (game == null)
             {
                 artwork.Source = null; artworkPath = null; currentSection = null; detailsViewport.Content = details;
-                AddText(Settings.Source == FeaturedGameSource.HoveredGame ? "Hover over a game in a StartPage shelf."
-                    : Settings.Source == FeaturedGameSource.HoveredOrSelectedGame ? "Hover over a shelf game or select a game in the library."
-                    : Settings.Source == FeaturedGameSource.Pinned ? "Choose a pinned game in this widget's Appearance settings." : "No matching game is available. Change the selection or filters in this widget's Appearance settings.");
+                if(Settings.Source == FeaturedGameSource.Pinned) AddText("Choose a pinned game in this widget's Appearance settings.");
                 return;
             }
             var path = showArtwork ? (Settings.UseCoverArtwork ? game.CoverImage : game.BackgroundImage) : null;
@@ -445,6 +466,7 @@ namespace LandingPage.Views
                 Api.Database.Games.ItemUpdated -= GamesUpdated; Api.Database.Games.ItemCollectionChanged -= GamesChanged;
                 LandingPageExtension.Instance.FeaturedSelectionChanged -= SelectionChanged;
                 LandingPageExtension.Instance.FeaturedHoverChanged -= HoverChanged;
+                LandingPageExtension.Instance.FeaturedFallbackChanged -= FallbackChanged;
                 subscribed = false;
             }
         }

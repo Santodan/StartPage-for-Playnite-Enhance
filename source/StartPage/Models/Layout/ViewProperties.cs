@@ -12,6 +12,9 @@ namespace LandingPage.Models.Layout
     {
         private PanelAppearance appearance = new PanelAppearance();
         public PanelAppearance Appearance { get => appearance; set => SetValue(ref appearance, value ?? new PanelAppearance()); }
+        private Settings.LibraryStatisticsSettings libraryStatisticsSettings;
+        public Settings.LibraryStatisticsSettings LibraryStatisticsSettings { get => libraryStatisticsSettings ?? (libraryStatisticsSettings = ViewId == "LibraryChart" ? Settings.LibraryStatisticsSettings.CreateChartSettings() : new Settings.LibraryStatisticsSettings()); set => SetValue(ref libraryStatisticsSettings,value ?? (ViewId == "LibraryChart" ? Settings.LibraryStatisticsSettings.CreateChartSettings() : new Settings.LibraryStatisticsSettings())); }
+        public bool ShouldSerializeLibraryStatisticsSettings() => ViewId == "LibraryStatistics" || ViewId == "LibraryChart";
         private Settings.ClockSettings clockSettings = new Settings.ClockSettings();
         public Settings.ClockSettings ClockSettings { get => clockSettings; set => SetValue(ref clockSettings, value ?? new Settings.ClockSettings()); }
         private Settings.TextWidgetSettings textSettings = new Settings.TextWidgetSettings();

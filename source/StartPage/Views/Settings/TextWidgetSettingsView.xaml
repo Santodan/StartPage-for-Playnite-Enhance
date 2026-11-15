@@ -9,9 +9,9 @@
            MinHeight="100" MaxHeight="240" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
   <TextBlock Text="Font size" Margin="0,6,0,0"/>
   <numeric:DoubleBox Value="{Binding FontSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="200" Style="{StaticResource {x:Type TextBox}}"/>
-  <CheckBox Content="Bold" IsChecked="{Binding Bold}" Margin="0,8,0,0"/>
-  <CheckBox Content="Italic" IsChecked="{Binding Italic}" Margin="0,6,0,0"/>
-  <CheckBox Content="Wrap text" IsChecked="{Binding Wrap}" Margin="0,6,0,0"/>
+  <WrapPanel><ToggleButton IsChecked="{Binding Bold}" ToolTip="Bold" AutomationProperties.Name="Bold" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="B" FontWeight="Bold" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
+  <ToggleButton IsChecked="{Binding Italic}" ToolTip="Italic" AutomationProperties.Name="Italic" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="I" FontStyle="Italic" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
+  </WrapPanel><CheckBox Content="Wrap text" IsChecked="{Binding Wrap}" Margin="0,6,0,0"/>
   <TextBlock Text="Text alignment" Margin="0,6,0,0"/>
   <ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag">
    <ComboBoxItem Content="Left" Tag="{x:Static TextAlignment.Left}"/>

@@ -197,6 +197,12 @@
                 <ContentControl.Style>
                     <Style TargetType="ContentControl">
                         <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLeaf}" Value="False">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding GridNode.ViewProperties.ViewId}" Value="LibraryChart">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsLeaf}" Value="{StaticResource True}">
                                 <Setter Property="VerticalAlignment" Value="{Binding GridNode.VerticalAlignment}"/>
                                 <Setter Property="HorizontalAlignment" Value="{Binding GridNode.HorizontalAlignment}"/>
@@ -245,6 +251,10 @@
                         <Condition Binding="{Binding GridNode.ViewProperties.ViewId}" Value="FeaturedGame"/>
                         <Condition Binding="{Binding GridNode.ViewProperties.FeaturedGameSettings.UseCustomSectionLayout}" Value="True"/>
                         <Condition Binding="{Binding GridNode.ViewProperties.FeaturedGameSettings.EditSectionLayout}" Value="True"/>
+                    </MultiDataTrigger.Conditions><Setter Property="IsHitTestVisible" Value="False"/></MultiDataTrigger>
+                    <MultiDataTrigger><MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding GridNode.ViewProperties.ViewId}" Value="LibraryChart"/>
+                        <Condition Binding="{Binding GridNode.ViewProperties.LibraryStatisticsSettings.EditCharts}" Value="True"/>
                     </MultiDataTrigger.Conditions><Setter Property="IsHitTestVisible" Value="False"/></MultiDataTrigger>
                 </Style.Triggers></Style></Border.Style>
                 <Border.ContextMenu>
@@ -460,6 +470,13 @@
                     </Grid>
                 </Grid>
             </Border>
+            <ToggleButton x:Name="ChartEditingButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="8,4" Panel.ZIndex="1000"
+                          IsChecked="{Binding GridNode.ViewProperties.LibraryStatisticsSettings.EditCharts,Mode=TwoWay}" Click="EditCharts_Click">
+                <ToggleButton.Style><Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}"><Setter Property="Visibility" Value="Collapsed"/><Setter Property="Content" Value="Edit charts"/><Style.Triggers>
+                    <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding EditModeEnabled}" Value="True"/><Condition Binding="{Binding GridNode.ViewProperties.ViewId}" Value="LibraryChart"/></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible"/></MultiDataTrigger>
+                    <Trigger Property="IsChecked" Value="True"><Setter Property="Content" Value="Done charts"/></Trigger>
+                </Style.Triggers></Style></ToggleButton.Style>
+            </ToggleButton>
             <ToggleButton x:Name="FeaturedSectionsButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="8,4" Panel.ZIndex="1000"
                           IsChecked="{Binding GridNode.ViewProperties.FeaturedGameSettings.EditSectionLayout, Mode=TwoWay}" Click="EditFeaturedSections_Click">
                 <ToggleButton.Style><Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">

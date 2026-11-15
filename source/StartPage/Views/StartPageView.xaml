@@ -170,11 +170,11 @@
                                 <DataTrigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <DoubleAnimation Duration="0:0:0.3" To="0.95"
+                                            <DoubleAnimation Duration="0:0:0.3" To="1"
                                                          Storyboard.TargetProperty="RenderTransform.ScaleX"
                                                          EasingFunction="{StaticResource EasingFunctiton}">
                                             </DoubleAnimation>
-                                            <DoubleAnimation Duration="0:0:0.3" To="0.95"
+                                            <DoubleAnimation Duration="0:0:0.3" To="1"
                                                          Storyboard.TargetProperty="RenderTransform.ScaleY"
                                                          EasingFunction="{StaticResource EasingFunctiton}">
                                             </DoubleAnimation>
@@ -439,7 +439,7 @@
                             <Expander Header="Page name and order" IsExpanded="True">
                                 <StackPanel Margin="8,6,0,8">
                                     <TextBlock Text="Page name"/>
-                                    <TextBox Text="{Binding SelectedPage.Name, UpdateSourceTrigger=LostFocus}" Margin="0,4,0,6"/>
+                                    <TextBox Text="{Binding EditedPageName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,6"/>
                                     <StackPanel Orientation="Horizontal">
                                         <Button Content="Move left" Command="{Binding MovePageUpCommand}" Margin="0,0,6,0"/>
                                         <Button Content="Move right" Command="{Binding MovePageDownCommand}"/>
@@ -627,7 +627,7 @@
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
-                        <Button Content="Done" Click="ClosePages_Click" Margin="0,16,0,0"/>
+                        <Button Content="Done" Click="SavePages_Click" Margin="0,16,0,0"/>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

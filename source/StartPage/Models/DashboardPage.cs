@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using LandingPage.Models.Layout;
@@ -106,7 +106,11 @@ namespace LandingPage.Models
             var unique = name;
             for (int suffix = 2; settings.DashboardPages.Any(page => string.Equals(page.Name, unique, StringComparison.OrdinalIgnoreCase)); ++suffix)
                 unique = name + " (" + suffix + ")";
-            var created = new DashboardPage { Name = unique, Background = DashboardBackground.Capture(settings) };
+            var layout = new GridNode { Orientation = System.Windows.Controls.Orientation.Vertical };
+            var toolbar = new GridNode { Size = System.Windows.GridLength.Auto, ViewProperties = new ViewProperties { ViewId = "ToolbarWidget", PluginId = Guid.Parse("a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5") } };
+            toolbar.ViewProperties.ToolbarSettings.ShowLabels = false;
+            layout.Children.Add(toolbar); layout.Children.Add(new GridNode());
+            var created = new DashboardPage { Name = unique, Layout = layout, Background = DashboardBackground.Capture(settings) };
             settings.DashboardPages.Add(created);
             return created;
         }

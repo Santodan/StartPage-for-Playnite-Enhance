@@ -238,7 +238,7 @@ namespace LandingPage.ViewModels
                 hasLoaded = true; refreshedRevision = revision; refreshedDate = DateTime.Today;
                 ExtensionDiagnostics.Record(plugin, $"Shelves refreshed: {ShelveViewModels.Count} shelves, {library.Count} library games, {refreshWatch.ElapsedMilliseconds} ms.");
             }
-            finally { IsBusy = false; refreshGate.Release(); }
+            finally { IsBusy = false; refreshGate.Release(); if(isVisible && !closed) plugin.NotifyPreviewFallbackChanged(); }
         }
 
         private async void Games_ItemUpdatedAsync(object sender, ItemUpdatedEventArgs<Game> e)
@@ -380,6 +380,7 @@ namespace LandingPage.ViewModels
             Subscribe();
             if (!hasLoaded || refreshedRevision != System.Threading.Interlocked.Read(ref libraryRevision) || refreshedDate != DateTime.Today) await UpdateShelvesAsync();
             else ExtensionDiagnostics.Record(plugin, $"Shelves cache hit: {ShelveViewModels.Count} shelves.");
+            plugin.NotifyPreviewFallbackChanged();
         }
 
         public Task InitializeAsync()

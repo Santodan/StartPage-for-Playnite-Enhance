@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System;
+using System.Linq;
+using System.Windows;
 using System.Windows.Controls;
 using LandingPage.ViewModels.Layout;
 
@@ -9,11 +11,24 @@ namespace LandingPage.Views
         public PanelAppearanceView()
         {
             InitializeComponent();
+            Loaded += (sender,args) => SetDefaultExpansion();
+            DataContextChanged += (sender,args) => SetDefaultExpansion();
         }
 
+        private void SetDefaultExpansion()
+        {
+            Dispatcher.BeginInvoke(new Action(() => {
+                GeneralAppearanceSection.IsExpanded = !SettingsSections.Children.OfType<Expander>().Any(section => section != GeneralAppearanceSection && section.Visibility == Visibility.Visible);
+            }),System.Windows.Threading.DispatcherPriority.Loaded);
+        }
         public event RoutedEventHandler Done;
 
         private void Done_Click(object sender, RoutedEventArgs e) => Done?.Invoke(this, e);
+
+        private void ResetLibraryStatistics_Click(object sender, RoutedEventArgs e)
+        {
+            if(DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null) model.GridNode.ViewProperties.LibraryStatisticsSettings = model.GridNode.ViewProperties.ViewId == "LibraryChart" ? LandingPage.Settings.LibraryStatisticsSettings.CreateChartSettings() : new LandingPage.Settings.LibraryStatisticsSettings();
+        }
 
         private void ResetGameDetail_Click(object sender, RoutedEventArgs e)
         {

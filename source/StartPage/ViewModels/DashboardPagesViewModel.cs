@@ -48,6 +48,55 @@ namespace LandingPage.ViewModels
             private set { SetValue(ref isSwitchingPage, value); OnPropertyChanged(nameof(CanChangePages)); }
         }
         public bool CanChangePages => !IsSwitchingPage && !IsLoading;
+        private Dictionary<Guid,string> draftPageNames;
+        private LandingPageSettings pageEditSnapshot;
+        private string pageEditBaseline;
+        public string EditedPageName
+        {
+            get => SelectedPage == null ? string.Empty : draftPageNames != null && draftPageNames.TryGetValue(SelectedPage.Id,out var name) ? name : SelectedPage.Name;
+            set { if(SelectedPage != null && draftPageNames != null) { draftPageNames[SelectedPage.Id] = value; OnPropertyChanged(nameof(EditedPageName)); } }
+        }
+        public void BeginPageEditing()
+        {
+            if(draftPageNames != null) return;
+            CaptureCurrentPage(); navigationSaveTimer?.Stop();
+            pageEditSnapshot = DashboardProfiles.Clone(Settings.Settings);
+            pageEditBaseline = Newtonsoft.Json.JsonConvert.SerializeObject(Settings.Settings);
+            draftPageNames = Pages.ToDictionary(page => page.Id,page => page.Name);
+            OnPropertyChanged(nameof(EditedPageName));
+        }
+        public void EndPageNameEditing(bool save)
+        {
+            if(draftPageNames == null) return;
+            if(save) foreach(var page in Pages) if(draftPageNames.TryGetValue(page.Id,out var name)) page.Name = name;
+            draftPageNames = null; OnPropertyChanged(nameof(EditedPageName));
+        }
+        public async Task EndPageEditingAsync(bool save)
+        {
+            var snapshot = pageEditSnapshot;
+            var changed = !save && snapshot != null && Newtonsoft.Json.JsonConvert.SerializeObject(Settings.Settings) != pageEditBaseline;
+            EndPageNameEditing(save); pageEditSnapshot = null; pageEditBaseline = null;
+            if(save) { SaveCurrentPage(); return; }
+            navigationSaveTimer?.Stop();
+            if(!changed) return;
+            var target = snapshot.DashboardPages.FirstOrDefault(page => page.Id == SelectedPage?.Id)
+                ?? snapshot.DashboardPages.First(page => page.Id == snapshot.ActiveDashboardPageId);
+            foreach(var added in Pages.Where(page => !snapshot.DashboardPages.Any(original => original.Id == page.Id)).ToList())
+            { GridNodeViewModel.OnNodeRemoved(added.Layout); pageRoots.Remove(added.Id); initializedPages.Remove(added.Id); }
+            var oldRoot = RootNodeViewModel;
+            if(!pageRoots.TryGetValue(target.Id,out var restoredRoot)) pageRoots[target.Id] = restoredRoot = new GridNodeViewModel(target.Layout);
+            if(oldRoot != restoredRoot) await HidePageAsync(false);
+            selectedPage = target; snapshot.ActiveDashboardPageId = target.Id; target.Background.Apply(snapshot); snapshot.GridLayout = restoredRoot.GridNode;
+            RootNodeViewModel = restoredRoot;
+            Settings.Settings = snapshot;
+            ApplyPageBackground(SelectedPage);
+            OnPropertyChanged(nameof(Pages)); OnPropertyChanged(nameof(SelectedPage));
+            if(oldRoot != restoredRoot)
+            {
+                if(!initializedPages.Contains(target.Id)) { await restoredRoot.InititalizeGrid(); await InitializeAndOpenViews(); initializedPages.Add(target.Id); }
+                else if(isPageVisible) await OpenPageAsync();
+            }
+        }
         private string newPageName = "New page";
         public string NewPageName { get => newPageName; set => SetValue(ref newPageName, value); }
         private bool confirmPageDeletion;
@@ -73,7 +122,7 @@ namespace LandingPage.ViewModels
             PropertyChanged += (sender, args) =>
             {
                 if (args.PropertyName == nameof(IsLoading)) OnPropertyChanged(nameof(CanChangePages));
-                if (args.PropertyName == nameof(SelectedPage)) OnPropertyChanged(nameof(SelectedPageId));
+                if (args.PropertyName == nameof(SelectedPage)) { OnPropertyChanged(nameof(SelectedPageId)); OnPropertyChanged(nameof(EditedPageName)); }
                 // WPF otherwise waits for mouse/keyboard input to requery RelayCommand.
                 // Re-enable navigation as soon as switching/loading completes.
                 if (args.PropertyName == nameof(CanChangePages) || args.PropertyName == nameof(SelectedPage)
@@ -192,7 +241,7 @@ namespace LandingPage.ViewModels
         {
             navigationSaveTimer?.Stop();
             CaptureCurrentPage();
-            plugin.SavePluginSettings(Settings.Settings);
+            if(pageEditSnapshot == null) plugin.SavePluginSettings(Settings.Settings);
         }
 
         private void ApplyPageBackground(DashboardPage page)
@@ -272,7 +321,8 @@ namespace LandingPage.ViewModels
                 OnPropertyChanged(nameof(SelectedPage));
                 ApplyPageBackground(previous);
                 if (isPageVisible) await OpenPageAsync();
-                playniteAPI.Dialogs.ShowErrorMessage("Unable to switch dashboard page. Your previous page has been restored.", "Dashboard pages");
+                if(playniteAPI.Dialogs != null) playniteAPI.Dialogs.ShowErrorMessage("Unable to switch dashboard page. Your previous page has been restored.", "Dashboard pages");
+                else throw;
             }
             finally
             {

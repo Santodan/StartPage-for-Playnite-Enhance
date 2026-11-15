@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $build = Join-Path $root 'source\StartPage\bin\Release'
 Add-Type -AssemblyName PresentationFramework
-foreach ($name in @('Gu.Wpf.NumericInput','Newtonsoft.Json','Playnite.SDK','StartPage.SDK','StartPage.SDK.Async','felixkmh.PlayniteCommon','StartPagePlugin')) {
+foreach ($name in @('LiveCharts','LiveCharts.Wpf','Gu.Wpf.NumericInput','Newtonsoft.Json','Playnite.SDK','StartPage.SDK','StartPage.SDK.Async','felixkmh.PlayniteCommon','StartPagePlugin')) {
     [void][Reflection.Assembly]::LoadFrom((Join-Path $build ($name + '.dll')))
 }
 $app = [Windows.Application]::new()
@@ -20,7 +20,7 @@ function Wait-Task($task) {
         $app.Dispatcher.Invoke([Action]{}, [Windows.Threading.DispatcherPriority]::Background)
         Start-Sleep -Milliseconds 5
     }
-    [void]$task.GetAwaiter().GetResult()
+    try { [void]$task.GetAwaiter().GetResult() } catch { Write-Host $_.Exception.ToString(); Write-Host $_.ScriptStackTrace; throw }
 }
 $tempRoot = Join-Path $env:TEMP ('StartPage-pages-test-' + [guid]::NewGuid())
 [void][IO.Directory]::CreateDirectory($tempRoot)
@@ -37,6 +37,14 @@ using Playnite.SDK.Plugins;
 using StartPage.SDK;
 public static class ToolbarTestVisuals
 {
+    public static System.Threading.Tasks.Task WorkerEvent(object view,string method,object args)
+    {
+        return System.Threading.Tasks.Task.Run(() => {
+            try { view.GetType().GetMethod(method,System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(view,new object[] {null,args}); }
+            catch(System.Reflection.TargetInvocationException error) { throw error.InnerException; }
+        });
+    }
+
     public static System.Windows.FrameworkElement Named(System.Windows.DependencyObject root, string name)
     {
         var element = root as System.Windows.FrameworkElement;
@@ -220,9 +228,15 @@ public class DashboardTestProxy : RealProxy
             if (call.MethodName == "get_IsReadOnly") return false;
             return null;
         }).GetTransparentProxy();
+        var completionStatuses = new DashboardTestProxy(typeof(IItemCollection<CompletionStatus>), call => {
+            if(call.MethodName == "GetEnumerator") return ((IEnumerable<CompletionStatus>)new List<CompletionStatus>()).GetEnumerator();
+            if(call.MethodName == "get_Count") return 0;
+            return null;
+        }).GetTransparentProxy();
         var database = new DashboardTestProxy(typeof(IGameDatabaseAPI), call =>
         {
             if (call.MethodName == "get_Games") return games;
+            if (call.MethodName == "get_CompletionStatuses") return completionStatuses;
             if (call.MethodName == "GetFullFilePath") return call.Args[0];
             return null;
         }).GetTransparentProxy();
@@ -281,6 +295,10 @@ try {
     $settingsModel = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageSettingsViewModel])
     $settingsModel.Settings = [LandingPage.LandingPageSettings]::new()
     [LandingPage.LandingPageExtension].GetProperty('SettingsViewModel',$flags).SetValue($plugin,$settingsModel)
+    $initialRegistry = [Collections.Generic.Dictionary[string,Collections.Generic.List[LandingPage.Models.Layout.StartPageViewArgs]]]::new()
+    $initialViews = [Collections.Generic.List[LandingPage.Models.Layout.StartPageViewArgs]]::new()
+    $initialToolbar = [LandingPage.Models.Layout.StartPageViewArgs]::new(); $initialToolbar.ViewId = 'ToolbarWidget'; $initialToolbar.Name = 'Toolbar'; $initialToolbar.PluginId = $plugin.Id; $initialToolbar.AllowMultipleInstances = $true
+    $initialViews.Add($initialToolbar); $initialRegistry.Add('StartPage',$initialViews); $plugin.AllAvailableViews = $initialRegistry
     Set-Setting $settingsModel.Settings 'GridLayout' ([LandingPage.Models.Layout.GridNode]::new())
     Set-Setting $settingsModel.Settings 'BackgroundImageUri' ([uri]('file:///' + $tempRoot.Replace('\','/') + '/A.png'))
     Set-Setting $settingsModel.Settings 'BlurAmount' ([double]19)
@@ -297,6 +315,9 @@ try {
     $rootModel.GridNode.ViewProperties = $probeProperties
     $rootModel.OpenView()
     $pageB = [LandingPage.Models.DashboardPages]::Add($settingsModel.Settings,'Second')
+    if($pageB.Layout.Orientation -ne [Windows.Controls.Orientation]::Vertical -or $pageB.Layout.Children.Count -ne 2 -or !$pageB.Layout.Children[0].Size.IsAuto -or $pageB.Layout.Children[0].ViewProperties.ViewId -ne 'ToolbarWidget' -or $pageB.Layout.Children[1].ViewProperties) { throw 'New dashboard does not have a fitted toolbar row and empty content panel' }
+    # This early lifecycle probe predates the WPF resource setup below.
+    $pageB.Layout.Children.Clear()
     $pageB.Background.Blur = 3; $pageB.Background.ImageUri = [uri]('file:///' + $tempRoot.Replace('\','/') + '/B.png')
     $script:backgroundReadyBeforeHide = $false
     $probe.BeforeHidden = [Action]{
@@ -363,6 +384,21 @@ try {
     if ($view.FindName('PagesOverlay').Visibility -ne [Windows.Visibility]::Visible) { throw 'Page manager did not open inside StartPage' }
     $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
     if ($view.FindName('PagesOverlay').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Page manager did not close' }
+    $pageNameBefore = $vm.SelectedPage.Name; $pageRootBefore = $vm.RootNodeViewModel
+    $view.ShowPages(); $vm.EditedPageName = 'Discarded rename'
+    if($vm.SelectedPage.Name -ne $pageNameBefore) { throw 'Draft rename leaked into live page' }
+    Wait-Task ($vm.EndPageEditingAsync($false))
+    $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    if($vm.SelectedPage.Name -ne $pageNameBefore -or ![object]::ReferenceEquals($vm.RootNodeViewModel,$pageRootBefore)) { throw 'Dismissed rename was saved or rebuilt the page' }
+    $view.ShowPages(); $vm.EditedPageName = 'Accepted rename'
+    $view.GetType().GetMethod('SavePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    if($vm.SelectedPage.Name -ne 'Accepted rename') { throw 'Done did not commit the rename' }
+    $vm.SelectedPage.Name = $pageNameBefore
+    $oldOverlay = (Get-Setting $vm.Settings.Settings 'OverlayOpacity')
+    $vm.BeginPageEditing(); Set-Setting $vm.Settings.Settings 'OverlayOpacity' ([double]0.17)
+    Wait-Task ($vm.EndPageEditingAsync($false))
+    if((Get-Setting $vm.Settings.Settings 'OverlayOpacity') -ne $oldOverlay -or ![object]::ReferenceEquals($vm.RootNodeViewModel,$pageRootBefore)) { throw 'Dismiss did not restore background settings while preserving the page root' }
+
     $toolbarSettings = [LandingPage.Settings.ToolbarWidgetSettings]::new()
     $toolbarClone = [Newtonsoft.Json.JsonConvert]::DeserializeObject([Newtonsoft.Json.JsonConvert]::SerializeObject($toolbarSettings), [LandingPage.Settings.ToolbarWidgetSettings])
     if ($toolbarClone.Items.Count -ne 4 -or [object]::ReferenceEquals($toolbarClone.Items,$toolbarSettings.Items)) { throw 'Toolbar defaults duplicated/shared after serialization' }
@@ -1058,6 +1094,37 @@ try {
     Wait-Task ($vm.SwitchPageAsync($target))
     if (([IO.FileInfo]$diagnosticFile).Length -ne $diagnosticLength) { throw 'Disabled diagnostics kept writing logs' }
     'PASS: bell opens empty and populated notifications, minimizing fully hides panel, count updates, and opt-in diagnostics writes only when enabled.'
+    Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $true
+    $hostDiagnosticsType = $plugin.GetType().Assembly.GetType('LandingPage.Utils.HostWindowDiagnostics')
+    $hostDiagnostics = [Activator]::CreateInstance($hostDiagnosticsType,$flags,$null,@($plugin,$window),$null)
+    try {
+        $beforeBounds = [Windows.Rect]::new($window.Left,$window.Top,$window.ActualWidth,$window.ActualHeight)
+        $messageArgs = @([IntPtr]::Zero,0x007E,[IntPtr]32,[IntPtr]((1080 -shl 16) -bor 1920),$false)
+        $hostDiagnosticsType.GetMethod('Message',$flags).Invoke($hostDiagnostics,$messageArgs) | Out-Null
+        if($messageArgs[4] -or [Windows.Rect]::new($window.Left,$window.Top,$window.ActualWidth,$window.ActualHeight) -ne $beforeBounds) { throw 'Window diagnostics consumed a display change or modified window bounds' }
+        $deadline = [datetime]::UtcNow.AddSeconds(3)
+        while(![IO.File]::ReadAllText($diagnosticFile).Contains('WM_DISPLAYCHANGE pixels=1920x1080') -and [datetime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 20 }
+        $hostDebug = [IO.File]::ReadAllText($diagnosticFile)
+        if(!$hostDebug.Contains('nativePixels=') -or !$hostDebug.Contains('workPixels=') -or !$hostDebug.Contains('sizeToContent=') -or !$hostDebug.Contains('WM_DISPLAYCHANGE pixels=1920x1080')) { throw 'Display diagnostics did not record window/monitor geometry and display message' }
+    } finally { $hostDiagnostics.Dispose(); Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $false }
+    if($hostDiagnosticsType.GetField('source',$flags).GetValue($hostDiagnostics) -or $hostDiagnosticsType.GetField('settled',$flags).GetValue($hostDiagnostics).IsEnabled) { throw 'Window diagnostics retained its native hook or timer after disposal' }
+    'PASS: opt-in display/window geometry diagnostics observe display changes without consuming messages or resizing the host; hook/timer cleanup.'
+    $restoreDecision = $hostDiagnosticsType.GetMethod('ShouldRestoreStartupBounds',[Reflection.BindingFlags]'Static,NonPublic')
+    $savedBounds = [Windows.Rect]::new(100,100,800,600); $monitorBounds = [Windows.Rect]::new(0,0,1920,1080)
+    if(!$restoreDecision.Invoke($null,@($savedBounds,$monitorBounds,$monitorBounds,[Windows.WindowState]::Normal,$false,$true))) { throw 'Startup safeguard did not identify automatic full-monitor growth' }
+    foreach($case in @(@([Windows.WindowState]::Maximized,$false,$true),@([Windows.WindowState]::Normal,$true,$true),@([Windows.WindowState]::Normal,$false,$false))) {
+        if($restoreDecision.Invoke($null,@($savedBounds,$monitorBounds,$monitorBounds,$case[0],$case[1],$case[2]))) { throw 'Startup safeguard would interfere with maximize, user input or later resizes' }
+    }
+    $guardWindow = [Windows.Window]::new(); $guardWindow.Width = 500; $guardWindow.Height = 350; $guardWindow.Left = 100; $guardWindow.Top = 100; $guardWindow.Show(); $guardWindow.UpdateLayout()
+    $guard = [Activator]::CreateInstance($hostDiagnosticsType,$flags,$null,@($plugin,$guardWindow),$null)
+    try {
+        $guardWindow.Left = 0; $guardWindow.Top = 0; $guardWindow.Width = [Windows.SystemParameters]::PrimaryScreenWidth; $guardWindow.Height = [Windows.SystemParameters]::PrimaryScreenHeight
+        $guardWindow.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        if([Math]::Abs($guardWindow.Width-500) -gt 1 -or [Math]::Abs($guardWindow.Height-350) -gt 1) { throw 'Startup safeguard did not restore the previously restored normal-window size' }
+    } finally { $guard.Dispose(); $guardWindow.Close() }
+    'PASS: startup-only restoration for automatic monitor-sized normal windows, with manual/maximized/later changes excluded.'
+
+
     $selectorToolbar = [LandingPage.Views.ToolbarWidgetView]::new()
     $selectorToolbar.Settings = [LandingPage.Settings.ToolbarWidgetSettings]::new()
     $selectorToolbar.Settings.Items.Clear()
@@ -1312,7 +1379,9 @@ try {
     [void]$setHover.Invoke($plugin,@($null,$hoverOwnerB,$hoverGroup)); Wait-Task ($featured.OnViewShownAsync())
     if ($featured.FeaturedGame.Id -ne $hoverPreviewGame.Id) { throw 'Hover-only mode did not keep the last game' }
     $featured.Settings.KeepLastHoveredGame = $false; Wait-Task ($featured.OnViewShownAsync())
-    if ($featured.FeaturedGame) { throw 'Hover-only empty state retained a game despite disabling keep-last' }
+    if (!$featured.FeaturedGame) { throw 'Hover-only mode did not provide a fallback game when keep-last was disabled' }
+    if([DashboardTestProxy]::LibraryEnumerations -gt $queriesBeforeHover+1) { throw 'Random preview fallback repeatedly enumerated the library' }
+    $queriesBeforeHover = [DashboardTestProxy]::LibraryEnumerations
     $featured.Settings.Source = [LandingPage.Settings.FeaturedGameSource]::HoveredOrSelectedGame; Wait-Task ($featured.OnViewShownAsync())
     if ($featured.FeaturedGame.Id -ne $featuredGame.Id) { throw 'Combined source did not fall back to the selected game' }
     $featured.Settings.HoverDelayMilliseconds = 60
@@ -1361,6 +1430,19 @@ try {
         $detailWidgets += $detailWidget; $detailNodes += $detailNodeView; $detailIds += $detailId
     }
     if ([DashboardTestProxy]::LibraryEnumerations -ne $detailQueries) { throw 'Selected detail widgets scanned the entire library' }
+    $workerUpdateArgs = [Playnite.SDK.ItemUpdatedEventArgs[Playnite.SDK.Models.Game]]::new($featuredGame,$featuredGame)
+    $workerChangedArgs = [Playnite.SDK.ItemCollectionChangedEventArgs[Playnite.SDK.Models.Game]]::new([Collections.Generic.List[Playnite.SDK.Models.Game]]::new(),[Collections.Generic.List[Playnite.SDK.Models.Game]]::new())
+    foreach($detailWidget in $detailWidgets) {
+        foreach($method in @('GamesUpdated','GamesChanged','SelectionChanged','HoverChanged','FallbackChanged','SettingChanged')) {
+            $workerArgs = if($method -eq 'GamesUpdated') { $workerUpdateArgs } elseif($method -eq 'GamesChanged') { $workerChangedArgs } elseif($method -eq 'SettingChanged') { [ComponentModel.PropertyChangedEventArgs]::new('TextSize') } else { [EventArgs]::Empty }
+            $workerTask = [ToolbarTestVisuals]::WorkerEvent($detailWidget,$method,$workerArgs)
+            if(!$workerTask.Wait(5000)) { throw ('Background event blocked while waiting for the UI: '+$method) }
+            [void]$workerTask.GetAwaiter().GetResult()
+        }
+    }
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    foreach($detailWidget in $detailWidgets) { if($detailWidget.FeaturedGame.Id -ne $featuredGame.Id) { throw 'Background database events lost the selected preview' } }
+    'PASS: all nine game-detail widgets accept import/update/collection/selection/hover/settings events from workers without accessing WPF or blocking the importing thread.'
     $detailWidgets[1].Settings.TextSize = 31
     if ($detailWidgets[2].Settings.TextSize -eq 31) { throw 'Independent detail widgets share formatting settings' }
     [void]$setHover.Invoke($plugin,@($hoverPreviewGame,$hoverOwnerB,$hoverGroup))
@@ -1383,19 +1465,533 @@ try {
     $titleSectionsAfterSameGame = $detailWidgets[1].GetType().GetField('sectionPanels',$flags).GetValue($detailWidgets[1])[[LandingPage.Settings.FeaturedGameSection]::Title]
     if (![object]::ReferenceEquals($titleSectionsBeforeSameGame,$titleSectionsAfterSameGame)) { throw 'Preview rebuilt an unchanged game section' }
     [void]$setHover.Invoke($plugin,@($null,$hoverOwnerB,$hoverGroup))
+    $savedPreviewLayout = Get-Setting $settingsModel.Settings 'GridLayout'
+    $fallbackShelfId = [guid]::NewGuid(); $fallbackRoot = [LandingPage.Models.Layout.GridNode]::new()
+    $fallbackShelfProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $fallbackShelfProperties.ViewId = 'GameShelves'; $fallbackShelfProperties.InstanceId = $fallbackShelfId; $fallbackRoot.ViewProperties = $fallbackShelfProperties
+    $fallbackShelf = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.ViewModels.ShelveViewModel])
+    $fallbackGames = [Collections.ObjectModel.ObservableCollection[LandingPage.Models.GameModel]]::new(); $fallbackGames.Add([LandingPage.Models.GameModel]::new($hoverPreviewGame)); $fallbackGames.Add([LandingPage.Models.GameModel]::new($featuredGame))
+    $fallbackShelf.Games = $fallbackGames; $fallbackShelf.CollectionViewSource = [Windows.Data.CollectionViewSource]::new(); $fallbackShelf.CollectionViewSource.Source = $fallbackGames
+    $fallbackGroup = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.ViewModels.ShelvesViewModel]); $fallbackGroup.ShelveViewModels = [Collections.ObjectModel.ObservableCollection[LandingPage.ViewModels.ShelveViewModel]]::new(); $fallbackGroup.ShelveViewModels.Add($fallbackShelf)
+    $shelfRegistry = $plugin.GetType().GetField('shelvesViewModels',$flags).GetValue($plugin); $shelfRegistry.Add($fallbackShelfId,$fallbackGroup)
+    Set-Setting $settingsModel.Settings 'GridLayout' $fallbackRoot
+    $notifyFallback = $plugin.GetType().GetMethod('NotifyPreviewFallbackChanged',$flags)
+    $beforeShelfFallbackQueries = [DashboardTestProxy]::LibraryEnumerations
+    foreach($detailWidget in $detailWidgets) { $detailWidget.Settings.Source = [LandingPage.Settings.FeaturedGameSource]::HoveredGame; $detailWidget.Settings.KeepLastHoveredGame = $false; Wait-Task ($detailWidget.OnViewShownAsync()); if($detailWidget.FeaturedGame.Id -ne $hoverPreviewGame.Id) { throw 'Detail widget did not start with the first shelf game' } }
+    $fallbackGames.Move(1,0); $notifyFallback.Invoke($plugin,@())
+    foreach($detailWidget in $detailWidgets) { Wait-Task ($detailWidget.OnViewShownAsync()); if($detailWidget.FeaturedGame.Id -ne $featuredGame.Id) { throw 'Shelf first-game changes did not refresh detail fallbacks' } }
+    if([DashboardTestProxy]::LibraryEnumerations -ne $beforeShelfFallbackQueries) { throw 'Shelf fallback enumerated the library instead of reusing shelf games' }
+    Set-Setting $settingsModel.Settings 'GridLayout' ([LandingPage.Models.Layout.GridNode]::new()); $notifyFallback.Invoke($plugin,@())
+    foreach($detailWidget in $detailWidgets) { Wait-Task ($detailWidget.OnViewShownAsync()) }
+    $randomFallbackId = $detailWidgets[0].FeaturedGame.Id
+    if(!$randomFallbackId -or @($detailWidgets | Where-Object { $_.FeaturedGame.Id -ne $randomFallbackId }).Count) { throw 'Widgets did not share a random fallback without shelves' }
+    $randomFallbackQueries = [DashboardTestProxy]::LibraryEnumerations; $notifyFallback.Invoke($plugin,@())
+    foreach($detailWidget in $detailWidgets) { Wait-Task ($detailWidget.OnViewShownAsync()); if($detailWidget.FeaturedGame.Id -ne $randomFallbackId) { throw 'Random fallback changed unnecessarily' } }
+    if([DashboardTestProxy]::LibraryEnumerations -ne $randomFallbackQueries) { throw 'Cached random fallback rescanned the library' }
+    Set-Setting $settingsModel.Settings 'GridLayout' $savedPreviewLayout; [void]$shelfRegistry.Remove($fallbackShelfId)
+    'PASS: first shelf game on initial hover-only previews, shelf reorder refresh, synchronized random fallback and no repeat library scans.'
     for ($detailIndex = 0; $detailIndex -lt $detailWidgets.Count; ++$detailIndex) {
         $definition = [LandingPage.Models.GameDetailWidgets]::Definitions[$detailIndex]
         $plugin.OnViewRemoved($definition.Id,$detailIds[$detailIndex])
         if (!$detailWidgets[$detailIndex].GetType().GetField('closed',$flags).GetValue($detailWidgets[$detailIndex]) -or $detailWidgets[$detailIndex].GetType().GetField('subscribed',$flags).GetValue($detailWidgets[$detailIndex])) { throw 'Removed detail widget retained subscriptions' }
+        $closedWorker = [ToolbarTestVisuals]::WorkerEvent($detailWidgets[$detailIndex],'GamesUpdated',$workerUpdateArgs)
+        if(!$closedWorker.Wait(5000)) { throw 'Closed widget blocked a background import' }
+        [void]$closedWorker.GetAwaiter().GetResult()
+
         [void]$layout.Children.Remove($detailNodes[$detailIndex])
     }
     'PASS: nine standalone detail widgets, Add catalog, actual ancestor settings binding, isolated sections/artwork, contextual editors, synchronized selected/hovered sources, no library scans and removal cleanup.'
+    $statsCatalog = @($plugin.GetAvailableStartPageViews().Views | Where-Object ViewId -eq 'LibraryStatistics')
+    if($statsCatalog.Count -ne 1 -or !$statsCatalog[0].AllowMultipleInstances) { throw 'Library statistics not registered correctly' }
+    # The test plugin is allocated without its constructor; initialize its instance registry.
+    Set-Field $plugin 'libraryStatisticsViews' ([Collections.Generic.Dictionary[guid,LandingPage.Views.LibraryStatisticsView]]::new())
+    $statsQueryStart = [DashboardTestProxy]::LibraryEnumerations
+    $statsId = [guid]::NewGuid(); $statsWidget = $plugin.GetStartPageView('LibraryStatistics',$statsId)
+    $statsProps = [LandingPage.Models.Layout.ViewProperties]::new(); $statsProps.ViewId = 'LibraryStatistics'; $statsProps.InstanceId = $statsId
+    $statsProps.LibraryStatisticsSettings.ValueSize = 41
+    $statsNode = [LandingPage.Models.Layout.GridNode]::new(); $statsNode.ViewProperties = $statsProps
+    $statsModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($statsNode); $statsModel.IsLeaf = $true; $statsModel.HasView = $true
+    [void]$statsModel.View.Children.Add($statsWidget)
+    $statsNodeView = [LandingPage.Views.GridNodeView]::new(); $statsNodeView.DataContext = $statsModel
+    [void]$layout.Children.Add($statsNodeView); $window.UpdateLayout()
+    Wait-Task ($statsWidget.OnViewShownAsync()); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $window.UpdateLayout()
+    $statsText = @([ToolbarTestVisuals]::Text($statsWidget) | ForEach-Object Text)
+    if(![object]::ReferenceEquals($statsWidget.Settings,$statsProps.LibraryStatisticsSettings) -or !($statsText -match 'Total games') -or !($statsText -match 'Total playtime')) { throw ('Statistics binding or rendered counters are missing: bound=' + [object]::ReferenceEquals($statsWidget.Settings,$statsProps.LibraryStatisticsSettings) + '; text=' + ($statsText -join '|')) }
+    $statsEditor = [LandingPage.Views.Settings.LibraryStatisticsSettingsView]::new(); $statsEditor.DataContext = $statsWidget.Settings
+    [void]$layout.Children.Add($statsEditor); $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if($statsEditor.FindName('Statuses') -or $statsEditor.FindName('CompletionMappingOptions')) { throw 'Statistics editor still contains the removed completion mapping' }
+    $totalSection = $statsEditor.FindName('CounterOptions').Content.Children[0]; $totalSection.IsExpanded = $true; $window.UpdateLayout()
+    $colorEditor = $totalSection.Content.Children[0]
+    $totalColorModel = @($statsWidget.Settings.CounterPlacements | Where-Object Counter -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0].Colors
+    if(![object]::ReferenceEquals($colorEditor.Content,$totalColorModel)) { throw 'Per-statistic color editor did not bind to the correct statistic' }
+    $colorSection = [ToolbarTestVisuals]::Named($colorEditor,'StatisticColorsExpander')
+    if(!$colorSection -or [ToolbarTestVisuals]::Named($colorSection,'StatisticValueColorPicker')) { throw 'Statistic color pickers were instantiated before opening Colors' }
+    $colorSection.IsExpanded = $true; $window.UpdateLayout()
+    if(![ToolbarTestVisuals]::Named($colorSection,'StatisticValueColorPicker')) { throw 'Opening statistic Colors did not create its color pickers' }
+    $totalSection.IsExpanded = $false
+    if($statsEditor.FindName('SelectedCounterPlacements')) { throw 'A separate per-statistic positions list is still present' }
+    if(![object]::ReferenceEquals($statsEditor.Content.Children[0],$statsEditor.FindName('CounterGridOptions'))) { throw 'Global grid setup is not at the top of statistic settings' }
+    $totalSection.IsExpanded = $true; $window.UpdateLayout()
+    $positionEditor = $totalSection.Content.Children[1]
+    $storedPosition = @($statsWidget.Settings.CounterPlacements | Where-Object Counter -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0]
+    if(![object]::ReferenceEquals($positionEditor.Content,$storedPosition)) { throw 'Inline position editor did not bind to its own statistic' }
+    $positionSection = [ToolbarTestVisuals]::Named($positionEditor,'StatisticPositionExpander')
+    if($positionSection.Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Inline positions should be hidden when grid mode is disabled' }
+    $statsWidget.Settings.UseCounterGrid = $true; $window.UpdateLayout()
+    if($positionSection.Visibility -ne [Windows.Visibility]::Visible) { throw 'Enabling grid mode did not reveal inline statistic positions' }
+    $positionSection.IsExpanded = $true; $window.UpdateLayout()
+    $rowInput = [ToolbarTestVisuals]::Named($positionSection,'StatisticPositionRow'); $rowInput.Value = 3
+    if($storedPosition.Row -ne 3) { throw 'Inline row input did not update the persisted statistic position' }
+    $statsWidget.Settings.ShowTotal = $false; $statsWidget.Settings.ShowTotal = $true
+    if($storedPosition.Row -ne 3) { throw 'Toggling a statistic erased its inline position' }
+    $statsWidget.Settings.UseCounterGrid = $false; $statsWidget.Settings.ResetCounterPositions(); $window.UpdateLayout()
+    if($statsWidget.Settings.CounterPlacements[0].Row -ne 1) { throw 'Reset positions did not update inline placement models' }
+    if($statsEditor.FindName('ValueColorOptions')) { throw 'Redundant separate global value color selector is still present' }
+    $statsEditor.GetType().GetMethod('GlobalTextColor_Editing',$flags).Invoke($statsEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    if($statsWidget.Settings.ValueColorMode -ne [LandingPage.Settings.StatisticsValueColor]::Theme) { throw 'Unified global theme text color did not apply to values' }
+    $statsWidget.Settings.CustomLabelColor = $true; $statsEditor.GetType().GetMethod('GlobalTextColor_Editing',$flags).Invoke($statsEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    if($statsWidget.Settings.ValueColorMode -ne [LandingPage.Settings.StatisticsValueColor]::MatchLabels) { throw 'Unified custom text color did not apply to values and labels' }
+    $statsWidget.Settings.CustomLabelColor = $false; $statsWidget.Settings.ValueColorMode = [LandingPage.Settings.StatisticsValueColor]::Theme
+    'PASS: top-level grid setup, lazy positions inside each statistic, saved inline row edits and unified global text color.'
+    [void]$layout.Children.Remove($statsEditor)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+
+    Wait-Task ($statsWidget.OnViewHiddenAsync()); Wait-Task ($statsWidget.OnViewShownAsync())
+    $statsWidget.Settings.Rows = $true; $statsWidget.Settings.ShowInstalled = $false; $statsWidget.Settings.ShowChart = $false
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+     $window.UpdateLayout()
+    if([DashboardTestProxy]::LibraryEnumerations -ne $statsQueryStart + 1 -or (@([ToolbarTestVisuals]::Text($statsWidget) | ForEach-Object Text) -match 'Installed')) { throw 'Statistics revisit rescanned the library or ignored counter settings' }
+    $statsSource = $statsWidget.GetType().GetField('source',$flags).GetValue($statsWidget)
+    $extraStatsGame = [Playnite.SDK.Models.Game]::new(); $extraStatsGame.Name = 'Statistics event fixture'; $extraStatsGame.IsInstalled = $true
+    $addedStats = [Collections.Generic.List[Playnite.SDK.Models.Game]]::new(); $addedStats.Add($extraStatsGame)
+    $removedStats = [Collections.Generic.List[Playnite.SDK.Models.Game]]::new()
+    $collectionArgs = [Playnite.SDK.ItemCollectionChangedEventArgs[Playnite.SDK.Models.Game]]::new($addedStats,$removedStats)
+    $statsSource.GetType().GetMethod('CollectionChanged',$flags).Invoke($statsSource,@($null,$collectionArgs))
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    $sourceTotals = $statsSource.GetType().GetMethod('Calculate',$flags).Invoke($statsSource,@($statsWidget.Settings,$false))
+    if(!(@([ToolbarTestVisuals]::Text($statsWidget) | ForEach-Object Text) -contains $sourceTotals.Total.ToString('N0'))) { throw 'Library addition did not update rendered statistics' }
+    $extraStatsGame.Playtime = 7200
+    $updates = [Collections.Generic.List[Playnite.SDK.ItemUpdateEvent[Playnite.SDK.Models.Game]]]::new()
+    $updates.Add([Playnite.SDK.ItemUpdateEvent[Playnite.SDK.Models.Game]]::new($extraStatsGame,$extraStatsGame))
+    $statsSource.GetType().GetMethod('Updated',$flags).Invoke($statsSource,@($null,[Playnite.SDK.ItemUpdatedEventArgs[Playnite.SDK.Models.Game]]::new($updates)))
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    $sourceTotals = $statsSource.GetType().GetMethod('Calculate',$flags).Invoke($statsSource,@($statsWidget.Settings,$false))
+    if(!(@([ToolbarTestVisuals]::Text($statsWidget) | ForEach-Object Text) -contains $sourceTotals.Playtime)) { throw 'Library update did not refresh rendered playtime' }
+    $otherStatsId = [guid]::NewGuid(); $otherStatsWidget = $plugin.GetStartPageView('LibraryStatistics',$otherStatsId)
+    Wait-Task ($otherStatsWidget.OnViewShownAsync())
+    if(![object]::ReferenceEquals($otherStatsWidget.GetType().GetField('source',$flags).GetValue($otherStatsWidget),$statsSource) -or [DashboardTestProxy]::LibraryEnumerations -ne $statsQueryStart + 1) { throw 'Statistics instances did not share the library index' }
+    $plugin.OnViewRemoved('LibraryStatistics',$otherStatsId)
+    $statsWidget.Settings.ShowChart = $true
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    if([ToolbarTestVisuals]::Named($statsWidget,'StatisticsPlot')) { throw 'Library Statistics still renders graphs from old settings' }
+    if($statsEditor.FindName('ChartOptions').Visibility -ne [Windows.Visibility]::Collapsed -or $statsEditor.FindName('ChartPaletteOptions').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Statistics still exposes graph settings' }
+    if(@($plugin.GetAvailableStartPageViews().Views | Where-Object ViewId -eq 'LibraryChart').Count -ne 1) { throw 'Separate Library chart is not in the widget catalog' }
+    function Wait-ChartRender {
+        $until = [datetime]::UtcNow.AddMilliseconds(120)
+        while([datetime]::UtcNow -lt $until) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 10 }
+        $window.UpdateLayout()
+    }
+    $chartIds = @(); $chartNodes = @(); $chartWidgets = @()
+    for($chartIndex = 0; $chartIndex -lt 2; $chartIndex++) {
+        $chartId = [guid]::NewGuid(); $chartWidget = $plugin.GetStartPageView('LibraryChart',$chartId)
+        $chartProps = [LandingPage.Models.Layout.ViewProperties]::new(); $chartProps.ViewId = 'LibraryChart'; $chartProps.InstanceId = $chartId
+        $chartProps.LibraryStatisticsSettings.Metric = [LandingPage.Settings.StatisticsMetric]::Playtime
+        $chartProps.LibraryStatisticsSettings.Breakdown = [LandingPage.Settings.StatisticsBreakdown]::Games
+        $chartNode = [LandingPage.Models.Layout.GridNode]::new(); $chartNode.ViewProperties = $chartProps
+        $chartModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($chartNode); $chartModel.IsLeaf = $true; $chartModel.HasView = $true; [void]$chartModel.View.Children.Add($chartWidget)
+        $chartNodeView = [LandingPage.Views.GridNodeView]::new(); $chartNodeView.DataContext = $chartModel; [void]$layout.Children.Add($chartNodeView)
+        Wait-Task ($chartWidget.OnViewShownAsync()); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+        $chartText = @([ToolbarTestVisuals]::Text($chartWidget) | ForEach-Object Text)
+        if(![object]::ReferenceEquals($chartWidget.Settings,$chartProps.LibraryStatisticsSettings) -or ($chartText -contains 'Total games') -or !($chartText -match 'Playtime:') -or !($chartText -match ' h')) { throw 'Separate chart failed to bind or rendered counters instead of a playtime graph' }
+        $chartIds += $chartId; $chartNodes += $chartNodeView; $chartWidgets += $chartWidget
+    }
+    $chartEditor = [LandingPage.Views.Settings.LibraryStatisticsSettingsView]::new(); $chartEditor.ChartOnly = $true; $chartEditor.DataContext = $chartWidgets[0].Settings
+    if($chartEditor.FindName('CounterOptions').Visibility -ne [Windows.Visibility]::Collapsed -or $chartEditor.FindName('ValueSizeInput').Visibility -ne [Windows.Visibility]::Collapsed -or $chartEditor.FindName('ShowChartOption').Visibility -ne [Windows.Visibility]::Collapsed -or $chartEditor.FindName('CompletionMappingOptions') -or $chartEditor.FindName('ChartOptions').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Chart editor exposes irrelevant counter controls' }
+    if($chartEditor.FindName('MultiChartOptions') -isnot [Windows.Controls.StackPanel] -or $chartEditor.FindName('ExtraChartList').Items.Count -ne 1 -or $chartEditor.FindName('RemoveChartButton').IsEnabled) { throw 'Unified Charts manager must initially contain one non-removable chart' }
+    if($chartEditor.FindName('ChartColors').Visibility -ne [Windows.Visibility]::Collapsed -or $chartEditor.FindName('ScopeOptions').Visibility -ne [Windows.Visibility]::Collapsed -or $chartEditor.FindName('LayoutTextOptions').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Default-chart options still appear outside Charts' }
+    $selectedChartEditor = $chartEditor.FindName('ExtraChartEditor').Content
+    if(!$selectedChartEditor -or ![object]::ReferenceEquals($selectedChartEditor.DataContext,$chartWidgets[0].Settings) -or $selectedChartEditor.FindName('ChartOptions').Visibility -ne [Windows.Visibility]::Visible) { throw 'First chart is not editable inside Charts' }
+    $chartEditor.GetType().GetMethod('RemoveChart_Click',$flags).Invoke($chartEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    if($chartEditor.FindName('ExtraChartList').Items.Count -ne 1) { throw 'The final chart could be removed' }
+    $chartWidgets[0].Settings.CustomChartColors = $false
+    $chartWidgets[0].Settings.Breakdown = [LandingPage.Settings.StatisticsBreakdown]::Installation
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $defaultPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')
+    if($defaultPlot.Chart.Series[0].Fill.GradientStops[1].Color.ToString() -ne '#FF42A5F5') { throw 'Default chart palette is not colorful' }
+    $chartWidgets[0].Settings.CustomChartColors = $true; $chartWidgets[0].Settings.ChartColor1 = '#FE1234'
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $customPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')
+    if($customPlot.Chart.Series[0].Fill.GradientStops[1].Color.ToString() -ne '#FFFE1234' -or ($customPlot.Chart.InnerRadius -le 0)) { throw 'Custom colors or doughnut geometry failed' }
+    $chartEditor.GetType().GetMethod('AddChart_Click',$flags).Invoke($chartEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    $extraChart = $chartWidgets[0].Settings.ExtraCharts[0]; $extraChart.ChartTitle = 'Second graph'; $extraChart.Metric = [LandingPage.Settings.StatisticsMetric]::GameCount
+    $chartWidgets[0].Settings.ChartColumns = 2
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender; $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $chartGrid = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartGrid')
+    if($chartGrid.Children.Count -ne 2 -or $chartGrid.ColumnDefinitions.Count -ne 2 -or !(@([ToolbarTestVisuals]::Text($chartWidgets[0]) | ForEach-Object Text) -contains 'Second graph')) { throw 'Additional chart did not render in the same widget grid' }
+    $chartWidgets[0].Height = 180
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $chartViewport = $chartWidgets[0].GetType().GetField('viewport',$flags).GetValue($chartWidgets[0])
+    if($chartViewport.ScrollableHeight -le 0) { throw 'Multiple charts do not expose a usable scrolling extent' }
+    $wheel = [Windows.Input.MouseWheelEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,-120); $wheel.RoutedEvent = [Windows.UIElement]::PreviewMouseWheelEvent; $chartWidgets[0].RaiseEvent($wheel)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if(!$wheel.Handled -or $chartViewport.VerticalOffset -le 0) { throw 'Chart wheel scrolling did not reach later charts' }
+    $savedChartScroll = $chartViewport.VerticalOffset
+    $chartWidgets[0].Settings.ChartTitle = 'Redraw with scroll'
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if([Math]::Abs($chartViewport.VerticalOffset-$savedChartScroll) -gt 1) { throw 'Chart redraw reset the scroll position' }
+    $chartWidgets[0].ClearValue([Windows.FrameworkElement]::HeightProperty)
+    $chartGrid = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartGrid')
+    $childChart = $chartGrid.Children[1]
+    if(![object]::ReferenceEquals($childChart.Settings,$extraChart) -or $childChart.Settings.Metric -ne [LandingPage.Settings.StatisticsMetric]::GameCount) { throw 'Additional chart shares primary settings' }
+    Wait-Task ($chartWidgets[0].OnViewHiddenAsync())
+    if($childChart.GetType().GetField('source',$flags).GetValue($childChart)) { throw 'Hidden parent chart retained an additional-chart subscription' }
+    Wait-Task ($chartWidgets[0].OnViewShownAsync())
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $resumedGrid = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartGrid')
+    if(![object]::ReferenceEquals($resumedGrid.Children[1],$childChart) -or !$childChart.GetType().GetField('source',$flags).GetValue($childChart)) { throw 'Additional chart did not resume with its cached control' }
+    $chartEditor.GetType().GetMethod('DuplicateChart_Click',$flags).Invoke($chartEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    if($chartWidgets[0].Settings.ExtraCharts.Count -ne 2 -or [object]::ReferenceEquals($chartWidgets[0].Settings.ExtraCharts[0],$chartWidgets[0].Settings.ExtraCharts[1])) { throw 'Duplicate chart did not create independent settings' }
+    $chartEditor.GetType().GetMethod('RemoveChart_Click',$flags).Invoke($chartEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    $chartEditor.FindName('ExtraChartList').SelectedItem = $extraChart
+    $chartEditor.GetType().GetMethod('RemoveChart_Click',$flags).Invoke($chartEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if(!$childChart.GetType().GetField('closed',$flags).GetValue($childChart)) { throw 'Removing an additional chart left subscriptions alive' }
+    $primaryOptions = $chartWidgets[0].Settings; $primaryOptions.ChartTitle = 'First item'; $primaryOptions.ChartColumns = 2
+    $chartEditor.GetType().GetMethod('AddChart_Click',$flags).Invoke($chartEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    $promoted = $primaryOptions.ExtraCharts[0]; $promoted.ChartTitle = 'Second item'
+    $chartEditor.FindName('ExtraChartList').SelectedItem = $promoted
+    $chartEditor.GetType().GetMethod('MoveChartUp_Click',$flags).Invoke($chartEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    if($primaryOptions.ChartTitle -ne 'Second item' -or $primaryOptions.ExtraCharts[0].ChartTitle -ne 'First item' -or $primaryOptions.ChartColumns -ne 2) { throw 'Charts could not reorder across the first position' }
+    $chartEditor.FindName('ExtraChartList').SelectedItem = $primaryOptions
+    $chartEditor.GetType().GetMethod('RemoveChart_Click',$flags).Invoke($chartEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    if($primaryOptions.ChartTitle -ne 'First item' -or $primaryOptions.ExtraCharts.Count -ne 0 -or $chartEditor.FindName('RemoveChartButton').IsEnabled) { throw 'Removing the first chart did not preserve the remaining chart or the one-chart minimum' }
+    $chartWidgets[0].Settings.ChartColumns = 1
+    $chartWidgets[0].Settings.ChartTitle = 'Independent graph'
+    if($chartWidgets[1].Settings.ChartTitle -eq 'Independent graph') { throw 'Chart widgets share settings' }
+    $chartWidgets[0].Settings.Breakdown = [LandingPage.Settings.StatisticsBreakdown]::Installation
+    foreach($placement in [enum]::GetValues([LandingPage.Settings.StatisticsLegendPosition])) {
+        $chartWidgets[0].Settings.LegendPosition = $placement
+        foreach($alignment in @([Windows.HorizontalAlignment]::Left,[Windows.HorizontalAlignment]::Center,[Windows.HorizontalAlignment]::Right)) {
+            $chartWidgets[0].Settings.LegendAlignment = $alignment
+            $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+            $legend = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartLegend')
+            $expectedDock = [Enum]::Parse([Windows.Controls.Dock],$placement.ToString())
+            if(!$legend -or [Windows.Controls.DockPanel]::GetDock($(if($legend.Parent -is [Windows.Controls.ScrollViewer]) { $legend.Parent } else { $legend })) -ne $expectedDock -or $legend.HorizontalAlignment -ne $alignment) { throw 'Legend placement or alignment ignored saved settings' }
+        }
+    }
+    $chartWidgets[0].Settings.LabelFontFamily = 'Consolas'; $chartWidgets[0].Settings.LabelBold = $true; $chartWidgets[0].Settings.LabelItalic = $true; $chartWidgets[0].Settings.LabelUnderline = $true
+    $chartWidgets[0].Settings.CustomLabelColor = $true; $chartWidgets[0].Settings.LabelColor = '#FEDCBA'
+    foreach($style in [enum]::GetValues([LandingPage.Settings.StatisticsChartStyle])) {
+        $chartWidgets[0].Settings.ChartStyle = $style
+        foreach($position in @([LandingPage.Settings.StatisticsLabelPosition]::BesideSegments,[LandingPage.Settings.StatisticsLabelPosition]::AboveBars)) {
+            $chartWidgets[0].Settings.LabelPosition = $position
+            $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+            if([ToolbarTestVisuals]::Named($chartWidgets[0],'ChartLegend')) { throw 'Segment labels were rendered as a grouped legend' }
+            $labelText = @([ToolbarTestVisuals]::Text($chartWidgets[0]) | Where-Object { $_.Text -match ' h' })
+            if($labelText.Count -lt 1 -or $labelText[0].FontSize -ne $chartWidgets[0].Settings.LabelSize) { throw 'Direct chart labels are missing or their text size is scaled' }
+            if($labelText[0].FontFamily.Source -ne 'Consolas' -or $labelText[0].FontWeight -ne [Windows.FontWeights]::Bold -or $labelText[0].FontStyle -ne [Windows.FontStyles]::Italic -or $labelText[0].TextDecorations.Count -eq 0 -or $labelText[0].Foreground.Color.ToString() -ne '#FFFEDCBA') { throw 'Label typography/custom color did not apply to every chart mode' }
+
+            if($style -eq [LandingPage.Settings.StatisticsChartStyle]::Pie -or $style -eq [LandingPage.Settings.StatisticsChartStyle]::Doughnut) {
+                if($position -eq [LandingPage.Settings.StatisticsLabelPosition]::AboveBars) {
+                    if(![ToolbarTestVisuals]::Named($chartWidgets[0],'ChartSliceLabel') -and ![ToolbarTestVisuals]::Named($chartWidgets[0],'ChartOutsideLabel')) { throw 'Circular inside/fallback mode has no labels' }
+                } else {
+                    if(![ToolbarTestVisuals]::Named($chartWidgets[0],'ChartOutsideLabel') -or [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartSliceLabel')) { throw 'Circular beside mode does not use outside labels' }
+                }
+            }
+            if($style -eq [LandingPage.Settings.StatisticsChartStyle]::Bars) {
+                $nativePlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')
+                if($nativePlot.Chart -isnot [LiveCharts.Wpf.CartesianChart] -or $nativePlot.Chart.AxisY[0].Labels.Count -lt 1) { throw 'Horizontal bars have no real category axis' }
+            }
+
+        }
+    }
+    $chartWidgets[0].Settings.LabelPosition = [LandingPage.Settings.StatisticsLabelPosition]::Legend
+    $chartWidgets[0].Settings.LegendPosition = [LandingPage.Settings.StatisticsLegendPosition]::Right
+    $chartWidgets[0].Settings.ChartStyle = [LandingPage.Settings.StatisticsChartStyle]::Doughnut
+    $window.UpdateLayout(); Wait-ChartRender
+    $beforeEditPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot'); $beforeEditWidth = $beforeEditPlot.ActualWidth; $beforeEditRenderCount = $chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0])
+    $chartNodeModel = $chartNodes[0].DataContext
+    $chartNodeModel.EditModeEnabled = $true; $chartWidgets[0].Settings.EditCharts = $true
+    $window.UpdateLayout(); Wait-ChartRender
+    $editingPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')
+    if(![object]::ReferenceEquals($editingPlot,$beforeEditPlot) -or $chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0]) -ne $beforeEditRenderCount) { throw 'Entering chart editing rebuilt the plot instead of toggling its overlay' }
+    if([Math]::Abs($editingPlot.ActualWidth-$beforeEditWidth) -gt 1) { throw ('Entering chart editing changed automatic plot width: '+$beforeEditWidth+' -> '+$editingPlot.ActualWidth) }
+    $chartWidgets[0].Settings.ChartStyle = [LandingPage.Settings.StatisticsChartStyle]::Bars
+    $chartWidgets[0].Settings.LabelPosition = [LandingPage.Settings.StatisticsLabelPosition]::BesideSegments
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $grip = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartResizeHandle')
+    if(!$grip -or $chartNodes[0].FindName('EditPanel').IsHitTestVisible) { throw 'Chart editing did not expose resize handles or release the dashboard overlay' }
+    $oldChartHeight = $chartWidgets[0].Settings.ChartHeight
+    $beginResize = [Windows.Controls.Primitives.DragStartedEventArgs]::new(0,0); $beginResize.RoutedEvent = [Windows.Controls.Primitives.Thumb]::DragStartedEvent; $grip.RaiseEvent($beginResize)
+    $resizeDelta = [Windows.Controls.Primitives.DragDeltaEventArgs]::new(80,40); $resizeDelta.RoutedEvent = [Windows.Controls.Primitives.Thumb]::DragDeltaEvent; $grip.RaiseEvent($resizeDelta)
+    $endResize = [Windows.Controls.Primitives.DragCompletedEventArgs]::new(80,40,$false); $endResize.RoutedEvent = [Windows.Controls.Primitives.Thumb]::DragCompletedEvent; $grip.RaiseEvent($endResize)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if($chartWidgets[0].Settings.ChartHeight -le $oldChartHeight -or $chartWidgets[0].Settings.ChartWidth -le 0) { throw 'Edit-mode resize grip did not change persisted chart geometry' }
+    $movableLabel = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartBarLabel')
+    if($movableLabel.Cursor -ne [Windows.Input.Cursors]::SizeAll) { throw 'Edit-mode labels do not expose drag interaction' }
+    $beforeDragPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot'); $beforeDragCount = $chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0])
+    $downLabel = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left); $downLabel.RoutedEvent = [Windows.UIElement]::PreviewMouseLeftButtonDownEvent; $movableLabel.RaiseEvent($downLabel)
+    $upLabel = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left); $upLabel.RoutedEvent = [Windows.UIElement]::PreviewMouseLeftButtonUpEvent; $movableLabel.RaiseEvent($upLabel)
+    if(!$downLabel.Handled -or !$upLabel.Handled -or $chartWidgets[0].GetType().GetField('manipulating',$flags).GetValue($chartWidgets[0])) { throw 'Label drag start/end did not capture and release cleanly' }
+    $window.UpdateLayout(); Wait-ChartRender
+    if(![object]::ReferenceEquals($beforeDragPlot,[ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')) -or $chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0]) -ne $beforeDragCount) { throw 'Completing a label drag rebuilt the chart' }
+    $originalOffset = $chartWidgets[0].Settings.LabelOffsetX
+    $beforeLabelPosition = $movableLabel.TranslatePoint([Windows.Point]::new(0,0),$chartWidgets[0]).X
+    $chartWidgets[0].Settings.LabelOffsetX += 17
+    $window.UpdateLayout(); Wait-ChartRender
+    if(![object]::ReferenceEquals($beforeDragPlot,[ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')) -or [Math]::Abs($movableLabel.TranslatePoint([Windows.Point]::new(0,0),$chartWidgets[0]).X-$beforeLabelPosition-17) -gt 1) { throw 'Offset edits did not move existing labels without rebuilding the graph' }
+    $chartWidgets[0].Settings.LabelOffsetX = $originalOffset
+    $pendingCount = $chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0])
+    $deferredDown = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left); $deferredDown.RoutedEvent = [Windows.UIElement]::PreviewMouseLeftButtonDownEvent; $movableLabel.RaiseEvent($deferredDown)
+    $chartWidgets[0].Settings.ChartTitle = 'Deferred visual change'
+    $window.UpdateLayout(); Wait-ChartRender
+    if($chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0]) -ne $pendingCount) { throw 'Visual setting rebuilt the chart in the middle of a label drag' }
+    $deferredUp = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left); $deferredUp.RoutedEvent = [Windows.UIElement]::PreviewMouseLeftButtonUpEvent; $movableLabel.RaiseEvent($deferredUp)
+    $window.UpdateLayout(); Wait-ChartRender
+    if($chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0]) -ne $pendingCount+1 -or !(@([ToolbarTestVisuals]::Text($chartWidgets[0]) | ForEach-Object Text) -contains 'Deferred visual change')) { throw 'Genuine deferred visual change was dropped or rebuilt more than once' }
+    $beforeDragPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')
+    $chartNodeModel.EditModeEnabled = $false
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if(([ToolbarTestVisuals]::Named($chartWidgets[0],'ChartResizeHandle')).Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Chart resize handles remain visible outside dashboard Edit Mode' }
+    if(![object]::ReferenceEquals($beforeDragPlot,[ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot'))) { throw 'Leaving chart editing rebuilt the chart' }
+    $editAppearance = [LandingPage.Views.PanelAppearanceView]::new(); $editAppearance.DataContext = $chartNodeModel
+    [void]$layout.Children.Add($editAppearance); $window.UpdateLayout(); Wait-ChartRender; $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if($editAppearance.FindName('GeneralAppearanceSection').IsExpanded) { throw 'Appearance settings did not collapse when specialized settings were present' }
+    $plainNode = [LandingPage.Models.Layout.GridNode]::new(); $plainNode.ViewProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $plainNode.ViewProperties.ViewId = 'ExternalWidget'
+    $editAppearance.DataContext = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($plainNode)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if(!$editAppearance.FindName('GeneralAppearanceSection').IsExpanded) { throw 'Appearance-only editor should remain expanded' }
+    [void]$layout.Children.Remove($editAppearance)
+    $selectedChartEditor = $chartEditor.FindName('ExtraChartEditor').Content
+    if($selectedChartEditor.FindName('RotationSlider') -isnot [Windows.Controls.Slider]) { throw 'Rotation is not exposed as a slider' }
+    'PASS: conditional Appearance expansion, rotation slider, edit-mode resizing, draggable labels, overlay input and cleanup outside Edit Mode.'
+    $chartWidgets[0].Settings.ChartStyle = [LandingPage.Settings.StatisticsChartStyle]::Pie
+    $chartWidgets[0].Settings.LabelPosition = [LandingPage.Settings.StatisticsLabelPosition]::Legend
+    $chartWidgets[0].Settings.Breakdown = [LandingPage.Settings.StatisticsBreakdown]::Games; $chartWidgets[0].Settings.Metric = [LandingPage.Settings.StatisticsMetric]::GameCount
+    $chartWidgets[0].Settings.ChartRotation = 0; $chartWidgets[0].Settings.ChartWidth = 500; $chartWidgets[0].Settings.ChartHeight = 260; $chartWidgets[0].Settings.ChartScale = 1
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $sizedPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot'); $originalDiameter = $sizedPlot.Width; $originalGeometry = $sizedPlot.Chart.StartingRotationAngle
+    $chartWidgets[0].Settings.ChartScale = 0.5; $chartWidgets[0].Settings.ChartRotation = 90
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $rotatedPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')
+    if([Math]::Abs($rotatedPlot.Width - $originalDiameter/2) -gt 1 -or $rotatedPlot.Chart.StartingRotationAngle -eq $originalGeometry) { throw 'Chart scaling or circular rotation did not alter geometry' }
+    $chartWidgets[0].Settings.ChartStyle = [LandingPage.Settings.StatisticsChartStyle]::Pie; $chartWidgets[0].Settings.ChartWidth = 800; $chartWidgets[0].Settings.ChartHeight = 600; $chartWidgets[0].Settings.LabelSize = 12
+    $chartWidgets[0].Settings.LabelPosition = [LandingPage.Settings.StatisticsLabelPosition]::AboveBars
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if(![ToolbarTestVisuals]::Named($chartWidgets[0],'ChartSliceLabel')) { throw 'Inside mode never places labels inside even when the pie is large enough' }
+    foreach($labelOffset in $chartWidgets[0].Settings.LabelOffsets) { $labelOffset.X = 600 }
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if(![ToolbarTestVisuals]::Named($chartWidgets[0],'ChartConnector')) { throw 'An inside label moved outside its pie slice has no connector' }
+    foreach($labelOffset in $chartWidgets[0].Settings.LabelOffsets) { $labelOffset.X = 0 }
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $chartWidgets[0].Settings.LabelPosition = [LandingPage.Settings.StatisticsLabelPosition]::BesideSegments
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if([ToolbarTestVisuals]::Named($chartWidgets[0],'ChartSliceLabel') -or ![ToolbarTestVisuals]::Named($chartWidgets[0],'ChartOutsideLabel')) { throw 'Beside and inside modes produce the same label placement' }
+    $chartWidgets[0].Settings.ChartStyle = [LandingPage.Settings.StatisticsChartStyle]::VerticalBars
+    $chartWidgets[0].Settings.LabelPosition = [LandingPage.Settings.StatisticsLabelPosition]::AboveBars
+    $chartWidgets[0].Settings.ChartScale = 1
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if(([ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')).Chart.Series[0] -isnot [LiveCharts.Wpf.ColumnSeries]) { throw 'Vertical bars did not render' }
+    $chartWidgets[0].Settings.ChartStyle = [LandingPage.Settings.StatisticsChartStyle]::Doughnut
+    $chartWidgets[0].Settings.ChartHeight = 60; $chartWidgets[0].Settings.ChartWidth = 400; $chartWidgets[0].Settings.LabelSize = 60; $chartWidgets[0].Settings.HoleSize = 0.85
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if([ToolbarTestVisuals]::Named($chartWidgets[0],'ChartSliceLabel') -or ![ToolbarTestVisuals]::Named($chartWidgets[0],'ChartOutsideLabel')) { throw 'Oversized inside labels did not fall back outside the doughnut' }
+    $chartWidgets[0].Settings.LabelPosition = [LandingPage.Settings.StatisticsLabelPosition]::BesideSegments
+    $chartWidgets[0].Settings.LabelSize = 14; $chartWidgets[0].Settings.LabelOffsetX = 0; $chartWidgets[0].Settings.LabelOffsetY = 0
+    $chartWidgets[0].Settings.ShowConnectorLines = $true; $chartWidgets[0].Settings.ConnectorStyle = [LandingPage.Settings.ChartConnectorStyle]::Straight
+    $chartWidgets[0].Settings.CustomConnectorColor = $true; $chartWidgets[0].Settings.ConnectorColor = '#12AB34'; $chartWidgets[0].Settings.ConnectorThickness = 3
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $outsideBefore = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartOutsideLabel'); $originalLabelX = $outsideBefore.TranslatePoint([Windows.Point]::new(0,0),$chartWidgets[0]).X; $originalLabelY = $outsideBefore.TranslatePoint([Windows.Point]::new(0,0),$chartWidgets[0]).Y
+    $connector = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartConnector')
+    if(!$connector -or $connector.Points.Count -ne 2 -or $connector.Stroke.Color.ToString() -ne '#FF12AB34' -or $connector.StrokeThickness -ne 3) { throw 'Connector style/color/thickness controls failed' }
+    $chartWidgets[0].Settings.LabelOffsetX = 25; $chartWidgets[0].Settings.LabelOffsetY = 15
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    $outsideAfter = [ToolbarTestVisuals]::Named($chartWidgets[0],'ChartOutsideLabel')
+    if($outsideAfter.TranslatePoint([Windows.Point]::new(0,0),$chartWidgets[0]).X -eq $originalLabelX -or $outsideAfter.TranslatePoint([Windows.Point]::new(0,0),$chartWidgets[0]).Y -eq $originalLabelY) { throw 'Label offset controls did not move the label' }
+    $chartWidgets[0].Settings.ShowConnectorLines = $false
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); Wait-ChartRender
+    if([ToolbarTestVisuals]::Named($chartWidgets[0],'ChartConnector')) { throw 'Connector line visibility was ignored' }
+    'PASS: vertical bars, explicit chart sizing/scale, circular rotation, inside-label fit/fallback, label offsets and connector customization.'
+    for($chartIndex = 0; $chartIndex -lt 2; $chartIndex++) { $plugin.OnViewRemoved('LibraryChart',$chartIds[$chartIndex]); [void]$layout.Children.Remove($chartNodes[$chartIndex]); if(!$chartWidgets[$chartIndex].GetType().GetField('closed',$flags).GetValue($chartWidgets[$chartIndex])) { throw 'Chart removal did not clean up its subscriptions' } }
+    'PASS: independent chart registrations/binding, playtime graphs, all legend positions/alignment, direct labels across chart styles and chart removal cleanup.'
+    $registryCharts = $plugin.AllAvailableViews['StartPage']
+    if(@($registryCharts | Where-Object ViewId -eq 'LibraryChart').Count -eq 0) { $chartArgs = [LandingPage.Models.Layout.StartPageViewArgs]::new(); $chartArgs.ViewId = 'LibraryChart'; $chartArgs.Name = 'Library chart'; $chartArgs.PluginId = $plugin.Id; $chartArgs.AllowMultipleInstances = $true; $registryCharts.Add($chartArgs) }
+    $boundedChartId = [guid]::NewGuid(); $boundedChartProps = [LandingPage.Models.Layout.ViewProperties]::new(); $boundedChartProps.ViewId = 'LibraryChart'; $boundedChartProps.PluginId = $plugin.Id; $boundedChartProps.InstanceId = $boundedChartId
+    $boundedChartProps.LibraryStatisticsSettings.ChartHeight = 300
+    for($extraIndex = 0; $extraIndex -lt 4; $extraIndex++) { $extraOptions = [LandingPage.Settings.LibraryStatisticsSettings]::CreateChartSettings(); $extraOptions.ChartHeight = 300; $boundedChartProps.LibraryStatisticsSettings.ExtraCharts.Add($extraOptions) }
+    $boundedWidgetCreated = $plugin.GetStartPageView('LibraryChart',$boundedChartId)
+    [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($boundedChartProps,$boundedWidgetCreated)
+    $boundedLeaf = [LandingPage.Models.Layout.GridNode]::new(); $boundedLeaf.ViewProperties = $boundedChartProps
+    $boundedColumns = [LandingPage.Models.Layout.GridNode]::new(); $boundedColumns.Orientation = [Windows.Controls.Orientation]::Horizontal; $boundedColumns.Children.Add([LandingPage.Models.Layout.GridNode]::new()); $boundedColumns.Children.Add($boundedLeaf)
+    $boundedRoot = [LandingPage.Models.Layout.GridNode]::new(); $boundedRoot.Orientation = [Windows.Controls.Orientation]::Vertical
+    $boundedTop = [LandingPage.Models.Layout.GridNode]::new(); $boundedTop.Size = [Windows.GridLength]::new(40); $boundedRoot.Children.Add($boundedTop); $boundedRoot.Children.Add($boundedColumns)
+    $boundedModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($boundedRoot); Wait-Task ($boundedModel.InititalizeGrid())
+    $boundedView = [LandingPage.Views.GridNodeView]::new(); $boundedView.DataContext = $boundedModel; $boundedView.Height = 320; $boundedView.Width = 700
+    $boundedPageScroll = [Windows.Controls.ScrollViewer]::new(); $boundedPageScroll.Height = 320; $boundedPageScroll.Width = 700; $boundedPageScroll.Content = $boundedView
+    [void]$scene.Children.Add($boundedPageScroll)
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    $boundedWidget = [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).GetValue($boundedChartProps)
+    $boundedViewport = $boundedWidget.GetType().GetField('viewport',$flags).GetValue($boundedWidget)
+    if($boundedViewport.ViewportHeight -gt 300 -or $boundedViewport.ScrollableHeight -lt 500 -or $boundedViewport.ComputedVerticalScrollBarVisibility -ne [Windows.Visibility]::Visible) { throw ('Nested dashboard chart has no bounded widget scrollbar: viewport=' + $boundedViewport.ViewportHeight + ', extent=' + $boundedViewport.ExtentHeight) }
+    $boundedViewport.ScrollToBottom(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    if($boundedViewport.VerticalOffset -le 0 -or [Math]::Abs($boundedViewport.VerticalOffset-$boundedViewport.ScrollableHeight) -gt 1) { throw 'Nested dashboard widget cannot scroll to its final chart' }
+
+    $boundedCharts = [ToolbarTestVisuals]::Named($boundedWidget,'ChartGrid')
+    if($boundedCharts.Children.Count -ne 5 -or @($boundedCharts.Children | Where-Object ActualHeight -lt 300).Count -gt 0) { throw 'Additional charts collapsed instead of contributing their full height' }
+    $lastChart = $boundedCharts.Children[$boundedCharts.Children.Count-1]
+    $lastBottom = $lastChart.TranslatePoint([Windows.Point]::new(0,$lastChart.ActualHeight),$boundedViewport).Y
+    if($lastBottom -gt $boundedViewport.ViewportHeight+2) { throw 'Final chart is below the viewport even at its maximum scroll offset' }
+    foreach($additionalView in $boundedWidget.GetType().GetField('extraViews',$flags).GetValue($boundedWidget).Values) {
+        if($additionalView.Content -is [Windows.Controls.ScrollViewer]) { throw 'Additional charts still create nested widget scrollbars' }
+    }
+    # A fixed dashboard can be taller than the window: both scroll ranges must work.
+    $beforeWindowResizePlot = [ToolbarTestVisuals]::Named($boundedWidget,'StatisticsPlot')
+    $beforeWindowResizeCount = $boundedWidget.GetType().GetField('renderCount',$flags).GetValue($boundedWidget)
+    $childResizeCounts = @($boundedWidget.GetType().GetField('extraViews',$flags).GetValue($boundedWidget).Values | ForEach-Object { $_.GetType().GetField('renderCount',$flags).GetValue($_) })
+    $boundedView.Width = 620; $window.UpdateLayout(); Wait-ChartRender
+    if(![object]::ReferenceEquals($beforeWindowResizePlot,[ToolbarTestVisuals]::Named($boundedWidget,'StatisticsPlot')) -or $boundedWidget.GetType().GetField('renderCount',$flags).GetValue($boundedWidget) -ne $beforeWindowResizeCount) { throw 'Window resize rebuilt the root chart' }
+    $afterChildResizeCounts = @($boundedWidget.GetType().GetField('extraViews',$flags).GetValue($boundedWidget).Values | ForEach-Object { $_.GetType().GetField('renderCount',$flags).GetValue($_) })
+    if(($childResizeCounts -join ',') -ne ($afterChildResizeCounts -join ',')) { throw 'Window resize rebuilt additional charts' }
+    $boundedView.Width = 700; $window.UpdateLayout(); Wait-ChartRender
+    $boundedView.Height = 1080; $window.UpdateLayout(); Wait-ChartRender
+    $boundedViewport.ScrollToTop(); $boundedPageScroll.ScrollToTop(); $window.UpdateLayout()
+    $firstWheel = [Windows.Input.MouseWheelEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,-120); $firstWheel.RoutedEvent = [Windows.UIElement]::PreviewMouseWheelEvent; $boundedWidget.RaiseEvent($firstWheel)
+    $window.UpdateLayout()
+    if(!$firstWheel.Handled -or $boundedViewport.VerticalOffset -le 0 -or $boundedPageScroll.VerticalOffset -ne 0) { throw 'Dashboard stole the wheel before the chart widget scrolled' }
+    $boundedViewport.ScrollToBottom(); $window.UpdateLayout()
+    $endWheel = [Windows.Input.MouseWheelEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,-120); $endWheel.RoutedEvent = [Windows.UIElement]::PreviewMouseWheelEvent; $boundedWidget.RaiseEvent($endWheel)
+    $window.UpdateLayout()
+    if(!$endWheel.Handled -or $boundedPageScroll.VerticalOffset -le 0) { throw 'Widget trapped the wheel at its bottom instead of scrolling the dashboard' }
+    $boundedViewport.ScrollToTop(); $boundedPageScroll.ScrollToBottom(); $window.UpdateLayout(); $outerBefore = $boundedPageScroll.VerticalOffset
+    $topWheel = [Windows.Input.MouseWheelEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,120); $topWheel.RoutedEvent = [Windows.UIElement]::PreviewMouseWheelEvent; $boundedWidget.RaiseEvent($topWheel)
+    $window.UpdateLayout()
+    if(!$topWheel.Handled -or $boundedPageScroll.VerticalOffset -ge $outerBefore) { throw 'Widget trapped the wheel at its top instead of scrolling the dashboard' }
+    $leafView = @($boundedModel.View.Children | Where-Object { $_ -is [LandingPage.Views.GridNodeView] })[1]
+    $leafModel = @($leafView.DataContext.View.Children | Where-Object { $_ -is [LandingPage.Views.GridNodeView] })[1].DataContext
+    $leafModel.SplitVerticallyCommand.Execute($null); $window.UpdateLayout(); Wait-ChartRender
+    if(![object]::ReferenceEquals($boundedWidget.Settings,$boundedChartProps.LibraryStatisticsSettings) -or $boundedWidget.Settings.ExtraCharts.Count -ne 4) { throw ('Vertical split lost the configured chart collection: current=' + $boundedWidget.Settings.ExtraCharts.Count + ', original=' + $boundedChartProps.LibraryStatisticsSettings.ExtraCharts.Count + ', loaded=' + $boundedWidget.IsLoaded + ', closed=' + $boundedWidget.GetType().GetField('closed',$flags).GetValue($boundedWidget) + ', parent=' + $boundedWidget.Parent) }
+    $splitCharts = [ToolbarTestVisuals]::Named($boundedWidget,'ChartGrid')
+    if($splitCharts.Children.Count -ne 5 -or @($splitCharts.Children | Where-Object ActualHeight -lt 300).Count -gt 0) { throw 'Vertical split left only one visible chart' }
+    $sixth = [LandingPage.Settings.LibraryStatisticsSettings]::CreateChartSettings(); $boundedWidget.Settings.ExtraCharts.Add($sixth); $boundedWidget.Settings.ChartColumns = 2
+    $boundedWidget.Settings.ChartHeight = 220; foreach($item in $boundedWidget.Settings.ExtraCharts) { $item.ChartHeight = 220 }
+    $window.UpdateLayout(); Wait-ChartRender; $window.UpdateLayout(); Wait-ChartRender
+    $sixCharts = [ToolbarTestVisuals]::Named($boundedWidget,'ChartGrid')
+    if($sixCharts.Children.Count -ne 6 -or $sixCharts.ColumnDefinitions.Count -ne 2 -or @($sixCharts.Children | Where-Object ActualHeight -lt 220).Count -gt 0) { throw 'Six-chart/two-column split layout collapsed or hid additional charts' }
+    Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $true
+    Wait-Task ($boundedWidget.GetType().GetMethod('LogChartLayout',$flags).Invoke($boundedWidget,@()))
+    $deadline = [datetime]::UtcNow.AddSeconds(3)
+    while(![IO.File]::ReadAllText($diagnosticFile).Contains('configuredCharts=6; renderedCharts=6; columns=2') -and [datetime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 10 }
+    if(![IO.File]::ReadAllText($diagnosticFile).Contains('configuredCharts=6; renderedCharts=6; columns=2')) { throw ('Chart layout diagnostics did not record configured/rendered chart counts and layout: visible=' + $boundedWidget.GetType().GetField('visible',$flags).GetValue($boundedWidget) + '; last=' + (([IO.File]::ReadAllText($diagnosticFile) -split [Environment]::NewLine | Where-Object { $_.Contains('Library chart layout:') }) -join '|')) }
+    Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $false
+    'PASS: all charts retain full measured height, final chart is visible at the bottom, wheel transfers at both boundaries, and vertical split preserves every chart.'
+    $plugin.OnViewRemoved('LibraryChart',$boundedChartId); [void]$scene.Children.Remove($boundedPageScroll)
+    'PASS: nested vertical/horizontal dashboard panels constrain chart viewport height and expose an independent scrollbar reaching the final chart.'
+    $statsWidget.Settings.UseCounterGrid = $true; $statsWidget.Settings.CounterRows = 3; $statsWidget.Settings.CounterColumns = 3
+    $totalPlacement = @($statsWidget.Settings.CounterPlacements | Where-Object Counter -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0]
+    $totalPlacement.Row = 2; $totalPlacement.Column = 2; $totalPlacement.ColumnSpan = 2
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    $counterGrid = [ToolbarTestVisuals]::Named($statsWidget,'CounterGrid')
+    $totalTile = @($counterGrid.Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0]
+    if(!$totalTile -or [Windows.Controls.Grid]::GetRow($totalTile) -ne 1 -or [Windows.Controls.Grid]::GetColumn($totalTile) -ne 1 -or [Windows.Controls.Grid]::GetColumnSpan($totalTile) -ne 2) { throw 'Counter grid row/column/span settings were ignored' }
+    $totalPlacement.Row = 3
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    $counterGrid = [ToolbarTestVisuals]::Named($statsWidget,'CounterGrid'); $totalTile = @($counterGrid.Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0]
+    if([Windows.Controls.Grid]::GetRow($totalTile) -ne 2) { throw 'Editing a nested counter position did not refresh the grid' }
+    $statsWidget.Settings.ShowTodayPlaytime = $true; $statsWidget.Settings.ShowWeekPlaytime = $true; $statsWidget.Settings.ShowMonthPlaytime = $true; $statsWidget.Settings.ShowYearPlaytime = $true
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    if(!(@([ToolbarTestVisuals]::Text($statsWidget) | ForEach-Object Text) -match 'requires GameActivity session history')) { throw 'Missing period history was silently reported as zero' }
+    $historyFixture = [LandingPage.ViewModels.GameActivity.GameActivityViewModel].GetConstructors()[0].Invoke([object[]]@($null,$api,$settingsModel))
+    Set-Field $historyFixture 'isInitialized' $true
+    $activityFixture = [LandingPage.Models.GameActivity.Activity]::new(); $activityFixture.Id = $extraStatsGame.Id
+    $sessionFixture = [LandingPage.Models.GameActivity.Session]::new(); $sessionFixture.DateSession = [datetime]::Now.Date.ToUniversalTime(); $sessionFixture.ElapsedSeconds = [uint64][Math]::Min(3600,[Math]::Floor([datetime]::Now.TimeOfDay.TotalSeconds))
+    $activityFixture.Items.Add($sessionFixture); $historyFixture.Activities.Add($activityFixture)
+    $historyLazy = [Lazy[LandingPage.ViewModels.GameActivity.GameActivityViewModel]]::new([Func[LandingPage.ViewModels.GameActivity.GameActivityViewModel]]{ return $historyFixture })
+    Set-Field $plugin 'gameActivityViewModel' $historyLazy
+    $statsWidget.OnDayChangedAsync([datetime]::Now).GetAwaiter().GetResult()
+    $historyDeadline = [datetime]::UtcNow.AddSeconds(5)
+    while(!$statsWidget.GetType().GetField('periodTotals',$flags).GetValue($statsWidget) -and [datetime]::UtcNow -lt $historyDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5 }
+    $actualPeriods = $statsWidget.GetType().GetField('periodTotals',$flags).GetValue($statsWidget)
+    if(!$actualPeriods -or $actualPeriods.TodaySeconds -ne $sessionFixture.ElapsedSeconds -or $actualPeriods.MonthSeconds -ne $sessionFixture.ElapsedSeconds) { throw 'Real statistics widget failed to load shared GameActivity session periods' }
+    Wait-Task ($statsWidget.OnViewHiddenAsync())
+    if($statsWidget.GetType().GetField('periodTimer',$flags).GetValue($statsWidget).IsEnabled -or $statsWidget.GetType().GetField('observedActivities',$flags).GetValue($statsWidget)) { throw 'Hidden statistics widget retained its period timer or history listener' }
+    $historyFixture.GetType().GetField('timer',$flags).GetValue($historyFixture).Stop()
+    'PASS: missing-history explanation, asynchronous shared GameActivity periods, all four counters and hidden timer/listener cleanup.'
+    $window.Resources['FontSizeLargest'] = [double]47; $window.Resources['FontSizeLarge'] = [double]27
+    $statsWidget.Settings.ValueFontFamily = 'Consolas'; $statsWidget.Settings.ValueBold = $true; $statsWidget.Settings.ValueItalic = $true; $statsWidget.Settings.ValueUnderline = $true; $statsWidget.Settings.ValueStrikeThrough = $true
+    $statsWidget.Settings.ValueSizePreset = [LandingPage.Settings.StatisticsTextSize]::ThemeLargest; $statsWidget.Settings.LabelSizePreset = [LandingPage.Settings.StatisticsTextSize]::ThemeLarge
+    $statsWidget.Settings.ValueColorMode = [LandingPage.Settings.StatisticsValueColor]::Custom; $statsWidget.Settings.ValueColor = '#1177AA'; $statsWidget.Settings.ValueOpacity = .7
+    $statsWidget.Settings.LabelStrikeThrough = $true; $statsWidget.Settings.LabelOpacity = .8; $statsWidget.Settings.LabelLineHeight = 24; $statsWidget.Settings.WrapCounterText = $false; $statsWidget.Settings.CounterTextTrimming = [Windows.TextTrimming]::CharacterEllipsis
+    $statsWidget.Settings.InheritTextRendering = $false; $statsWidget.Settings.TextFormatting = [Windows.Media.TextFormattingMode]::Display; $statsWidget.Settings.TextRendering = [Windows.Media.TextRenderingMode]::Grayscale
+    Wait-Task ($statsWidget.OnViewShownAsync()); $window.UpdateLayout(); Wait-ChartRender
+    $styledValue = [ToolbarTestVisuals]::Named($statsWidget,'StatisticValue'); $styledLabel = [ToolbarTestVisuals]::Named($statsWidget,'StatisticLabel')
+    if($styledValue.FontFamily.Source -ne 'Consolas' -or $styledValue.FontSize -ne 47 -or $styledValue.FontWeight -ne [Windows.FontWeights]::Bold -or $styledValue.FontStyle -ne [Windows.FontStyles]::Italic -or $styledValue.TextDecorations.Count -ne 2 -or $styledValue.Foreground.Color.ToString() -ne '#FF1177AA' -or $styledValue.Opacity -ne .7) { throw 'Statistic value styling did not reach rendered text' }
+    if($styledLabel.FontSize -ne 27 -or $styledLabel.Opacity -ne .8 -or $styledLabel.LineHeight -ne 24 -or $styledLabel.TextWrapping -ne [Windows.TextWrapping]::NoWrap -or $styledLabel.TextTrimming -ne [Windows.TextTrimming]::CharacterEllipsis -or [Windows.Media.TextOptions]::GetTextRenderingMode($styledLabel) -ne [Windows.Media.TextRenderingMode]::Grayscale) { throw 'Statistic label styling or Playnite rendering override failed' }
+    $window.Resources['FontSizeLargest'] = [double]49; $window.UpdateLayout()
+    if($styledValue.FontSize -ne 49) { throw 'Statistic theme-size preset does not follow changing theme resources' }
+    $statsWidget.Settings.CustomLabelColor = $true; $statsWidget.Settings.LabelColor = '#ABCDEF'; $statsWidget.Settings.ValueColorMode = [LandingPage.Settings.StatisticsValueColor]::MatchLabels
+    $window.UpdateLayout(); Wait-ChartRender
+    if(([ToolbarTestVisuals]::Named($statsWidget,'StatisticValue')).Foreground.Color.ToString() -ne '#FFABCDEF') { throw 'Value color did not follow the label color' }
+    'PASS: actual statistic text supports independent value/label styling, live theme sizes, matching colors and text rendering/wrapping controls.'
+    $totalColors = @($statsWidget.Settings.CounterPlacements | Where-Object Counter -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0].Colors
+    $totalColors.UseGlobalValueColor = $false; $totalColors.ValueColor = '#112233'; $totalColors.UseGlobalLabelColor = $false; $totalColors.LabelColor = '#445566'
+    $window.UpdateLayout(); Wait-ChartRender
+    $coloredTile = @(([ToolbarTestVisuals]::Named($statsWidget,'CounterGrid')).Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0]
+    if(([ToolbarTestVisuals]::Named($coloredTile,'StatisticValue')).Foreground.Color.ToString() -ne '#FF112233' -or ([ToolbarTestVisuals]::Named($coloredTile,'StatisticLabel')).Foreground.Color.ToString() -ne '#FF445566') { throw 'Per-statistic value/label overrides did not reach the live widget' }
+    $totalColors.UseGlobalValueColor = $true; $window.UpdateLayout(); Wait-ChartRender
+    $coloredTile = @(([ToolbarTestVisuals]::Named($statsWidget,'CounterGrid')).Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0]
+    if(([ToolbarTestVisuals]::Named($coloredTile,'StatisticValue')).Foreground.Color.ToString() -ne '#FF445566') { throw 'Global match-label mode did not follow the local label color' }
+    $totalColors.UseGlobalLabelColor = $true; $window.UpdateLayout(); Wait-ChartRender
+    $coloredTile = @(([ToolbarTestVisuals]::Named($statsWidget,'CounterGrid')).Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::Total))[0]
+    if(([ToolbarTestVisuals]::Named($coloredTile,'StatisticLabel')).Foreground.Color.ToString() -ne '#FFABCDEF' -or ([ToolbarTestVisuals]::Named($coloredTile,'StatisticValue')).Foreground.Color.ToString() -ne '#FFABCDEF') { throw 'Restoring global colors left a stale statistic override' }
+    'PASS: independent per-statistic value/label colors, global inheritance and match-label precedence.'
+
+    foreach($option in $statsWidget.Settings.AdditionalCounters) { $option.Enabled = $true }
+    foreach($groupOption in $statsWidget.Settings.StatisticGroups) { $groupOption.Enabled = $true; $groupOption.ShowPercentages = $true }
+    $window.UpdateLayout(); Wait-ChartRender
+    $allStatisticText = @([ToolbarTestVisuals]::Text($statsWidget) | ForEach-Object Text)
+    foreach($counterOption in $statsWidget.Settings.AdditionalCounters) { if($allStatisticText -notcontains $counterOption.Label) { throw ('Extended statistic did not render: '+$counterOption.Label) } }
+    foreach($groupTitle in @('Games by source','Games by platform','Games by genre','Games by category','Games by tag','Games by feature','Games by developer','Games by publisher','Games by completion status')) { if($allStatisticText -notcontains $groupTitle) { throw ('Metadata breakdown did not render: '+$groupTitle) } }
+    if($allStatisticText -contains 'Unavailable' -or $allStatisticText -match 'NaN|Infinity') { throw 'Expanded counters produced unavailable or invalid numbers' }
+    if($statsEditor.FindName('AdditionalCounterOptions').Visibility -ne [Windows.Visibility]::Visible -or $selectedChartEditor.FindName('AdditionalCounterOptions').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Additional statistics settings are missing from counters or leaking into charts' }
+    $sourceGroup = @($statsWidget.Settings.StatisticGroups | Where-Object Group -eq ([LandingPage.Settings.StatisticGroup]::Sources))[0]
+    $sourceGroup.Metric = [LandingPage.Settings.StatisticsMetric]::Playtime
+    $window.UpdateLayout(); Wait-ChartRender
+    if(@([ToolbarTestVisuals]::Text($statsWidget) | ForEach-Object Text) -notcontains 'Playtime by source') { throw 'Changing breakdown metric did not refresh the live widget' }
+    $sourceGroup.SelectedOnly = $true; $sourceGroup.SelectedId = [guid]::NewGuid(); $sourceGroup.Metric = [LandingPage.Settings.StatisticsMetric]::GameCount
+    $sourceGroup.ShowIcon = $true; $sourceGroup.ShowName = $false; $sourceGroup.ShowHeading = $false; $sourceGroup.IconSize = 31
+    $window.UpdateLayout(); Wait-ChartRender
+    $sourceBlock = @(([ToolbarTestVisuals]::Named($statsWidget,'CounterGrid')).Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::SourcesBreakdown))[0]
+    $selectedEntries = $sourceBlock.Children[0]
+    if($selectedEntries.Children.Count -ne 1) { throw 'Selected-source statistic did not reduce to one counter' }
+    $zeroCounter = [ToolbarTestVisuals]::Named($sourceBlock,'StatisticValue'); $sourceCaption = [ToolbarTestVisuals]::Named($sourceBlock,'StatisticLabel'); $sourceBadge = [ToolbarTestVisuals]::Named($sourceBlock,'StatisticSourceBadge')
+    if(!$zeroCounter.Text.StartsWith('0') -or !$sourceBadge -or $sourceCaption.Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Zero-match source/icon-only display failed' }
+    $sourceGroup.ShowName = $true; $window.UpdateLayout(); Wait-ChartRender
+    $sourceBlock = @(([ToolbarTestVisuals]::Named($statsWidget,'CounterGrid')).Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::SourcesBreakdown))[0]
+    if(([ToolbarTestVisuals]::Named($sourceBlock,'StatisticLabel')).Visibility -ne [Windows.Visibility]::Visible -or ![ToolbarTestVisuals]::Named($sourceBlock,'StatisticSourceBadge')) { throw 'Combined name and icon display failed' }
+    $sourceGroup.ShowIcon = $false; $sourceGroup.SelectedId = [guid]::Empty; $window.UpdateLayout(); Wait-ChartRender
+    $sourceBlock = @(([ToolbarTestVisuals]::Named($statsWidget,'CounterGrid')).Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::SourcesBreakdown))[0]
+    if([ToolbarTestVisuals]::Named($sourceBlock,'StatisticSourceBadge') -or !(@([ToolbarTestVisuals]::Text($sourceBlock) | ForEach-Object Text) -contains 'Playnite / no source')) { throw 'Selected Playnite/no-source text-only counter failed' }
+    $platformGroup = @($statsWidget.Settings.StatisticGroups | Where-Object Group -eq ([LandingPage.Settings.StatisticGroup]::Platforms))[0]
+    $platformGroup.SelectedOnly = $true; $platformGroup.SelectedId = [guid]::NewGuid(); $platformGroup.ShowIcon = $true; $platformGroup.ShowHeading = $false
+    $window.UpdateLayout(); Wait-ChartRender
+    $platformBlock = @(([ToolbarTestVisuals]::Named($statsWidget,'CounterGrid')).Children | Where-Object Tag -eq ([LandingPage.Settings.StatisticsCounter]::PlatformsBreakdown))[0]
+    if($platformBlock.Children[0].Children.Count -ne 1 -or !([ToolbarTestVisuals]::Named($platformBlock,'StatisticValue')).Text.StartsWith('0')) { throw 'Selected-platform statistic did not preserve an explicit zero count' }
+    'PASS: selected source/platform counters, zero matches, icon-only, text-only and combined badge modes.'
+    $extraCounterSubscription = $statsWidget.GetType().GetField('statisticOptionSubscriptions',$flags).GetValue($statsWidget)
+    if($extraCounterSubscription.Count -lt 48) { throw 'Statistic option changes are not being observed' }
+    'PASS: all 39 additional counters and nine metadata breakdowns render, follow live settings, and remain separate from chart controls.'
+    $plugin.OnViewRemoved('LibraryStatistics',$statsId)
+    if(!$statsWidget.GetType().GetField('closed',$flags).GetValue($statsWidget) -or $statsWidget.GetType().GetField('source',$flags).GetValue($statsWidget)) { throw 'Statistics widget retained source subscription after removal' }
+    [void]$layout.Children.Remove($statsNodeView)
+    if($extraCounterSubscription.Count -ne 0) { throw 'Removed statistics widget retained nested option subscriptions' }
+    'PASS: statistics catalog, ancestor settings binding, real counters/editor, cached revisits, counter toggles and removal cleanup.'
+
     [DashboardTestProxy]::FeaturedFixtureGames.Clear()
     'PASS: featured game registration, pinned rendering, live theme/color/size controls, cached revisits, settings editor and removal cleanup.'
     $hoverSettings = [LandingPage.Models.ShelveProperties]::new()
     $hoverSettings.HoverEffect = [LandingPage.Models.ShelfHoverEffect]::Dock; $hoverSettings.HoverScale = 1.4; $hoverSettings.HoverRadius = 2
     $hoverSettings.HoverGlow = $true; $hoverSettings.HoverDimOthers = $true
-    $hoverList = [Windows.Controls.ListBox]::new(); $hoverList.Width = 500; $hoverList.Height = 230; $hoverList.Padding = [Windows.Thickness]::new(3)
+    $hoverList = [Windows.Controls.ListBox]::new(); $hoverList.IsHitTestVisible = $false; $hoverList.Width = 500; $hoverList.Height = 230; $hoverList.Padding = [Windows.Thickness]::new(3)
     $hoverList.ItemsPanel = [Windows.Markup.XamlReader]::Parse('<ItemsPanelTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>')
     $hoverList.ItemTemplate = [Windows.Markup.XamlReader]::Parse('<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"><Border x:Name="HoverArtwork" Width="100" Height="120" Background="Gray"><TextBlock Text="{Binding Game.Name}"/></Border></DataTemplate>')
     $hoverStyle = [Windows.Style]::new([Windows.Controls.ListBoxItem])
@@ -1478,9 +2074,12 @@ try {
         $hoverSettings.HoverEffect = [Enum]::Parse([LandingPage.Models.ShelfHoverEffect],$animatedMode)
         [void]$applyHover.Invoke($hoverController,@($centerPoint,$null))
         [void]$applyHover.Invoke($hoverController,@($centerPoint,$middleCard))
-        $animationDeadline = [datetime]::UtcNow.AddMilliseconds(160)
-        while ([datetime]::UtcNow -lt $animationDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5 }
-        if ([Math]::Abs($middleState.Scale.ScaleX - 1.4) -gt 0.01) { throw ('Hover animation did not settle: ' + $animatedMode) }
+        # Synthetic pointer tests must discard pending real-pointer/scroll work.
+        $window.UpdateLayout()
+        $hoverController.GetType().GetMethod('CancelScheduled',$flags).Invoke($hoverController,@())
+        $animationDeadline = [datetime]::UtcNow.AddSeconds(2)
+        while ([datetime]::UtcNow -lt $animationDeadline -and [Math]::Abs($middleState.Scale.ScaleX - 1.4) -gt 0.01) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5 }
+        if ([Math]::Abs($middleState.Scale.ScaleX - 1.4) -gt 0.01) { throw ('Hover animation did not settle: ' + $animatedMode + '; scale=' + $middleState.Scale.ScaleX + '; target=' + $middleState.Target.Scale + '; visible=' + $middleCard.IsVisible + '; focused=' + $middleState.Focused) }
     }
     Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $true
     [void]$applyHover.Invoke($hoverController,@($centerPoint,$middleCard))
@@ -1517,6 +2116,28 @@ try {
     $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     if ($hoverList.Padding -ne [Windows.Thickness]::new(3) -or $middleCard.RenderTransform -isnot [Windows.Media.TranslateTransform] -or $middleCard.RenderTransform.X -ne 2) { throw 'Unloading hover effects lost original transforms/padding' }
     'PASS: visible overflow above shelf bounds, unchanged card layout, dock neighbors, glow/dimming, animated tilt/zoom/lift/bounce, grouped stability, cleanup and no hover queries.'
+    $beforePendingPage = $vm.SelectedPage.Id; $beforePendingCount = $vm.Pages.Count; $beforePendingRoot = $vm.RootNodeViewModel
+    $vm.BeginPageEditing()
+    $pendingPage = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Pending page')
+    Wait-Task ($vm.SwitchPageAsync($pendingPage))
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    if(!$vm.RootNodeViewModel.View.RowDefinitions[0].Height.IsAuto) { throw 'Toolbar row did not retain automatic height in WPF' }
+    Wait-Task ($vm.EndPageEditingAsync($false))
+    if($vm.Pages.Count -ne $beforePendingCount -or $vm.SelectedPage.Id -ne $beforePendingPage -or ![object]::ReferenceEquals($vm.RootNodeViewModel,$beforePendingRoot)) { throw 'Dismiss did not remove a pending page and restore the original dashboard' }
+    $deletablePage = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Deletion rollback fixture')
+    Wait-Task ($vm.SwitchPageAsync($deletablePage))
+    $countBeforePendingDelete = $vm.Pages.Count
+    $vm.BeginPageEditing(); $vm.ConfirmPageDeletion = $true; $vm.DeletePageCommand.Execute($null)
+    $deleteDeadline = [datetime]::UtcNow.AddSeconds(10)
+    while(@($vm.Pages | Where-Object Id -eq $deletablePage.Id).Count -gt 0 -and [datetime]::UtcNow -lt $deleteDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5 }
+    if($vm.Pages.Count -ne $countBeforePendingDelete - 1) { throw 'Pending deletion did not run' }
+    Wait-Task ($vm.EndPageEditingAsync($false))
+    $restoredDeleted = @($vm.Pages | Where-Object Id -eq $deletablePage.Id)[0]
+    if(!$restoredDeleted -or $vm.Pages.Count -ne $countBeforePendingDelete) { throw 'Dismiss failed to restore a deleted page' }
+    Wait-Task ($vm.SwitchPageAsync($restoredDeleted))
+    if($vm.RootNodeViewModel.GridNode.Children[0].ViewProperties.ViewId -ne 'ToolbarWidget') { throw 'Restored deleted page could not rebuild its toolbar layout' }
+    'PASS: Done-only rename, cancellation of background edits/page additions/deletions, unchanged layout reuse, and fitted toolbar/content defaults.'
+
     $window.Close()
     'PASS: toolbar serialization, native catalog/commands/menus/toggles/search/progress/extensions, clickable page navigation, missing providers, menu-state restoration, and settings refresh.'
     'PASS: legacy migration, independent layout/backgrounds, save/reload/order, nested traversal, real page switching and widget callbacks, deletion, last-page protection, temporary-file persistence, context-menu navigation, and in-app manager open/close.'

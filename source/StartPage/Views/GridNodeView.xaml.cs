@@ -25,6 +25,10 @@ namespace LandingPage.Views
         public GridNodeView()
         {
             InitializeComponent();
+            PreviewMouseWheel += (sender,args) => {
+                if(DataContext is GridNodeViewModel model && model.EditModeEnabled && model.GridNode.ViewProperties?.ViewId == "LibraryChart" && EditPanel.IsHitTestVisible)
+                    foreach(var child in model.View.Children.OfType<LibraryStatisticsView>()) { child.ChartMouseWheel(sender,args); if(args.Handled) break; }
+            };
         }
 
         private void OpenAppearance_Click(object sender, RoutedEventArgs e)
@@ -38,6 +42,12 @@ namespace LandingPage.Views
             e.Handled = true;
         }
 
+        private void EditCharts_Click(object sender,RoutedEventArgs args)
+        {
+            DependencyObject parent = this;
+            while(parent != null && !(parent is StartPageView)) parent = VisualTreeHelper.GetParent(parent);
+            if(parent is StartPageView page) { page.BeginChartEditing(); if(DataContext is GridNodeViewModel model && model.GridNode.ViewProperties?.LibraryStatisticsSettings.EditCharts == false && page.DataContext is ViewModels.StartPageViewModel dashboard) dashboard.SaveCurrentPage(); }
+        }
         private void EditFeaturedSections_Click(object sender, RoutedEventArgs args)
         {
             if (!(DataContext is GridNodeViewModel model) || !model.EditModeEnabled || model.GridNode.ViewProperties?.FeaturedGameSettings?.UseCustomSectionLayout != true) return;

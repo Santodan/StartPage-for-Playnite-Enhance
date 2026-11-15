@@ -6,7 +6,15 @@
     xmlns:local="clr-namespace:LandingPage.Views"
     xmlns:numeric="http://gu.se/NumericInput">
                                     <ScrollViewer  VerticalScrollBarVisibility="Auto">
-                                        <StackPanel Margin="16">
+                                        <StackPanel x:Name="SettingsSections" Margin="16">
+                                            <Expander Header="Library chart settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
+                                                <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding GridNode.ViewProperties.ViewId}" Value="LibraryChart"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Expander.Style>
+                                                <StackPanel><settingsViews:LibraryStatisticsSettingsView ChartOnly="True" DataContext="{Binding GridNode.ViewProperties.LibraryStatisticsSettings}"/><Button Content="Reset library chart settings" Click="ResetLibraryStatistics_Click" Margin="0,8,0,0"/></StackPanel>
+                                            </Expander>
+                                            <Expander Header="Library statistics settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
+                                                <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding GridNode.ViewProperties.ViewId}" Value="LibraryStatistics"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Expander.Style>
+                                                <StackPanel><settingsViews:LibraryStatisticsSettingsView DataContext="{Binding GridNode.ViewProperties.LibraryStatisticsSettings}"/><Button Content="Reset library statistics settings" Click="ResetLibraryStatistics_Click" Margin="0,8,0,0"/></StackPanel>
+                                            </Expander>
                                             <Expander Header="Game detail settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
                                                 <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -88,7 +96,7 @@
                                                     <Button Content="Reset clock settings" Click="ResetClock_Click" Margin="0,8,0,0"/>
                                                 </StackPanel>
                                             </Expander>
-                                            <Expander IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
+                                            <Expander x:Name="GeneralAppearanceSection" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
                                                 <Expander.Header>
                                                     <TextBlock Text="Appearance settings" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/>
                                                 </Expander.Header>

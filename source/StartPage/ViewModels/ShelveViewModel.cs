@@ -182,14 +182,17 @@ namespace LandingPage.ViewModels
                 {
                     UpdateOrder(shelveProperties, cvs);
                     UpdateGrouping(shelveProperties, cvs);
+                    LandingPageExtension.Instance.NotifyPreviewFallbackChanged();
                 }
                 if (e.PropertyName == nameof(ShelveProperties.SortBy))
                 {
                     UpdateSorting(shelveProperties, cvs);
+                    LandingPageExtension.Instance.NotifyPreviewFallbackChanged();
                 }
                 if (e.PropertyName == nameof(ShelveProperties.GroupBy))
                 {
                     UpdateGrouping(shelveProperties, cvs);
+                    LandingPageExtension.Instance.NotifyPreviewFallbackChanged();
                 }
                 if (e.PropertyName == nameof(ShelveProperties.InstalledOnly)
                     || e.PropertyName == nameof(ShelveProperties.IgnoreHidden)
@@ -537,6 +540,7 @@ namespace LandingPage.ViewModels
                 ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Shelf selection available: widget {ParentViewModel?.InstanceId}, sort {shelveProperties.SortBy}, {selectionWatch.ElapsedMilliseconds} ms (includes scheduling/UI wait).");
                 var applyWatch = System.Diagnostics.Stopwatch.StartNew();
                 ApplyGameSelection(gameSelection);
+                LandingPageExtension.Instance.NotifyPreviewFallbackChanged();
                 ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Shelf models applied: widget {ParentViewModel?.InstanceId}, {gameSelection.Count} games, {applyWatch.ElapsedMilliseconds} ms.");
             }
             finally { IsBusy = false; }

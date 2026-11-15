@@ -618,10 +618,10 @@
                                                         <ComboBoxItem Content="Center" Tag="{x:Static TextAlignment.Center}"/>
                                                         <ComboBoxItem Content="Right" Tag="{x:Static TextAlignment.Right}"/>
                                                     </ComboBox>
-                                                    <CheckBox Content="Bold title" IsChecked="{Binding ShelveProperties.MetadataTitleBold}" Margin="0,4,0,0"/>
-                                                    <CheckBox Content="Bold info" IsChecked="{Binding ShelveProperties.MetadataTextBold}" Margin="0,4,0,0"/>
-                                                    <CheckBox Content="Italic" IsChecked="{Binding ShelveProperties.MetadataItalic}" Margin="0,4,0,0"/>
-                                                    <CheckBox Content="Wrap text" IsChecked="{Binding ShelveProperties.MetadataWrap}" Margin="0,4,0,0"/>
+                                                    <WrapPanel><ToggleButton IsChecked="{Binding ShelveProperties.MetadataTitleBold}" ToolTip="Bold title" AutomationProperties.Name="Bold title" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="B" FontWeight="Bold" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
+                                                    <ToggleButton IsChecked="{Binding ShelveProperties.MetadataTextBold}" ToolTip="Bold info" AutomationProperties.Name="Bold info" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="B" FontWeight="Bold" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
+                                                    <ToggleButton IsChecked="{Binding ShelveProperties.MetadataItalic}" ToolTip="Italic" AutomationProperties.Name="Italic" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="I" FontStyle="Italic" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
+                                                    </WrapPanel><CheckBox Content="Wrap text" IsChecked="{Binding ShelveProperties.MetadataWrap}" Margin="0,4,0,0"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Expander>

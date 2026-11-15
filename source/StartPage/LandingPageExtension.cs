@@ -36,6 +36,10 @@ namespace LandingPage
         internal LandingPageSettingsViewModel SettingsViewModel { get; set; }
         internal LandingPageSettings Settings => SettingsViewModel.Settings;
 
+        private Utils.HostWindowDiagnostics hostWindowDiagnostics;
+        private Models.LibraryStatisticsSource libraryStatistics;
+        internal Models.LibraryStatisticsSource LibraryStatistics => libraryStatistics ?? (libraryStatistics = new Models.LibraryStatisticsSource(PlayniteApi));
+        private readonly Dictionary<Guid,LibraryStatisticsView> libraryStatisticsViews = new Dictionary<Guid,LibraryStatisticsView>();
         private Dictionary<Guid, FeaturedGameView> featuredGameViews = new Dictionary<Guid, FeaturedGameView>();
         internal Dictionary<Guid, ShelvesViewModel> shelvesViewModels = new Dictionary<Guid, ShelvesViewModel>();
 
@@ -286,6 +290,40 @@ namespace LandingPage
             GC.Collect();
         }
 
+        private Dictionary<string,Guid> previewFallbackGames;
+        internal event EventHandler FeaturedFallbackChanged;
+        internal void NotifyPreviewFallbackChanged() => FeaturedFallbackChanged?.Invoke(this,EventArgs.Empty);
+        internal Game GetPreviewFallback(Settings.FeaturedGameSettings options)
+        {
+            Func<Game,bool> matches = candidate => candidate != null && (options.IncludeHidden || !candidate.Hidden) && (!options.InstalledOnly || candidate.IsInstalled)
+                && (options.Source != LandingPage.Settings.FeaturedGameSource.RandomFavorite || candidate.Favorite);
+            var layout = Settings.GridLayout;
+            if(layout != null && shelvesViewModels != null)
+            {
+                foreach(var node in layout.Enumerate())
+                {
+                    var properties = node.ViewProperties;
+                    if(properties?.ViewId != "GameShelves" || !shelvesViewModels.TryGetValue(properties.InstanceId,out var shelves)) continue;
+                    foreach(var shelf in shelves.ShelveViewModels)
+                    {
+                        var models = shelf.CollectionViewSource?.View?.Cast<object>().OfType<Models.GameModel>() ?? shelf.Games;
+                        foreach(var model in models)
+                        {
+                            if(model.Game == null) continue;
+                            var candidate = PlayniteApi.Database.Games.Get(model.Game.Id);
+                            if(matches(candidate)) return candidate;
+                        }
+                    }
+                }
+            }
+            if(previewFallbackGames == null) previewFallbackGames = new Dictionary<string,Guid>();
+            var key = Settings.ActiveDashboardPageId+":"+options.IncludeHidden+":"+options.InstalledOnly+":"+(options.Source == LandingPage.Settings.FeaturedGameSource.RandomFavorite);
+            if(previewFallbackGames.TryGetValue(key,out var id) && matches(PlayniteApi.Database.Games.Get(id))) return PlayniteApi.Database.Games.Get(id);
+            var randomOptions = new Settings.FeaturedGameSettings { Source = options.Source == LandingPage.Settings.FeaturedGameSource.RandomFavorite ? LandingPage.Settings.FeaturedGameSource.RandomFavorite : LandingPage.Settings.FeaturedGameSource.Random, IncludeHidden = options.IncludeHidden, InstalledOnly = options.InstalledOnly };
+            var random = Models.FeaturedGameSelection.Select(PlayniteApi.Database.Games,randomOptions,null,false);
+            if(random != null) previewFallbackGames[key] = random.Id;
+            return random;
+        }
         internal event EventHandler FeaturedSelectionChanged;
         internal event EventHandler FeaturedHoverChanged;
         internal Game FeaturedSelectedGame { get; private set; }
@@ -429,6 +467,8 @@ namespace LandingPage
             var parentWindow = Application.Current.Windows.Cast<Window>().FirstOrDefault(w => w.Name == "WindowMain");
             parentWindow?.Dispatcher.Invoke(() =>
             {
+                hostWindowDiagnostics?.Dispose();
+                hostWindowDiagnostics = new Utils.HostWindowDiagnostics(this,parentWindow);
                 if (UiHelper.FindVisualChildren<ProgressBar>(parentWindow, "PART_ProgressGlobal").FirstOrDefault() is ProgressBar bar)
                 {
                     progressBar = bar;
@@ -648,6 +688,9 @@ namespace LandingPage
         public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
         {
             ExtensionDiagnostics.Record(this, "Lifecycle: OnApplicationStopped");
+            hostWindowDiagnostics?.Dispose(); hostWindowDiagnostics = null;
+            foreach(var stats in libraryStatisticsViews.Values) stats.OnViewClosed();
+            libraryStatistics?.Dispose();
             if (featuredGameViews != null) { foreach (var featured in featuredGameViews.Values) featured.OnViewClosed(); featuredGameViews.Clear(); }
             // Add code to be executed when Playnite is shutting down.
             if (viewModel is LandingPageViewModel)
@@ -784,6 +827,8 @@ namespace LandingPage
                 Description = "Local images, banners, and logos with an optional website link. Configure in Appearance.",
                 AllowMultipleInstances = true
             });
+            views.Add(new StartPageViewArgsBase { ViewId = "LibraryChart", Name = "Library chart", Description = "An independent library graph for game counts or playtime. Add multiple charts and configure each in Appearance.", AllowMultipleInstances = true });
+            views.Add(new StartPageViewArgsBase { ViewId = "LibraryStatistics", Name = "Library statistics", Description = "Configurable game counters and total playtime. Configure in Appearance.", AllowMultipleInstances = true });
             foreach (var definition in Models.GameDetailWidgets.Definitions)
                 views.Add(new StartPageViewArgsBase { ViewId = definition.Id, Name = definition.Name,
                     Description = "An independent game detail widget. Follow the selected or hovered game and configure fields in Appearance.", AllowMultipleInstances = true });
@@ -799,6 +844,7 @@ namespace LandingPage
 
         public object GetStartPageView(string id, Guid instanceId)
         {
+            if(id == "LibraryStatistics" || id == "LibraryChart") { var stats = new LibraryStatisticsView(id == "LibraryChart"); libraryStatisticsViews[instanceId] = stats; return stats; }
             var detail = Models.GameDetailWidgets.Find(id);
             if (id == "FeaturedGame" || detail != null)
             {
@@ -886,6 +932,7 @@ namespace LandingPage
 
         public void OnViewRemoved(string viewId, Guid instanceId)
         {
+            if((viewId == "LibraryStatistics" || viewId == "LibraryChart") && libraryStatisticsViews.TryGetValue(instanceId,out var stats)) { stats.OnViewClosed(); libraryStatisticsViews.Remove(instanceId); }
             if ((viewId == "FeaturedGame" || Models.GameDetailWidgets.Find(viewId) != null) && featuredGameViews?.TryGetValue(instanceId, out var featured) == true)
             { featured.OnViewClosed(); featuredGameViews.Remove(instanceId); }
             if (viewId == "GameShelves")

@@ -78,6 +78,8 @@ namespace LandingPage
         public DashboardTransition DashboardTransition { get => dashboardTransition; set => SetValue(ref dashboardTransition, value); }
         private DashboardSlideDirection dashboardSlideDirection = DashboardSlideDirection.Automatic;
         public DashboardSlideDirection DashboardSlideDirection { get => dashboardSlideDirection; set => SetValue(ref dashboardSlideDirection, value); }
+        private bool preserveWindowedStartupSize = true;
+        public bool PreserveWindowedStartupSize { get => preserveWindowedStartupSize; set => SetValue(ref preserveWindowedStartupSize,value); }
         private bool enableDashboardDiagnostics;
         public bool EnableDashboardDiagnostics { get => enableDashboardDiagnostics; set => SetValue(ref enableDashboardDiagnostics, value); }
         private bool dashboardRespectWindowsAnimations = true;

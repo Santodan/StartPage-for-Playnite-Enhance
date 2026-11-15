@@ -101,3 +101,5 @@ The **Featured game** widget shows a pinned or automatically selected game with 
 Game shelves now have optional per-shelf hover effects under **Shelf settings > Hover animations**, including dock-style neighbor magnification, lift, tilt, bounce, glow and dimming. See [Shelf hover effects](docs/SHELF-HOVER-EFFECTS.md).
 
 Build a game details dashboard with independent **Game: Artwork**, **Game: Title**, **Game: Description**, **Game: Activity**, **Game: Details**, **Game: Library information**, **Game: Scores**, **Game: Links** and **Game: Actions** widgets. They can follow selected or hovered games together. See [Game detail widgets](docs/GAME-DETAIL-WIDGETS.md).
+
+Library statistics widget: [configuration and counter definitions](docs/LIBRARY-STATISTICS.md).

@@ -29,3 +29,9 @@ Expand **Metadata formatting** for independent text size, text color and icon si
 Uncheck **Use the same size as description text** to use the metadata size field. Uncheck **Use the same color as description text** to choose a separate color (enable **Use custom metadata color**) or retain theme colors. Uncheck **Match icon size to metadata text** to set icon size independently. When matching description color, metadata follows its theme color until custom text colors are enabled.
 
 Under **Artwork and text**, horizontal and vertical content position controls place the title, description, metadata and actions at any of the nine top/center/bottom and left/center/right combinations. The default remains bottom-left.
+
+## Default preview when no game is hovered/selected
+
+When the configured preview source has no matching game, the widget uses the first matching game from the current dashboard's Game Shelves, in dashboard/shelf/display order. If there is no usable shelf game, it uses a random matching library game. The fallback is shared and cached so matching game widgets stay synchronized and do not reshuffle or scan the library on every refresh. Shelf loading/reordering updates previews when its first game becomes available.
+
+Normal hover/selection and keep-last-hovered behavior still take priority. Hidden/installed filters apply to fallbacks; random-favorite mode still requires favorites. Explicit pinned games remain explicit. If the library has no eligible game, preview widgets remain empty instead of showing a hover instruction.

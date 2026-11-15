@@ -46,3 +46,9 @@ If an update remains slow, enable extension Settings > Debug and reproduce it. T
 New **Game: Description** widgets enable description images by default. Existing widgets retain their saved choice: open **Appearance > Game detail settings > Description** and enable **Show description images**. This setting is independent of the full Featured Game widget. Debug logs report whether images are enabled, how many image tags were recognized, and image-loading failures.
 
 Descriptions preserve HTML formatting by default using Playnite's library description renderer, including headings, paragraphs, lists, links and emphasis. Under **Description**, disable **Preserve HTML formatting** for plain text. **Show description images** remains independent. Set length to **0** for the full description; positive limits retain balanced markup. Scrolling and automatic scrolling work with formatted descriptions as well. Supported HTML/CSS matches Playnite's renderer.
+
+## Default preview when no game is hovered/selected
+
+When the configured preview source has no matching game, the widget uses the first matching game from the current dashboard's Game Shelves, in dashboard/shelf/display order. If there is no usable shelf game, it uses a random matching library game. The fallback is shared and cached so matching game widgets stay synchronized and do not reshuffle or scan the library on every refresh. Shelf loading/reordering updates previews when its first game becomes available.
+
+Normal hover/selection and keep-last-hovered behavior still take priority. Hidden/installed filters apply to fallbacks; random-favorite mode still requires favorites. Explicit pinned games remain explicit. If the library has no eligible game, preview widgets remain empty instead of showing a hover instruction.

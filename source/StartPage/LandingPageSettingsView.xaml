@@ -24,6 +24,7 @@
                   HorizontalScrollBarVisibility="Disabled">
                 <Grid>
                     <StackPanel Grid.IsSharedSizeScope="True">
+                        <CheckBox Content="Preserve restored window size during startup" IsChecked="{Binding Settings.PreserveWindowedStartupSize}" Margin="3" Foreground="{DynamicResource TextBrush}" ToolTip="Prevents an automatic full-monitor resize in normal window mode during the first 30 seconds. Manual resize, maximize and DPI/display changes are left alone."/>
                         <DockPanel LastChildFill="False">
                             <DockPanel.ToolTip>
                                 <TextBlock Text="{DynamicResource LOC_SPG_UnsupportedToolTip}" TextWrapping="Wrap" MaxWidth="550"/>
@@ -423,7 +424,7 @@
             <ScrollViewer Padding="12" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
                     <CheckBox Content="Enable StartPage debug logging" Foreground="{DynamicResource TextBrush}" IsChecked="{Binding Settings.EnableDashboardDiagnostics}" Click="DebugLogging_Click"/>
-                    <TextBlock Foreground="{DynamicResource TextBrush}" Text="Records StartPage lifecycle events, widget loading, dashboard/background timings, cache activity, and the extension's existing debug, information, warning and error messages (including exception details)." TextWrapping="Wrap" Margin="0,8,0,12"/>
+                    <TextBlock Foreground="{DynamicResource TextBrush}" Text="Records StartPage lifecycle events, widget loading, dashboard/background timings, cache activity, main-window sizing and display/DPI changes, and the extension's existing debug, information, warning and error messages (including exception details)." TextWrapping="Wrap" Margin="0,8,0,12"/>
                     <TextBlock Foreground="{DynamicResource TextBrush}" Text="Debug log file" FontWeight="SemiBold"/>
                     <TextBox Text="{Binding DebugLogPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,8"/>
                     <Button Content="Open log folder" Click="OpenDebugLogFolder_Click" HorizontalAlignment="Left"/>

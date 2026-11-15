@@ -315,27 +315,38 @@ namespace LandingPage.Views
 
         private void ManagePages_Click(object sender, RoutedEventArgs e) => ShowPages();
 
+        public void BeginChartEditing()
+        {
+            if(DataContext is ViewModels.StartPageViewModel model && !model.RootNodeViewModel.EditModeEnabled) model.EnterEditModeCommand.Execute(null);
+            CloseAppearance();
+        }
+        private bool pagesClosing;
         public void ShowPages()
         {
-            if (!(DataContext is ViewModels.StartPageViewModel model) || model.IsSwitchingPage) return;
+            if (pagesClosing || !(DataContext is ViewModels.StartPageViewModel model) || model.IsSwitchingPage) return;
             if (AppearanceOverlay.Visibility == Visibility.Visible) CloseAppearance();
+            model.BeginPageEditing();
             PagesOverlay.Visibility = Visibility.Visible;
             PagesOverlay.Focus();
         }
 
-        private void ClosePages()
+        private async void ClosePages(bool save = false)
         {
-            if (PagesOverlay.Visibility != Visibility.Visible) return;
-            PagesOverlay.Focus(); // Commit any final name/path edit before saving.
+            if (PagesOverlay.Visibility != Visibility.Visible || pagesClosing) return;
+            pagesClosing = true;
+            PagesOverlay.Focus();
             PagesOverlay.Visibility = Visibility.Collapsed;
             if (DataContext is ViewModels.StartPageViewModel model)
             {
                 model.ConfirmPageDeletion = false;
-                if (model.CanChangePages) model.SaveCurrentPage();
+                try { while(model.IsSwitchingPage) await Task.Delay(16); await model.EndPageEditingAsync(save); }
+                catch (Exception ex) { LandingPageExtension.logger.Error(ex,"Unable to finish dashboard page editing."); }
             }
+            pagesClosing = false;
         }
 
         private void ClosePages_Click(object sender, RoutedEventArgs e) => ClosePages();
+        private void SavePages_Click(object sender, RoutedEventArgs e) => ClosePages(true);
         private void PagesOverlay_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape) { ClosePages(); e.Handled = true; }

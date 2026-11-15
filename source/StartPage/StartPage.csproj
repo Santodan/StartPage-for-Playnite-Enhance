@@ -60,7 +60,9 @@
     <Compile Include="Controls\SectionAppearanceBorder.cs" />
     <Compile Include="Controls\ContentAutoScroll.cs" />
     <Compile Include="Controls\LibraryDescriptionRenderer.cs" />
+    <Compile Include="Controls\LibraryChartPlot.cs" />
     <Compile Include="ExtensionDiagnostics.cs" />
+    <Compile Include="Utils\HostWindowDiagnostics.cs" />
     <Compile Include="Settings\FeaturedGameSettings.cs" />
     <Compile Include="Models\FeaturedGameSelection.cs" />
     <Compile Include="Models\GameDetailWidgets.cs" />
@@ -75,6 +77,12 @@
     <Compile Include="Models\DashboardTransitionPreset.cs" />
     <Compile Include="Settings\ClockSettings.cs" />
     <Compile Include="Views\Settings\ClockSettingsView.xaml.cs"><DependentUpon>ClockSettingsView.xaml</DependentUpon></Compile>
+    <Compile Include="Settings\LibraryStatisticsSettings.cs" />
+    <Compile Include="Models\LibraryStatistics.cs" />
+    <Compile Include="Models\PeriodPlaytime.cs" />
+    <Compile Include="Views\LibraryStatisticsView.cs" />
+    <Compile Include="Views\Settings\LibraryStatisticsSettingsView.xaml.cs"><DependentUpon>LibraryStatisticsSettingsView.xaml</DependentUpon></Compile>
+    <Page Include="Views\Settings\LibraryStatisticsSettingsView.xaml"><SubType>Designer</SubType><Generator>MSBuild:Compile</Generator></Page>
     <Compile Include="Settings\TextWidgetSettings.cs" />
     <Compile Include="Views\TextWidgetView.xaml.cs"><DependentUpon>TextWidgetView.xaml</DependentUpon></Compile>
     <Compile Include="Views\Settings\TextWidgetSettingsView.xaml.cs"><DependentUpon>TextWidgetSettingsView.xaml</DependentUpon></Compile>
@@ -465,6 +473,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="LiveCharts.Wpf"><Version>0.9.7</Version></PackageReference>
     <PackageReference Include="Gu.Wpf.NumericInput">
       <Version>0.5.5</Version>
     </PackageReference>
