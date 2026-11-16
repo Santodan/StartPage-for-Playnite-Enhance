@@ -339,7 +339,7 @@ try {
     if ($vm.Pages[0].Id -ne $pageB.Id) { throw 'Move page command failed' }
     $vm.RequestDeletePageCommand.Execute($null); $vm.DeletePageCommand.Execute($null)
     $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
-    if ($vm.Pages.Count -ne 1 -or $vm.SelectedPage.Id -ne $pageA.Id -or $vm.RequestDeletePageCommand.CanExecute($null)) { throw 'Delete/last-page protection failed' }
+    if ($vm.Pages.Count -ne 1 -or $vm.SelectedPage.Id -ne $pageA.Id -or $vm.RequestDeletePageCommand.CanExecute($null) -or $vm.QuickRemovePageCommand.CanExecute($null)) { throw 'Delete/last-page protection failed' }
     $savedFile = Get-ChildItem -LiteralPath $tempRoot -Recurse -Filter config.json | Select-Object -First 1
     if (!$savedFile) { throw 'Page operations did not persist settings' }
     $saved = [Newtonsoft.Json.JsonConvert]::DeserializeObject([IO.File]::ReadAllText($savedFile.FullName), [LandingPage.LandingPageSettings])
@@ -418,7 +418,7 @@ try {
 
     $toolbarSettings = [LandingPage.Settings.ToolbarWidgetSettings]::new()
     $toolbarClone = [Newtonsoft.Json.JsonConvert]::DeserializeObject([Newtonsoft.Json.JsonConvert]::SerializeObject($toolbarSettings), [LandingPage.Settings.ToolbarWidgetSettings])
-    if ($toolbarClone.Items.Count -ne 4 -or [object]::ReferenceEquals($toolbarClone.Items,$toolbarSettings.Items)) { throw 'Toolbar defaults duplicated/shared after serialization' }
+    if ($toolbarClone.Items.Count -ne 7 -or [object]::ReferenceEquals($toolbarClone.Items,$toolbarSettings.Items)) { throw 'Toolbar defaults duplicated/shared after serialization' }
     $nativeModel = [ToolbarTestModel]::new()
     $native = [Playnite.DesktopApp.Controls.Views.TopPanel]::new($nativeModel)
     $themeIconTemplate = [Windows.Markup.XamlReader]::Parse('<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><TextBlock Text="THEME"/></DataTemplate>')
@@ -508,6 +508,36 @@ try {
     $restoreDeadline = [datetime]::UtcNow.AddSeconds(2)
     while ($native.SortMenu.ReadLocalValue([Windows.Controls.ContextMenu]::PlacementTargetProperty) -ne $oldTarget -and [datetime]::UtcNow -lt $restoreDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 10 }
     if ($native.SortMenu.ReadLocalValue([Windows.Controls.ContextMenu]::PlacementTargetProperty) -ne $oldTarget -or $native.SortMenu.ReadLocalValue([Windows.FrameworkElement]::DataContextProperty) -ne $oldContext) { throw ('Native menu state was not restored after closing. Target: ' + $native.SortMenu.ReadLocalValue([Windows.Controls.ContextMenu]::PlacementTargetProperty) + ' expected: ' + $oldTarget + ' context: ' + $native.SortMenu.ReadLocalValue([Windows.FrameworkElement]::DataContextProperty) + ' expected: ' + $oldContext) }
+    $groupSettings = [LandingPage.Settings.ToolbarWidgetSettings]::new(); $groupSettings.Items.Clear()
+    $otherGroup = [LandingPage.Settings.ToolbarGroup]::new(); $otherGroup.Name = 'Right group'; $groupSettings.Groups.Add($otherGroup)
+    $groupEntries = @()
+    foreach ($spec in @(@('page.previous','main','A'),@('page.manage',$otherGroup.Id,'X'),@('page.next','main','B'),@('profile.manage',$otherGroup.Id,'Y'),@('page.add','main','C'))) {
+        $entry = [LandingPage.Settings.ToolbarEntry]::new(); $entry.Id = $spec[0]; $entry.GroupId = $spec[1]; $entry.Label = $spec[2]
+        $groupSettings.Items.Add($entry); $groupEntries += $entry
+    }
+    $groupEditor = [LandingPage.Views.Settings.ToolbarSettingsView]::new(); $groupEditor.DataContext = $groupSettings
+    $groupEditor.Measure([Windows.Size]::new(400,2000)); $groupEditor.Arrange([Windows.Rect]::new(0,0,400,2000)); $groupEditor.UpdateLayout()
+    if ((@($groupEditor.ItemsView | ForEach-Object Label) -join ',') -ne 'A,B,C' -or $groupEditor.FindName('GroupItemsList').Items.Count -ne 3) { throw 'Toolbar group selector did not filter the real item list' }
+    $secondGroupEditor = [LandingPage.Views.Settings.ToolbarSettingsView]::new(); $secondGroupEditor.DataContext = $groupSettings; $secondGroupEditor.SelectedGroup = $otherGroup
+    if (@($secondGroupEditor.ItemsView).Count -ne 2 -or @($groupEditor.ItemsView).Count -ne 3 -or [Windows.Data.CollectionViewSource]::GetDefaultView($groupSettings.Items).Count -ne 5) { throw 'Group filter leaked into another editor or the widget collection' }
+    $moveSender = [Windows.Controls.Button]::new(); $moveSender.DataContext = $groupEntries[0]
+    [void]$groupEditor.GetType().GetMethod('MoveLater_Click',$flags).Invoke($groupEditor,@($moveSender,[Windows.RoutedEventArgs]::new()))
+    if ((@($groupEditor.ItemsView | ForEach-Object Label) -join ',') -ne 'B,A,C' -or (@($groupSettings.Items | Where-Object GroupId -eq $otherGroup.Id | ForEach-Object Label) -join ',') -ne 'X,Y') { throw 'Group reorder moved outside its own group or changed hidden item ordering' }
+    $groupEditor.SelectedGroup = $otherGroup
+    $groupEditor.FindName('OptionPicker').SelectedValue = 'page.remove'
+    [void]$groupEditor.GetType().GetMethod('AddItem_Click',$flags).Invoke($groupEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    if ($groupSettings.Items[$groupSettings.Items.Count-1].GroupId -ne $otherGroup.Id -or @($groupEditor.ItemsView).Count -ne 3) { throw 'Adding toolbar item ignored the selected group' }
+    $groupEntries[4].GroupId = $otherGroup.Id
+    if (@($groupEditor.ItemsView).Count -ne 4) { throw 'Moving an item between groups did not immediately refresh the list' }
+    $removeGroupSender = [Windows.Controls.Button]::new(); $removeGroupSender.DataContext = $otherGroup
+    [void]$groupEditor.GetType().GetMethod('RemoveGroup_Click',$flags).Invoke($groupEditor,@($removeGroupSender,[Windows.RoutedEventArgs]::new()))
+    if ($groupEditor.SelectedGroup.Id -ne 'main' -or @($groupEditor.ItemsView).Count -ne 6 -or @($groupSettings.Items | Where-Object GroupId -ne 'main').Count) { throw 'Deleting selected group lost items or left a stale group filter' }
+    [void]$groupEditor.GetType().GetMethod('AddGroup_Click',$flags).Invoke($groupEditor,@($null,[Windows.RoutedEventArgs]::new()))
+    if ($groupEditor.SelectedGroup.Id -eq 'main' -or @($groupEditor.ItemsView).Count -ne 0) { throw 'Newly added group was not selected with an empty item list' }
+    $groupEditor.DataContext = [LandingPage.Settings.ToolbarWidgetSettings]::new()
+    $groupEntries[0].GroupId = 'removed-provider-group'; $groupSettings.Items.Add([LandingPage.Settings.ToolbarEntry]::new())
+    if (@($groupEditor.ItemsView).Count -ne 7) { throw 'Old settings continued changing the replacement editor' }
+    'PASS: independent group-filtered item lists, selected-group adds, group-only reorder, live reassignment, deleted-group recovery and settings replacement.'
     $editor = [LandingPage.Views.Settings.ToolbarSettingsView]::new(); $editor.DataContext = $toolbar.Settings
     $editor.Measure([Windows.Size]::new(400,2000)); $editor.Arrange([Windows.Rect]::new(0,0,400,2000))
     if ($editor.Content.Children[0].Foreground.ToString() -ne [Windows.Media.Brushes]::Lime.ToString()) { throw 'Toolbar editor text ignores the theme TextBrush' }
@@ -2161,6 +2191,34 @@ try {
     if ($pendingToolbar -isnot [LandingPage.Views.ToolbarWidgetView]) { throw 'New-page test rendered a missing-provider placeholder instead of the real toolbar' }
     Wait-Task ($vm.EndPageEditingAsync($false))
     if($vm.Pages.Count -ne $beforePendingCount -or $vm.SelectedPage.Id -ne $beforePendingPage -or ![object]::ReferenceEquals($vm.RootNodeViewModel,$beforePendingRoot)) { throw 'Dismiss did not remove a pending page and restore the original dashboard' }
+    $savedInsetToolbar = $view.GetType().GetField('insetToolbar',$flags).GetValue($view)
+    $topProbe = [Windows.Controls.Border]::new(); $topProbe.Height = 52; $topProbe.VerticalAlignment = [Windows.VerticalAlignment]::Top
+    [void]$layout.Children.Add($topProbe); $window.UpdateLayout()
+    $view.GetType().GetField('insetToolbar',$flags).SetValue($view,$topProbe)
+    [void]$view.GetType().GetMethod('UpdateDashboardTopInset',$flags).Invoke($view,@())
+    $surface = $view.FindName('DashboardSurface')
+    if ($surface.Margin.Top -lt 52) { throw 'Overlapping native toolbar did not reserve space above widgets' }
+    $originalViewMargin = $view.Margin
+    $view.Margin = [Windows.Thickness]::new(0,80,0,0); $window.UpdateLayout()
+    [void]$view.GetType().GetMethod('UpdateDashboardTopInset',$flags).Invoke($view,@())
+    if ($surface.Margin.Top -gt 0.5) { throw 'Dashboard already below the native toolbar received duplicate top spacing' }
+    $view.Margin = $originalViewMargin; $layout.Children.Remove($topProbe)
+    $view.GetType().GetField('insetToolbar',$flags).SetValue($view,$savedInsetToolbar)
+    $window.UpdateLayout(); [void]$view.GetType().GetMethod('UpdateDashboardTopInset',$flags).Invoke($view,@())
+    $originalChrome = [Windows.Shell.WindowChrome]::GetWindowChrome($window)
+    try {
+        $hiddenChrome = [Windows.Shell.WindowChrome]::new(); $hiddenChrome.CaptionHeight = 0
+        [Windows.Shell.WindowChrome]::SetWindowChrome($window,$hiddenChrome)
+        $view.GetType().GetField('insetToolbar',$flags).SetValue($view,$null)
+        $window.UpdateLayout(); [void]$view.GetType().GetMethod('UpdateDashboardTopInset',$flags).Invoke($view,@())
+        $expectedCaptionInset = [Math]::Max(0,32 - $view.TranslatePoint([Windows.Point]::new(0,0),$window).Y)
+        if ([Math]::Abs($surface.Margin.Top - $expectedCaptionInset) -gt 0.5) { throw 'Hidden-caption theme did not reserve hover title-bar clearance' }
+    } finally {
+        [Windows.Shell.WindowChrome]::SetWindowChrome($window,$originalChrome)
+        $view.GetType().GetField('insetToolbar',$flags).SetValue($view,$savedInsetToolbar)
+        $window.UpdateLayout(); [void]$view.GetType().GetMethod('UpdateDashboardTopInset',$flags).Invoke($view,@())
+    }
+    'PASS: overlapping host toolbar reserves top clearance while normally positioned dashboards keep their original spacing.'
     $measureToolbar = [LandingPage.Views.ToolbarWidgetView]::new()
     [void]$measureToolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($measureToolbar,@())
     $measureToolbar.Measure([Windows.Size]::new(600,[double]::PositiveInfinity))
@@ -2226,8 +2284,12 @@ try {
     $view.ShowPages(); $view.FindName('DeletePagesSection').IsExpanded = $true; $window.UpdateLayout()
     $pageDeleteList = $view.FindName('PagesToDeleteList')
     $pageDeleteList.SelectedItems.Add($bulkOne); $pageDeleteList.SelectedItems.Add($bulkTwo)
+    if (!$view.FindName('RequestDeleteSelectedPagesButton').IsEnabled) { throw 'Bulk delete button waited for a dispatcher requery after selection changed' }
     if ($vm.PagesSelectedForDeletion.Count -ne 2 -or $vm.SelectedPage.Id -ne $beforeBulkActive -or ![object]::ReferenceEquals($beforeBulkRoot,$vm.RootNodeViewModel)) { throw 'Selecting deletion targets navigated or replaced the active dashboard' }
-    $vm.RequestDeleteSelectedPagesCommand.Execute($null); $vm.CancelDeletePageCommand.Execute($null)
+    $vm.RequestDeleteSelectedPagesCommand.Execute($null)
+    if (!$view.FindName('ConfirmDeleteSelectedPagesButton').IsEnabled) { throw 'Confirmation delete button did not enable immediately' }
+    $vm.CancelDeletePageCommand.Execute($null)
+    if ($view.FindName('ConfirmDeleteSelectedPagesButton').IsEnabled) { throw 'Cancelled delete button stayed enabled until the next requery' }
     if ($vm.DeleteSelectedPagesCommand.CanExecute($null) -or $vm.Pages.Count -ne $beforeBulkCount) { throw 'Cancel did not cancel the bulk delete confirmation' }
     $vm.RequestDeleteSelectedPagesCommand.Execute($null); $vm.DeleteSelectedPagesCommand.Execute($null)
     if ($vm.Pages.Count -ne $beforeBulkCount - 2 -or $vm.Pages.Contains($bulkOne) -or $vm.Pages.Contains($bulkTwo) -or ![object]::ReferenceEquals($beforeBulkRoot,$vm.RootNodeViewModel) -or $vm.SelectedPage.Id -ne $beforeBulkActive) { throw 'Inactive bulk deletion loaded targets or changed the active page' }
@@ -2235,6 +2297,7 @@ try {
     if ($vm.Pages.Count -ne $beforeBulkCount -or !@($vm.Pages | Where-Object Id -eq $bulkOne.Id) -or !@($vm.Pages | Where-Object Id -eq $bulkTwo.Id)) { throw 'Dismissing page manager did not restore bulk-deleted pages' }
     $vm.BeginPageEditing()
     $pageDeleteList.SelectAll()
+    if ($view.FindName('RequestDeleteSelectedPagesButton').IsEnabled) { throw 'Selecting every page did not immediately disable deletion' }
     if ($vm.RequestDeleteSelectedPagesCommand.CanExecute($null) -or $vm.DeleteSelectedPagesCommand.CanExecute($null)) { throw 'Bulk deletion allows deleting every dashboard page' }
     $pageDeleteList.UnselectAll()
     $bulkOne = @($vm.Pages | Where-Object Name -eq 'Inactive bulk deletion A')[0]
@@ -2257,6 +2320,34 @@ try {
     if (!@($vm.Pages | Where-Object Id -eq $activeDeleteId)) { throw 'Cancelling active bulk deletion did not restore the deleted page' }
     $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
     'PASS: real multi-select page list, inactive deletion without navigation, confirmation cancel, all-pages protection, Done persistence, active-page fallback and editor rollback.'
+    $quickBefore = $vm.Pages.Count
+    $vm.QuickAddPageCommand.Execute($null)
+    $quickDeadline = [datetime]::UtcNow.AddSeconds(15)
+    while ($vm.IsSwitchingPage -and [datetime]::UtcNow -lt $quickDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 10 }
+    $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+    $quickPage = $vm.SelectedPage
+    if ($vm.Pages.Count -ne $quickBefore + 1 -or $quickPage.Layout.Children.Count -ne 2 -or $quickPage.Layout.Children[0].ViewProperties.ViewId -ne 'ToolbarWidget') { throw 'Quick add did not create and select the default two-panel page' }
+    $quickDisk = [Newtonsoft.Json.JsonConvert]::DeserializeObject([IO.File]::ReadAllText($savedFile.FullName),[LandingPage.LandingPageSettings])
+    if (!@([LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($quickDisk) | Where-Object Id -eq $quickPage.Id)) { throw 'Quick add was not saved immediately' }
+    $quickToolbar = [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).GetValue($quickPage.Layout.Children[0].ViewProperties)
+    $quickButtons = @([ToolbarTestVisuals]::Buttons($quickToolbar))
+    if (!@($quickButtons | Where-Object { $_.ToolTip -eq 'Add dashboard page' -and [object]::ReferenceEquals($_.Command,$vm.QuickAddPageCommand) }) -or !@($quickButtons | Where-Object { $_.ToolTip -eq 'Remove current dashboard page' -and [object]::ReferenceEquals($_.Command,$vm.QuickRemovePageCommand) })) { throw 'Quick page commands are not connected to default toolbar buttons' }
+    $vm.QuickRemovePageCommand.Execute($null)
+    if ($view.FindName('QuickDeletePageOverlay').Visibility -ne [Windows.Visibility]::Visible -or $vm.Pages.Count -ne $quickBefore + 1) { throw 'Quick remove deleted without in-app confirmation' }
+    [void]$view.GetType().GetMethod('CancelQuickPageDeletion_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    if ($view.FindName('QuickDeletePageOverlay').Visibility -ne [Windows.Visibility]::Collapsed -or !$vm.Pages.Contains($quickPage)) { throw 'Quick-remove cancellation changed the page' }
+    $vm.QuickRemovePageCommand.Execute($null)
+    $quickConfirm = $view.FindName('QuickDeletePageConfirmButton')
+    [void]$quickConfirm.GetType().GetMethod('OnClick',$flags).Invoke($quickConfirm,@())
+    $quickDeadline = [datetime]::UtcNow.AddSeconds(15)
+    while ($vm.Pages.Contains($quickPage) -and [datetime]::UtcNow -lt $quickDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 10 }
+    if ($vm.Pages.Count -ne $quickBefore -or $vm.SelectedPage.Id -eq $quickPage.Id) { throw 'Quick remove did not delete and select a surviving page' }
+    $quickDisk = [Newtonsoft.Json.JsonConvert]::DeserializeObject([IO.File]::ReadAllText($savedFile.FullName),[LandingPage.LandingPageSettings])
+    if (@([LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($quickDisk) | Where-Object Id -eq $quickPage.Id)) { throw 'Quick removal was not saved immediately' }
+    $vm.BeginPageEditing()
+    if ($vm.QuickAddPageCommand.CanExecute($null) -or $vm.QuickRemovePageCommand.CanExecute($null)) { throw 'Quick actions can bypass pending page-manager edits' }
+    Wait-Task ($vm.EndPageEditingAsync($false))
+    'PASS: quick add/remove default toolbar bindings, immediate persistence, in-app confirmation/cancel, surviving-page navigation and pending-editor protection.'
     $deletablePage = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Deletion rollback fixture')
     Wait-Task ($vm.SwitchPageAsync($deletablePage))
     $countBeforePendingDelete = $vm.Pages.Count

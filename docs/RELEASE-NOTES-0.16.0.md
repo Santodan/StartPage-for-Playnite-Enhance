@@ -1,12 +1,22 @@
-# StartPage-for-Playnite-Enhance 0.14.0 - Experimental
+# StartPage-for-Playnite-Enhance 0.16.0 - Experimental
 
-The first experimental release under Santodan's enhanced fork identity. This is not a stable release; feedback and bug reports are welcome.
+Experimental release aligned with roadmap step 16 (Library charts), replacing the initial 0.14.0 release numbering. This is not a stable release; feedback and bug reports are welcome.
 
 ## Download and install
 
-Download **santodan_StartPage_Enhanced_Plugin_0_14_0.pext**, open it with Playnite, and restart when prompted.
+Download **santodan_StartPage_Enhanced_Plugin_0_16_0.pext**, open it with Playnite, and restart when prompted.
 
 **Disable the original StartPage before enabling this fork.** Both share the runtime identity to preserve existing settings and external widget compatibility, and must not run together. Back up your Playnite configuration before switching; do not delete the original settings data.
+
+## Latest fixes and toolbar improvements
+
+- New pages use an automatically sized toolbar above an empty panel and retain their layout after saving/restarting.
+- Fixed page rendering, toolbar sizing and popup positioning; added clearance below Playnite title-bar controls.
+- Multi-select page deletion without opening each page, with immediate button availability and final-page protection.
+- Default toolbar actions for Manage profiles, quick Add page and confirmed Remove current page.
+- Group selector in Toolbar items, with group-specific addition, reordering and live reassignment.
+- Removed the toolbar's internal scrollbar and added a clearer saved-profile icon.
+- Added page creation, save verification and layout diagnostics.
 
 ## Included
 

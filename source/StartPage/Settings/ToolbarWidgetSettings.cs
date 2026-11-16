@@ -100,7 +100,9 @@ namespace LandingPage.Settings
         public static ObservableCollection<ToolbarEntry> Defaults() => new ObservableCollection<ToolbarEntry>
         {
             new ToolbarEntry { Id = "page.previous" }, new ToolbarEntry { Id = "page.select" },
-            new ToolbarEntry { Id = "page.next" }, new ToolbarEntry { Id = "page.manage" }
+            new ToolbarEntry { Id = "page.next" }, new ToolbarEntry { Id = "page.manage" },
+            new ToolbarEntry { Id = "profile.manage" },
+            new ToolbarEntry { Id = "page.add" }, new ToolbarEntry { Id = "page.remove" }
         };
     }
 }

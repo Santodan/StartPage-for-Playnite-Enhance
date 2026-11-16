@@ -127,7 +127,7 @@ try {
     if ($featuredSettings.MatchMetadataTextSize -or $featuredSettings.MetadataTextSize -ne 19 -or $featuredSettings.MatchMetadataTextColor -or $featuredSettings.MetadataTextColor -ne '#123456' -or $featuredSettings.MatchMetadataIconSize -or $featuredSettings.MetadataIconSize -ne 25) { throw 'Playnite settings clone lost featured metadata formatting' }
     if ($pages[0].Layout.ViewProperties.FeaturedGameSettings.PinnedGameId -ne $featuredPin -or $pages[0].Layout.ViewProperties.FeaturedGameSettings.TitleSize -ne 42) { throw 'Playnite settings clone lost featured game settings' }
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.NotificationBadgeStyle -ne [LandingPage.Settings.NotificationBadgeStyle]::Count) { throw 'Playnite settings clone lost notification badge preference' }
-    if ($pages[0].Layout.ViewProperties.ToolbarSettings.Items.Count -ne 5 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Items[4].Id -ne 'native.sort') { throw 'Playnite settings clone duplicated or lost toolbar items' }
+    if ($pages[0].Layout.ViewProperties.ToolbarSettings.Items.Count -ne $properties.ToolbarSettings.Items.Count -or $pages[0].Layout.ViewProperties.ToolbarSettings.Items[$properties.ToolbarSettings.Items.Count - 1].Id -ne 'native.sort') { throw 'Playnite settings clone duplicated or lost toolbar items' }
 
     if ($pages[0].Layout.ViewProperties.ToolbarSettings.Groups.Count -ne 1 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Width -ne 280 -or $pages[0].Layout.ViewProperties.ToolbarSettings.Groups[0].Background -ne '#123456') { throw 'Playnite clone lost or duplicated group sizing/appearance' }
 

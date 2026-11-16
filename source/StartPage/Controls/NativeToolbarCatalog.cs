@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -321,6 +321,20 @@ namespace LandingPage.Controls
             return null;
         }
 
+        private static DataTemplate SavedProfilesIcon()
+        {
+            // Stacked saved layouts with a bookmark, distinct from the page-list icon.
+            var path = new FrameworkElementFactory(typeof(Path));
+            path.SetValue(Path.DataProperty, Geometry.Parse("M7,3 H21 V20 H7 Z M4,6 V23 H18 M15,3 V11 L18,9 L21,11 M10,14 H17 M10,17 H16"));
+            path.SetResourceReference(Shape.StrokeProperty, "TextBrush");
+            path.SetValue(Shape.StrokeThicknessProperty, 1.5);
+            path.SetValue(Shape.StrokeLineJoinProperty, PenLineJoin.Round);
+            path.SetValue(Shape.StretchProperty, Stretch.Uniform);
+            path.SetValue(FrameworkElement.WidthProperty, 20.0);
+            path.SetValue(FrameworkElement.HeightProperty, 20.0);
+            return new DataTemplate { VisualTree = path };
+        }
+
         public static FrameworkElement FindNativeTopPanel(DependencyObject scope)
         {
             var found = FindTopPanel(scope);
@@ -401,8 +415,10 @@ namespace LandingPage.Controls
                 new ToolbarOption { Id = "page.previous", Title = "Previous dashboard page", Glyph = "\u25C0" },
                 new ToolbarOption { Id = "page.select", Title = "Dashboard page selector", Kind = "pages" },
                 new ToolbarOption { Id = "page.next", Title = "Next dashboard page", Glyph = "\u25B6" },
+                new ToolbarOption { Id = "page.add", Title = "Add dashboard page", Glyph = "+" },
+                new ToolbarOption { Id = "page.remove", Title = "Remove current dashboard page", Glyph = "\u2212" },
                 new ToolbarOption { Id = "page.manage", Title = "Manage dashboard pages", Glyph = "\u25A4" },
-                new ToolbarOption { Id = "profile.manage", Title = "Manage dashboard profiles", Glyph = "\u25A3" },
+                new ToolbarOption { Id = "profile.manage", Title = "Manage dashboard profiles", Glyph = "\u25A5", IconTemplate = SavedProfilesIcon() },
                 new ToolbarOption { Id = "separator", Title = "Separator", Kind = "separator" }
             };
             var panel = ReadMember(topPanel, "PanelMainItems") as Panel;

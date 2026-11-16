@@ -165,7 +165,6 @@ namespace LandingPage.Models
         {
             var node = Widget("ToolbarWidget", pluginId); node.Size = GridLength.Auto;
             node.ViewProperties.ToolbarSettings.ShowLabels = false;
-            node.ViewProperties.ToolbarSettings.Items.Add(new ToolbarEntry { Id = "profile.manage" });
             return node;
         }
         private static GridNode Heading(string title, string subtitle, Guid pluginId)

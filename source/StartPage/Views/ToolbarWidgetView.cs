@@ -254,6 +254,8 @@ namespace LandingPage.Views
                     var button = new Button { Content = ButtonContent(option, title), ToolTip = title, Padding = new Thickness(8,4,8,4) };
                     if (option.Id == "page.previous") button.Command = model?.PreviousPageCommand;
                     else if (option.Id == "page.next") button.Command = model?.NextPageCommand;
+                    else if (option.Id == "page.add") button.Command = model?.QuickAddPageCommand;
+                    else if (option.Id == "page.remove") button.Command = model?.QuickRemovePageCommand;
                     else if (option.Id == "page.manage") button.Click += (sender, args) => host?.ShowPages();
                     else if (option.Id == "profile.manage") button.Click += (sender, args) => host?.ShowProfiles();
                     else if (!entry.IsExtension && option.NativeControl?.ContextMenu != null)
@@ -307,7 +309,7 @@ namespace LandingPage.Views
             // be able to shrink after their content first renders off-tree.
             Content = new ScrollViewer { Content = layout, HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0) };
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Padding = new Thickness(0) };
         }
 
         private sealed class NotificationBadgeTextConverter : IValueConverter

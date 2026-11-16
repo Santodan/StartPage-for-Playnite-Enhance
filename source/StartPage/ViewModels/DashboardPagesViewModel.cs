@@ -23,6 +23,7 @@ namespace LandingPage.ViewModels
         public event EventHandler<DashboardTransitionEventArgs> PageTransitionStarting;
         public event Func<Task> PageTransitionFinishing;
         public event Func<Task> PageLayoutReady;
+        public event Action<DashboardPage> QuickPageDeletionRequested;
 
         private readonly Dictionary<Guid, GridNodeViewModel> pageRoots = new Dictionary<Guid, GridNodeViewModel>();
         private readonly HashSet<Guid> initializedPages = new HashSet<Guid>();
@@ -66,6 +67,7 @@ namespace LandingPage.ViewModels
             pageEditSnapshot = DashboardProfiles.Clone(Settings.Settings);
             pageEditBaseline = Newtonsoft.Json.JsonConvert.SerializeObject(Settings.Settings);
             draftPageNames = Pages.ToDictionary(page => page.Id,page => page.Name);
+            RefreshPageDeletionCommands();
             OnPropertyChanged(nameof(EditedPageName));
         }
         public void EndPageNameEditing(bool save)
@@ -97,6 +99,7 @@ namespace LandingPage.ViewModels
                         throw new InvalidOperationException("The saved configuration does not contain the current dashboard pages.");
                     ExtensionDiagnostics.Record(plugin, $"Dashboard page save verified on disk: {configPath}; pages={storedPages.Count}.");
                     pageEditSnapshot = null; pageEditBaseline = null;
+                    RefreshPageDeletionCommands();
                     navigationSaveTimer?.Stop();
                     LandingPageExtension.logger.Info($"Dashboard page editor saved: active={SelectedPage?.Id}; pages={Pages.Count}; layouts=[{string.Join("; ", Pages.Select(page => page.Id + ":" + string.Join(",", page.Layout.Enumerate().Where(node => node.ViewProperties != null).Select(node => node.ViewProperties.ViewId))))}].");
                 }
@@ -109,6 +112,7 @@ namespace LandingPage.ViewModels
                 return;
             }
             EndPageNameEditing(false); pageEditSnapshot = null; pageEditBaseline = null;
+            RefreshPageDeletionCommands();
             navigationSaveTimer?.Stop();
             if(!changed) return;
             LandingPageExtension.logger.Info($"Dashboard page editor cancelling pending changes: restoring {snapshot.DashboardPages.Count} pages.");
@@ -137,8 +141,27 @@ namespace LandingPage.ViewModels
         public ICommand PreviousPageCommand { get; private set; }
         public ICommand NextPageCommand { get; private set; }
         public ICommand AddPageCommand { get; private set; }
+        public ICommand QuickAddPageCommand { get; private set; }
+        public ICommand QuickRemovePageCommand { get; private set; }
         public ICommand MovePageUpCommand { get; private set; }
         public ICommand MovePageDownCommand { get; private set; }
+        private sealed class PageDeletionCommand : ICommand
+        {
+            private readonly Action execute;
+            private readonly Func<bool> canExecute;
+            public PageDeletionCommand(Action execute, Func<bool> canExecute) { this.execute = execute; this.canExecute = canExecute; }
+            public event EventHandler CanExecuteChanged;
+            public bool CanExecute(object parameter) => canExecute();
+            public void Execute(object parameter) { if (CanExecute(parameter)) execute(); }
+            public void Refresh() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        }
+        private void RefreshPageDeletionCommands()
+        {
+            (RequestDeleteSelectedPagesCommand as PageDeletionCommand)?.Refresh();
+            (DeleteSelectedPagesCommand as PageDeletionCommand)?.Refresh();
+            (QuickAddPageCommand as PageDeletionCommand)?.Refresh();
+            (QuickRemovePageCommand as PageDeletionCommand)?.Refresh();
+        }
         public ObservableCollection<DashboardPage> PagesSelectedForDeletion { get; } = new ObservableCollection<DashboardPage>();
         public string PageDeletionSummary => PagesSelectedForDeletion.Count == 0 ? "Select pages to delete. At least one page must remain."
             : PagesSelectedForDeletion.Count >= Pages.Count ? "Keep at least one page: deselect a page to continue."
@@ -151,6 +174,7 @@ namespace LandingPage.ViewModels
             foreach (var page in selected) PagesSelectedForDeletion.Add(page);
             ConfirmPageDeletion = false;
             OnPropertyChanged(nameof(PageDeletionSummary));
+            RefreshPageDeletionCommands();
             CommandManager.InvalidateRequerySuggested();
         }
         private bool CanDeleteSelectedPages => CanChangePages && PagesSelectedForDeletion.Count > 0
@@ -174,6 +198,8 @@ namespace LandingPage.ViewModels
             {
                 if (args.PropertyName == nameof(IsLoading)) OnPropertyChanged(nameof(CanChangePages));
                 if (args.PropertyName == nameof(SelectedPage)) { OnPropertyChanged(nameof(SelectedPageId)); OnPropertyChanged(nameof(EditedPageName)); }
+                if (args.PropertyName == nameof(CanChangePages) || args.PropertyName == nameof(ConfirmPageDeletion)
+                    || args.PropertyName == nameof(Pages)) RefreshPageDeletionCommands();
                 // WPF otherwise waits for mouse/keyboard input to requery RelayCommand.
                 // Re-enable navigation as soon as switching/loading completes.
                 if (args.PropertyName == nameof(CanChangePages) || args.PropertyName == nameof(SelectedPage)
@@ -202,6 +228,25 @@ namespace LandingPage.ViewModels
                 page.Background = SelectedPage.Background.Copy();
                 await SwitchPageAsync(page);
             }, () => CanChangePages);
+            QuickAddPageCommand = new PageDeletionCommand(async () =>
+            {
+                try
+                {
+                    CaptureCurrentPage();
+                    var page = DashboardPages.Add(Settings.Settings, "New page");
+                    page.Background = SelectedPage.Background.Copy();
+                    await SwitchPageAsync(page);
+                    SaveCurrentPage();
+                    LandingPageExtension.logger.Info($"Quick dashboard page added: id={page.Id}.");
+                }
+                catch (Exception ex)
+                {
+                    LandingPageExtension.logger.Error(ex, "Unable to quick-add a dashboard page.");
+                    playniteAPI.Dialogs?.ShowErrorMessage("The page could not be added. Please check the debug log.", "Dashboard pages");
+                }
+            }, () => CanChangePages && pageEditSnapshot == null);
+            QuickRemovePageCommand = new PageDeletionCommand(() => QuickPageDeletionRequested?.Invoke(SelectedPage),
+                () => CanChangePages && pageEditSnapshot == null && Pages.Count > 1);
             MovePageUpCommand = new RelayCommand(() => MovePage(-1), () => CanChangePages && Pages.IndexOf(SelectedPage) > 0);
             MovePageDownCommand = new RelayCommand(() => MovePage(1), () => CanChangePages && Pages.IndexOf(SelectedPage) < Pages.Count - 1);
             RequestDeletePageCommand = new RelayCommand(() => ConfirmPageDeletion = true, () => CanChangePages && Pages.Count > 1);
@@ -211,8 +256,8 @@ namespace LandingPage.ViewModels
                 if (CanChangePages && Pages.Count > 1 && ConfirmPageDeletion)
                     await DeletePagesAsync(new[] { SelectedPage });
             }, () => CanChangePages && Pages.Count > 1 && ConfirmPageDeletion);
-            RequestDeleteSelectedPagesCommand = new RelayCommand(() => ConfirmPageDeletion = true, () => CanDeleteSelectedPages);
-            DeleteSelectedPagesCommand = new RelayCommand(async () =>
+            RequestDeleteSelectedPagesCommand = new PageDeletionCommand(() => ConfirmPageDeletion = true, () => CanDeleteSelectedPages);
+            DeleteSelectedPagesCommand = new PageDeletionCommand(async () =>
             {
                 if (CanDeleteSelectedPages && ConfirmPageDeletion)
                     await DeletePagesAsync(PagesSelectedForDeletion.ToArray());
@@ -228,6 +273,12 @@ namespace LandingPage.ViewModels
                 if (!string.IsNullOrEmpty(path)) SetPageImage(path);
             }, () => CanChangePages);
             ClearPageImageCommand = new RelayCommand(() => SetPageImage(null), () => CanChangePages);
+        }
+
+        public async Task RemovePageQuickAsync(DashboardPage page)
+        {
+            if (!CanChangePages || pageEditSnapshot != null || Pages.Count <= 1 || SelectedPage != page) return;
+            await DeletePagesAsync(new[] { page });
         }
 
         private async Task DeletePagesAsync(IEnumerable<DashboardPage> selection)
@@ -445,6 +496,7 @@ namespace LandingPage.ViewModels
         private void PageOrderChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs args)
         {
             OnPropertyChanged(nameof(PageDeletionSummary));
+            RefreshPageDeletionCommands();
             CommandManager.InvalidateRequerySuggested();
         }
         private void PageInputChanged(object sender, PropertyChangedEventArgs args)

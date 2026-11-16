@@ -3,8 +3,8 @@
 - Name: **StartPage-for-Playnite-Enhance**
 - Maintainer: **Santodan**
 - Package ID: `santodan_StartPage_Enhanced_Plugin`
-- Development version: **0.14.0** (not a stable release).
-- Package: `santodan_StartPage_Enhanced_Plugin_0_14_0.pext`.
+- Development version: **0.16.0** (not a stable release).
+- Package: `santodan_StartPage_Enhanced_Plugin_0_16_0.pext`.
 
 ## Replacing the original
 
@@ -22,7 +22,7 @@ Original SDK and project authorship remain credited to felixkmh. The MIT license
 
 ## Release metadata
 
-The add-on and installer manifests belong to this fork. The installer starts with a single 0.14.0 package entry. Its URL targets the `v0.14.0` experimental GitHub prerelease in Santodan/StartPage-for-Playnite-Enhance. Building locally does not publish a release or register the add-on in the Playnite catalog.
+The add-on and installer manifests belong to this fork. The current development package is 0.16.0, matching roadmap step 16. Its installer URL targets the `v0.16.0` experimental prerelease in Santodan/StartPage-for-Playnite-Enhance. This corrects the initial release numbering to match the implemented roadmap step. Building locally does not publish a release or register the add-on in the Playnite catalog.
 
 ## Importing an original configuration
 

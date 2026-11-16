@@ -1,6 +1,6 @@
 ﻿# StartPage Enhanced customization roadmap
 
-Roadmap for the experimental **0.14.0** fork. Checked items are implemented and remain open to bug reports and feedback; unchecked items are planned, without promised release dates. See the [README](README.md) for installation, compatibility and reporting guidance.
+Development roadmap toward the first stable release. Checked items are implemented and remain open to bug reports and feedback; unchecked items are planned, without promised release dates. See the [README](README.md) for installation, compatibility and reporting guidance.
 
 Suggestions and bug reports are welcome through [GitHub Issues](https://github.com/Santodan/StartPage-for-Playnite-Enhance/issues).
 
@@ -28,7 +28,7 @@ Suggestions and bug reports are welcome through [GitHub Issues](https://github.c
 
 ## First change: testing in Playnite
 
-- Install `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_14_0.pext` and restart Playnite when prompted.
+- Install the latest locally built `.pext` package from `source/StartPage/bin/` and restart Playnite when prompted.
 - Enter StartPage Edit Mode and click **Appearance** in the upper-left corner of a populated panel (or right-click it and choose **Panel appearance...**). An overlay inside StartPage shows all controls, without a separate operating-system window. Close it with Done, Escape, or a click outside the editor.
 - Enable **Use custom appearance**. Expand each color picker to choose palette swatches, adjust RGB/alpha channels, or enter a color name/hex value. Try opacity, borders, corners, padding, spacing, and shadow.
 - Enable **Show title** and try a custom title, size, color, and alignment. A blank title uses the widget name.

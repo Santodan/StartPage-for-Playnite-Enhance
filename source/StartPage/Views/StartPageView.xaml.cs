@@ -31,10 +31,38 @@ namespace LandingPage.Views
             {
                 if (args.Key == Key.F4 || args.Key == Key.Down) PrepareDropdown(Keyboard.FocusedElement as DependencyObject);
             };
-            Unloaded += (sender, args) => { CloseAppearance(); ClosePages(); CloseProfiles(); WatchPageModel(false); };
-            Loaded += (sender, args) => WatchPageModel(true);
-            LayoutUpdated += (sender, args) => PositionNotifications();
+            Unloaded += (sender, args) => { CloseQuickPageDeletion(); CloseAppearance(); ClosePages(); CloseProfiles(); WatchPageModel(false); };
+            Loaded += (sender, args) =>
+            {
+                insetWindow = Window.GetWindow(this);
+                insetToolbar = Controls.NativeToolbarCatalog.FindNativeTopPanel(insetWindow);
+                if (insetToolbar != null && Window.GetWindow(insetToolbar) != insetWindow) insetToolbar = null;
+                UpdateDashboardTopInset();
+                WatchPageModel(true);
+            };
+            LayoutUpdated += (sender, args) => { UpdateDashboardTopInset(); PositionNotifications(); };
             DataContextChanged += (sender, args) => WatchPageModel(true);
+        }
+
+        private Window insetWindow;
+        private FrameworkElement insetToolbar;
+        private void UpdateDashboardTopInset()
+        {
+            if (!IsLoaded || insetWindow == null || PresentationSource.FromVisual(this) == null) return;
+            var top = TranslatePoint(new Point(), insetWindow).Y;
+            var chrome = System.Windows.Shell.WindowChrome.GetWindowChrome(insetWindow);
+            // Hidden-title-bar themes still reveal their caption controls on hover.
+            var protectedBottom = chrome != null ? Math.Max(32, chrome.CaptionHeight) : 0;
+            if (insetToolbar != null && insetToolbar.IsVisible && insetToolbar.ActualHeight > 0 && insetToolbar.ActualHeight <= 160)
+            {
+                var toolbarTop = insetToolbar.TranslatePoint(new Point(), insetWindow).Y;
+                protectedBottom = Math.Max(protectedBottom, toolbarTop + insetToolbar.ActualHeight + 4);
+            }
+            var inset = Math.Max(0, Math.Min(160, protectedBottom - top));
+            if (Math.Abs(DashboardSurface.Margin.Top - inset) < 0.5) return;
+            DashboardSurface.Margin = new Thickness(0, inset, 0, 0);
+            ExtensionDiagnostics.Record(LandingPageExtension.Instance,
+                $"Dashboard top clearance: inset={inset:0.#}; dashboardTop={top:0.#}; protectedBottom={protectedBottom:0.#}.");
         }
 
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
@@ -115,6 +143,7 @@ namespace LandingPage.Views
                 observedPageModel.PageTransitionStarting -= BeginDashboardTransition;
                 observedPageModel.PageTransitionFinishing -= CompleteDashboardTransition;
                 observedPageModel.PageLayoutReady -= ArrangeDashboardPage;
+                observedPageModel.QuickPageDeletionRequested -= ShowQuickPageDeletion;
             }
             ResetDashboardTransition();
             observedPageModel = watch ? DataContext as ViewModels.StartPageViewModel : null;
@@ -124,7 +153,43 @@ namespace LandingPage.Views
                 observedPageModel.PageTransitionStarting += BeginDashboardTransition;
                 observedPageModel.PageTransitionFinishing += CompleteDashboardTransition;
                 observedPageModel.PageLayoutReady += ArrangeDashboardPage;
+                observedPageModel.QuickPageDeletionRequested += ShowQuickPageDeletion;
             }
+        }
+
+        private Models.DashboardPage quickDeletePage;
+        private void ShowQuickPageDeletion(Models.DashboardPage page)
+        {
+            quickDeletePage = page;
+            QuickDeletePageText.Text = $"Delete dashboard page '{page.Name}' and its widgets?";
+            QuickDeletePageOverlay.Visibility = Visibility.Visible;
+            QuickDeletePageOverlay.Focus();
+        }
+        private void CloseQuickPageDeletion()
+        {
+            quickDeletePage = null;
+            QuickDeletePageOverlay.Visibility = Visibility.Collapsed;
+        }
+        private void CancelQuickPageDeletion_Click(object sender, RoutedEventArgs args) => CloseQuickPageDeletion();
+        private async void ConfirmQuickPageDeletion_Click(object sender, RoutedEventArgs args)
+        {
+            if (!(DataContext is ViewModels.StartPageViewModel model) || quickDeletePage == null) return;
+            QuickDeletePageOverlay.IsEnabled = false;
+            try { await model.RemovePageQuickAsync(quickDeletePage); CloseQuickPageDeletion(); }
+            catch (Exception ex)
+            {
+                LandingPageExtension.logger.Error(ex, "Unable to quick-remove a dashboard page.");
+                LandingPageExtension.Instance?.PlayniteApi.Dialogs?.ShowErrorMessage("The page could not be removed. Please check the debug log.", "Dashboard pages");
+            }
+            finally { QuickDeletePageOverlay.IsEnabled = true; }
+        }
+        private void QuickDeletePageOverlay_PreviewKeyDown(object sender, KeyEventArgs args)
+        {
+            if (args.Key == Key.Escape) { CloseQuickPageDeletion(); args.Handled = true; }
+        }
+        private void QuickDeletePageOverlay_MouseDown(object sender, MouseButtonEventArgs args)
+        {
+            if (args.OriginalSource == QuickDeletePageOverlay) { CloseQuickPageDeletion(); args.Handled = true; }
         }
 
         private async Task ArrangeDashboardPage()

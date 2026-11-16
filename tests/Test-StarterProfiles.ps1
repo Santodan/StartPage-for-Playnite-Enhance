@@ -31,7 +31,7 @@ foreach ($template in $templates) {
             $view = $node.ViewProperties
             if (!$view) { continue }
             if ($view.PluginId -ne $builtin -or $view.ViewId -notin $allowed) { throw 'Starter should use supported built-in widgets only' }
-            if ($view.ViewId -eq 'ToolbarWidget') { ++$toolbarCount; if ($view.ToolbarSettings.Items.Count -ne 5) { throw 'Starter navigation/profile toolbar is incomplete' } }
+            if ($view.ViewId -eq 'ToolbarWidget') { ++$toolbarCount; if ($view.ToolbarSettings.Items.Count -ne 7) { throw 'Starter navigation/profile toolbar is incomplete' } }
             if ($view.ViewId -eq 'GameShelves') { [void]$shelfIds.Add($view.InstanceId) }
         }
         if ($toolbarCount -ne 1) { throw 'Every starter page needs navigation' }

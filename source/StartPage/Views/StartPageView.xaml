@@ -115,7 +115,7 @@
                       Visibility="{Binding RootNodeViewModel.EditModeEnabled, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </ContextMenu>
     </UserControl.ContextMenu>
-    <Grid>
+    <Grid x:Name="DashboardSurface">
         <Grid x:Name="DashboardScene" ClipToBounds="True">
         <local:BackgroundView DataContext="{Binding BackgroundViewModel}" Visibility="{Binding Settings.Settings.EnableGlobalBackground, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
         <Border>
@@ -627,11 +627,11 @@
                                         </ListBox.ItemTemplate>
                                     </ListBox>
                                     <TextBlock Text="{Binding PageDeletionSummary}" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="0,4"/>
-                                    <Button Content="Delete selected pages..." Command="{Binding RequestDeleteSelectedPagesCommand}" Margin="0,6,0,0"/>
+                                    <Button x:Name="RequestDeleteSelectedPagesButton" Content="Delete selected pages..." Command="{Binding RequestDeleteSelectedPagesCommand}" Margin="0,6,0,0"/>
                                     <StackPanel Visibility="{Binding ConfirmPageDeletion, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,8,0,0">
                                         <TextBlock Text="Confirm deletion of the selected pages." Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                            <Button Content="Delete" Command="{Binding DeleteSelectedPagesCommand}" Margin="0,0,6,0"/>
+                                            <Button x:Name="ConfirmDeleteSelectedPagesButton" Content="Delete" Command="{Binding DeleteSelectedPagesCommand}" Margin="0,0,6,0"/>
                                             <Button Content="Cancel" Command="{Binding CancelDeletePageCommand}"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -790,6 +790,21 @@
                         <Button Content="Done" Click="CloseProfiles_Click" Margin="0,8,0,0"/>
                     </StackPanel>
                 </ScrollViewer>
+            </Border>
+        </Grid>
+        <Grid x:Name="QuickDeletePageOverlay" Visibility="Collapsed" Panel.ZIndex="1400" Background="#88000000"
+              shell:WindowChrome.IsHitTestVisibleInChrome="True" Focusable="True" KeyboardNavigation.TabNavigation="Cycle"
+              PreviewKeyDown="QuickDeletePageOverlay_PreviewKeyDown" MouseDown="QuickDeletePageOverlay_MouseDown">
+            <Border HorizontalAlignment="Center" VerticalAlignment="Center" Width="380" MaxWidth="{Binding ActualWidth, ElementName=QuickDeletePageOverlay}"
+                    Padding="20" Margin="16" CornerRadius="12" Background="{DynamicResource PopupBackgroundBrush}">
+                <StackPanel>
+                    <TextBlock Text="Remove dashboard page" FontSize="20" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
+                    <TextBlock x:Name="QuickDeletePageText" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"/>
+                    <WrapPanel Margin="0,16,0,0">
+                        <Button x:Name="QuickDeletePageConfirmButton" Content="Remove page" Click="ConfirmQuickPageDeletion_Click" Margin="0,0,8,0"/>
+                        <Button Content="Cancel" Click="CancelQuickPageDeletion_Click"/>
+                    </WrapPanel>
+                </StackPanel>
             </Border>
         </Grid>
         <Grid x:Name="AppearanceOverlay" Visibility="Collapsed" Panel.ZIndex="1000"

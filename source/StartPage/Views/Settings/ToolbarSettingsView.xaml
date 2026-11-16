@@ -25,17 +25,21 @@
   <TextBlock Text="The badge is hidden when there are no notifications." TextWrapping="Wrap" Margin="0,0,0,8"/>
   <Expander Header="Toolbar items" IsExpanded="True">
    <StackPanel Margin="8,6,0,8">
+    <TextBlock Text="Group" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+    <ComboBox x:Name="ItemGroupSelector" ItemsSource="{Binding Groups}" DisplayMemberPath="Name" IsSynchronizedWithCurrentItem="False"
+              SelectedItem="{Binding SelectedGroup, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}, Mode=TwoWay}" Margin="0,0,0,8"/>
+    <TextBlock Text="Showing items from this group. New items are added here; the arrows reorder items within this group." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"/>
     <ComboBox x:Name="OptionPicker" ItemsSource="{Binding AvailableOptions, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}" ItemTemplate="{StaticResource ToolbarOptionTemplate}" SelectedValuePath="Id" MaxDropDownHeight="320"/>
     <Button Content="Add item" Click="AddItem_Click" Margin="0,6,0,6"/>
     <Button Content="Refresh native items" Click="RefreshItems_Click" Margin="0,0,0,8"/>
-    <ItemsControl ItemsSource="{Binding Items}">
+    <ItemsControl x:Name="GroupItemsList" ItemsSource="{Binding ItemsView, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}">
      <ItemsControl.ItemTemplate>
       <DataTemplate>
        <Border BorderBrush="{DynamicResource NormalBrush}" BorderThickness="0,0,0,1" Padding="0,6">
         <StackPanel>
          <ComboBox ItemsSource="{Binding AvailableOptions, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}" SelectedValue="{Binding Id, Mode=OneWay}" SelectionChanged="EntrySelectionChanged" SelectedValuePath="Id" ItemTemplate="{StaticResource ToolbarOptionTemplate}" MaxDropDownHeight="320"/>
          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Group" Margin="0,4,0,2"/>
-         <ComboBox ItemsSource="{Binding DataContext.Groups, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}" SelectedValue="{Binding GroupId}" SelectedValuePath="Id" DisplayMemberPath="Name"/>
+         <ComboBox ItemsSource="{Binding DataContext.Groups, RelativeSource={RelativeSource AncestorType=local:ToolbarSettingsView}}" SelectedValue="{Binding GroupId, Mode=OneWay}" SelectionChanged="EntryGroupSelectionChanged" SelectedValuePath="Id" DisplayMemberPath="Name"/>
          <StackPanel Margin="0,6,0,0">
           <StackPanel.Style>
            <Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding CanChooseOpenMode}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style>

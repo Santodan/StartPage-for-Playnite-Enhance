@@ -102,3 +102,13 @@ In **Group appearance**, enable a background and use the color picker, opacity s
 ## Delete several pages without opening them
 
 Open **Manage dashboard pages > Delete pages**. Tick the pages in the list; this does not navigate to them. Choose **Delete selected pages...**, then confirm with **Delete**. At least one page must remain, so selecting every page disables deletion. Removing inactive pages keeps the current page and its live widgets in place; removing the active page switches to a surviving page first. Press **Done** to save the deletions. Closing or dismissing the manager without Done restores the pending changes.
+
+New Toolbar widgets include previous page, page selection, next page, Manage dashboard pages, Manage dashboard profiles, quick Add page and quick Remove page by default. Profiles use a stacked-layouts bookmark icon. Existing customized toolbar item lists are preserved; add Manage dashboard profiles from their settings if needed.
+
+## Quick toolbar page actions
+
+New toolbar widgets include **Add dashboard page** (+) and **Remove current dashboard page** (-). Add creates and saves a page immediately with a fitted toolbar above an empty content panel. Remove opens a small in-app confirmation, then switches to a surviving page and saves the removal. Cancel or Escape leaves the page unchanged. The final remaining page cannot be removed. Both quick actions are disabled while switching pages or editing pages in the manager. Existing toolbar item lists are preserved; add these actions through Toolbar settings.
+
+## Organize toolbar items by group
+
+In **Toolbar settings > Toolbar items**, select a group to show only its items. **Add item** uses that group, and the arrows reorder items within it. Each item still has a Group selector for moving it to another group; it immediately leaves the current list. Groups and alignment remains available for naming, sizing, styling and ordering the groups. Removing a group moves its items to a remaining group.
