@@ -189,18 +189,23 @@ namespace LandingPage
         }
 
 
+        private static Image CreateSidebarIcon()
+        {
+            var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bitmap.DecodePixelWidth = 64;
+            bitmap.UriSource = new Uri(Path.Combine(Path.GetDirectoryName(typeof(LandingPageExtension).Assembly.Location), "icon.png"));
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return new Image { Source = bitmap, Width = 24, Height = 24, Stretch = Stretch.Uniform };
+        }
+
         public override IEnumerable<SidebarItem> GetSidebarItems()
         {
             var items = new List<SidebarItem>();
 
-            //items.Add(new SidebarItem {
-            //    Type = SiderbarItemType.View,
-            //    Title = "Start Page",
-            //    Visible = true,
-            //    Opened = ViewOpened,
-            //    Closed = ViewClosed,
-            //    Icon = new TextBlock { Text = "", FontFamily = ResourceProvider.GetResource<FontFamily>("FontIcoFont") }
-            //});
+
 
             items.Add(new SidebarItem
             {
@@ -223,7 +228,7 @@ namespace LandingPage
                 if (Settings.GridLayout == null)
                 {
                     Settings.GridLayout = new GridNode { Orientation = Orientation.Vertical };
-                    string path = Path.Combine(PlayniteApi.Paths.ConfigurationPath, "Extensions", "felixkmh_StartPage_Plugin", "DefaultLayout.json");
+                    string path = Path.Combine(Path.GetDirectoryName(typeof(LandingPageExtension).Assembly.Location), "DefaultLayout.json");
                     if (File.Exists(path))
                     {
                         if (JsonConvert.DeserializeObject<GridNode>(File.ReadAllText(path)) is GridNode node)

@@ -1,0 +1,10 @@
+AddonId: santodan_StartPage_Enhanced_Plugin
+Packages:
+  - Version: 0.14.0
+    RequiredApiVersion: 6.1.0
+    ReleaseDate: 2026-11-16
+    PackageUrl: https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases/download/v0.14.0/santodan_StartPage_Enhanced_Plugin_0_14_0.pext
+    Changelog:
+      - Initial Santodan development release under the enhanced fork identity.
+      - Customizable dashboard pages, profiles, toolbar, shelves and game widgets.
+      - Library statistics and charts with configurable appearance and layout.

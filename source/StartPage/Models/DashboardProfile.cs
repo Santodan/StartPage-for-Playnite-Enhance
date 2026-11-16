@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -71,6 +71,39 @@ namespace LandingPage.Models
                 if (property != null) snapshot.SharedSettings[propertyName] = JToken.FromObject(property.GetValue(settings) ?? JValue.CreateNull(), serializer);
             }
             var profile = new DashboardProfile { Name = name, Snapshot = Clone(snapshot) };
+            Validate(profile);
+            return profile;
+        }
+
+        // Convert the original config without changing live settings or executing JSON type metadata.
+        public static DashboardProfile ImportOriginalSettings(string json)
+        {
+            var options = JsonSettings();
+            var document = JsonConvert.DeserializeObject<JObject>(json, options);
+            if (document == null || !(document["GridLayout"] is JObject))
+                throw new ArgumentException("Select the original StartPage config.json with a saved GridLayout. This is not a dashboard profile or layout preset.");
+            var original = document.ToObject<LandingPageSettings>(JsonSerializer.Create(options));
+            if (original?.GridLayout == null) throw new ArgumentException("The original configuration has no saved layout.");
+            original.ShelveInstances = original.ShelveInstances ?? new Dictionary<Guid, ObservableCollection<ShelveProperties>>();
+            original.ShelveInstanceSettings = original.ShelveInstanceSettings ?? new Dictionary<Guid, ShelvesSettings>();
+            foreach (var pair in original.ShelveInstances)
+                if (!original.ShelveInstanceSettings.ContainsKey(pair.Key))
+                    original.ShelveInstanceSettings[pair.Key] = new ShelvesSettings(original) { ShelveProperties = pair.Value ?? new ObservableCollection<ShelveProperties>() };
+            // Original releases had one dashboard. Ignore any fork pages in a selected current config.
+            original.DashboardPages = new ObservableCollection<DashboardPage>();
+            original.ActiveDashboardPageId = Guid.Empty;
+            var page = DashboardPages.Ensure(original);
+            page.Name = "Original StartPage";
+            var shelfViews = page.Layout.Enumerate().Where(node => node.ViewProperties?.ViewId == "GameShelves"
+                && node.ViewProperties.PluginId == Guid.Parse("a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5"));
+            foreach (var node in shelfViews)
+                if (!original.ShelveInstanceSettings.ContainsKey(node.ViewProperties.InstanceId))
+                    original.ShelveInstanceSettings[node.ViewProperties.InstanceId] = new ShelvesSettings(original)
+                    {
+                        ShelveProperties = original.ShelveProperties ?? new ObservableCollection<ShelveProperties>
+                            { ShelveProperties.RecentlyPlayed, ShelveProperties.RecentlyAdded }
+                    };
+            var profile = Capture(original, "Imported original StartPage");
             Validate(profile);
             return profile;
         }

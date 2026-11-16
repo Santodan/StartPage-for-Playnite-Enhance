@@ -365,3 +365,7 @@ FodyWeavers.xsd
 
 source/StartPage/StarRating.ttf
 .idea
+
+# Local npm tooling manifests
+/package.json
+/package-lock.json

@@ -1,4 +1,4 @@
-# Complete dashboard profiles
+﻿# Complete dashboard profiles
 
 Open **Dashboard profiles...** from StartPage's background right-click menu. You can also add **Manage dashboard profiles** to a Toolbar widget. The manager opens inside Playnite.
 
@@ -48,9 +48,12 @@ Expand **Starter profiles** in the manager to choose:
 
 | Starter | Included layout |
 | --- | --- |
-| Minimal | Home page with toolbar, clock, welcome note, and recently played shelf. |
+| Minimal | Home page with toolbar, clock, welcome note, and a dock-style recently played shelf with source icons. |
 | Achievements | Recent unlocks alongside game cards with progress and trophy metadata. Uses your selected achievement provider. |
-| Library | Library and Backlog pages with recent/favorite/unplayed/installed shelves and navigation on both pages. |
+| Library | Library overview counters and recent/favorite shelves, plus a Backlog page with unplayed/installed shelves. Navigation on both pages. |
+| Game spotlight | A featured game follows hover/selection, with fitted artwork and a dock-style shelf below it. |
+| Game inspector | Separate artwork, title, full HTML description with images, activity and actions follow hover/selection. A top shelf expands downward. |
+| Library insights | Library and period playtime counters, plus source game-count doughnut, source playtime bars and installation vertical bars. |
 
 Each card shows a schematic preview for every page, including shelf styles. These diagrams represent layout structure rather than screenshots; your theme, artwork, library, window size, and achievement data determine the rendered dashboard.
 
@@ -66,3 +69,5 @@ Starters do not reference local images or require library-specific tags. They re
 Uncheck the option to replace the entire dashboard and load the profile's shared settings. Both modes save an automatic backup first.
 
 The saved profiles list supports Ctrl-click and Shift-click selection. Choose **Delete selected profiles...**, then **Delete** to remove all selected saved snapshots together. This leaves the active dashboard intact. Apply, rename and export use the active profile selection.
+
+The six starter recipes include newer widget features without editing your previously saved profiles. Add a fresh copy from the gallery to try them. Period playtime needs GameActivity session history; lifetime playtime charts use Playnite totals. Starter charts have animations disabled. Toolbar height follows its content.

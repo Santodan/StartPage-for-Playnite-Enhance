@@ -1,0 +1,13 @@
+AddonId: santodan_StartPage_Enhanced_Plugin
+Type: Generic
+Name: StartPage-for-Playnite-Enhance
+Author: Santodan
+ShortDescription: Customizable dashboards, shelves, widgets and library charts for Playnite.
+InstallerManifestUrl: https://raw.githubusercontent.com/Santodan/StartPage-for-Playnite-Enhance/master/InstallerManifest/santodan_StartPage_Enhanced_Plugin.yaml
+SourceUrl: https://github.com/Santodan/StartPage-for-Playnite-Enhance
+Description: 'Santodan fork of StartPage with dashboard pages and profiles, customizable widgets, shelves, toolbar groups, transitions, library statistics and charts. Development release 0.14.0.'
+Tags: ["start page", "dashboard", "widgets", "statistics", "charts"]
+Links:
+    GitHub: https://github.com/Santodan/StartPage-for-Playnite-Enhance
+    Documentation: https://github.com/Santodan/StartPage-for-Playnite-Enhance/blob/master/README.md
+IconUrl: https://raw.githubusercontent.com/Santodan/StartPage-for-Playnite-Enhance/master/source/icon.png

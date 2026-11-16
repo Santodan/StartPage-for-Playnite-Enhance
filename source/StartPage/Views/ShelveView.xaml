@@ -673,6 +673,7 @@
                                 <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
                                     <Expander.Header><TextBlock Text="Filters" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
                                     <StackPanel Margin="0,5,0,0">
+                                        <TextBlock Text="Type a name and press Enter to add/remove a filter, even with the dropdown closed. Ctrl+Delete removes it. Partial names must match one item." Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="2,0,2,8"/>
                                 <Expander Foreground="{DynamicResource TextBrush}" Margin="2,5,2,5">
                                     <Expander.Header><TextBlock Text="Availability" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/></Expander.Header>
                                     <StackPanel Margin="0,5,0,0">
@@ -692,6 +693,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Platforms}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -709,6 +712,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding ExcludedPlatforms}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -732,6 +737,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Genres}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -749,6 +756,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding ExcludedGenres}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -772,6 +781,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Categories}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -789,6 +800,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding ExcludedCategories}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -812,6 +825,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Tags}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -829,6 +844,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding ExcludedTags}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -852,6 +869,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Features}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -869,6 +888,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding ExcludedFeatures}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -892,6 +913,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding CompletionStatus}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -909,6 +932,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding ExcludedCompletionStatus}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -932,6 +957,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Include" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding Sources}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>
@@ -949,6 +976,8 @@
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Exclude" Style="{StaticResource {x:Type TextBlock}}" Margin="2"/>
                                     <ComboBox ItemsSource="{Binding ExcludedSources}" Margin="2" Grid.Column="1"
                                                                       StaysOpenOnEdit="True" IsSynchronizedWithCurrentItem="False" IsEditable="True"
+                                                                      PreviewKeyDown="Filter_PreviewKeyDown"
+                                                                      ToolTip="Type a filter name and press Enter to add/remove it. Ctrl+Delete removes the matching filter. A partial name must match only one item."
                                                                       IsTextSearchEnabled="True" IsTextSearchCaseSensitive="False"
                                                                       TextSearch.TextPath="Name">
                                         <ComboBox.ItemTemplate>

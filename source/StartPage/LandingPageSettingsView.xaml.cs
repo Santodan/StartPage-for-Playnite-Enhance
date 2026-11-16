@@ -17,6 +17,11 @@ namespace LandingPage
 {
     public partial class LandingPageSettingsView : UserControl
     {
+        private void ImportOriginalSettings_Click(object sender, RoutedEventArgs e)
+        {
+            (DataContext as LandingPageSettingsViewModel)?.ImportOriginalSettings();
+        }
+
         private void DebugLogging_Click(object sender, RoutedEventArgs e)
         {
             LandingPageExtension.logger.Info("StartPage debug logging preference changed.");

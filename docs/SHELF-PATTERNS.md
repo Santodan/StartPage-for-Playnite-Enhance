@@ -1,4 +1,4 @@
-# Shelf pattern filters
+﻿# Shelf pattern filters
 
 Use **Shelf settings ? Advanced rules ? Pattern filters** to build shelves from game names, installation directories, launch actions, and metadata. Expand the field you want and enter patterns in its **Include** and/or **Exclude** box. The **?** button opens this guide on GitHub.
 
@@ -213,3 +213,7 @@ Enable **Never played only** in Advanced rules. Both source and publisher restri
 - **Literal `?` or `*`:** use `literal:` for an exact value, or `glob:` with `[?]` / `[*]` inside a longer pattern.
 - **Metadata does not match:** patterns use the recorded metadata names, not translated display fallbacks or the library plugin's name.
 - **GitHub guide is unavailable:** the guide must exist on the repository's `master` branch. Local builds can include this help button before the document is committed and pushed.
+
+## Typing in include/exclude dropdowns
+
+For platform, genre, category, tag, feature, completion status and source selectors, type an existing name and press **Enter** to toggle that filter without opening the dropdown. **Ctrl+Delete** removes the matched filter. Matching ignores case and surrounding whitespace. A partial name works only when it identifies one item; ambiguous or unknown names do not change selections. Plain Delete/Backspace still edit the text. These selectors choose existing library metadata; wildcard expressions belong in the pattern fields described above.

@@ -83,6 +83,33 @@ namespace LandingPage.Views
         {
             if (e.Key == Key.Escape) { CloseShelfSettings(); e.Handled = true; }
         }
+        private void Filter_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            var remove = e.Key == Key.Delete && Keyboard.Modifiers == ModifierKeys.Control;
+            if (e.Key != Key.Enter && !remove) return;
+            if (sender is ComboBox box)
+            {
+                // Consume Enter even when ambiguous so the floating settings panel cannot submit it.
+                ApplyTypedFilter(box, remove);
+                e.Handled = true;
+            }
+        }
+
+        public static bool ApplyTypedFilter(ComboBox box, bool remove)
+        {
+            var text = box?.Text?.Trim();
+            if (string.IsNullOrEmpty(text)) return false;
+            var items = box.Items.OfType<ShelveViewModel.ToggleFilter>().ToArray();
+            var matches = items.Where(item => string.Equals(item.Name, text, StringComparison.CurrentCultureIgnoreCase)).ToArray();
+            if (matches.Length == 0)
+                matches = items.Where(item => item.Name?.StartsWith(text, StringComparison.CurrentCultureIgnoreCase) == true).ToArray();
+            if (matches.Length != 1) return false;
+            var filter = matches[0];
+            // The authoritative set also covers a checkbox changed through another generated item.
+            filter.IsChecked = !remove && !filter.Source.Contains(filter.Id);
+            return true;
+        }
+
         private ItemsPanelTemplate originalPanel;
         private ItemsPanelTemplate originalGroupPanel;
         private DataTemplate originalItemTemplate;

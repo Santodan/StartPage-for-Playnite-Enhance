@@ -420,6 +420,20 @@
         <!--<TabItem Header="Layouts">
             <views:GridNodePresetsView DataContext="{Binding GridNodePresetsViewModel}"/>
         </TabItem>-->
+        <TabItem Header="Import from original StartPage">
+            <ScrollViewer Padding="12" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Import from original StartPage" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                    <TextBlock Text="Import a saved config.json as a dashboard profile. Includes the panel layout, shelves and filters, background, Most Played options, achievement limits and shared dashboard appearance. Current pages stay unchanged." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,12"/>
+                    <TextBlock Text="Usual configuration location" Foreground="{DynamicResource TextBrush}"/>
+                    <TextBox Text="{Binding OriginalSettingsPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,8"/>
+                    <TextBlock Text="This fork shares the original settings location, so your original setup may already be loaded. To recover an earlier setup, choose its config.json from a backup or another Playnite installation." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
+                    <Button Content="Choose original config.json..." Click="ImportOriginalSettings_Click" HorizontalAlignment="Left"/>
+                    <TextBlock Text="{Binding OriginalImportStatus}" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,12,0,12"/>
+                    <TextBlock Text="Save settings to keep the imported profile, or cancel to discard it. Then right-click StartPage ? Dashboard profiles to preview, apply or add its page. External widgets need their provider extensions; background files and game IDs refer to the original installation. Game data, external extension data, startup preferences and old layout presets are not imported." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
         <TabItem Header="Debug">
             <ScrollViewer Padding="12" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>

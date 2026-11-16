@@ -138,5 +138,15 @@ try {
     if (![object]::ReferenceEquals($unchanged,$model.Settings)) { throw 'Closing unchanged settings replaced the live dashboard settings' }
     $model.BeginEdit(); $model.EndEdit()
     if (![object]::ReferenceEquals($unchanged,$model.Settings)) { throw 'Accepting unchanged settings replaced the live dashboard settings' }
+    $beforeImport = ([LandingPage.LandingPageSettings].GetProperty('DashboardProfiles').GetValue($model.Settings)).Count
+    $model.BeginEdit()
+    $originalProfile = [LandingPage.Models.DashboardProfiles]::ImportOriginalSettings('{"GridLayout":{},"Padding":7}')
+    [LandingPage.LandingPageSettings].GetProperty('DashboardProfiles').GetValue($model.Settings).Add($originalProfile)
+    $model.CancelEdit()
+    if (([LandingPage.LandingPageSettings].GetProperty('DashboardProfiles').GetValue($model.Settings)).Count -ne $beforeImport) { throw 'Cancel retained the original StartPage import' }
+    [LandingPage.LandingPageSettings].GetProperty('DashboardProfiles').GetValue($model.Settings).Add($originalProfile)
+    $persistedImport = $detailCloneMethod.MakeGenericMethod([LandingPage.LandingPageSettings]).Invoke($null,@($model.Settings))
+    if (([LandingPage.LandingPageSettings].GetProperty('DashboardProfiles').GetValue($persistedImport)).Count -ne ($beforeImport + 1)) { throw 'Playnite serialization lost imported original profile' }
+    'PASS: original profile imports persist with Playnite serialization and Cancel discards the pending import.'
     'PASS: actual Playnite settings BeginEdit/CancelEdit clone, independent shelf rules, page data, validation-property exclusion, and invalid-pattern validation/persistence.'
 } finally { $serializerField.SetValue($null,$previousSerializer) }

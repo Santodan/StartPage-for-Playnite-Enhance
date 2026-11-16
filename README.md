@@ -1,105 +1,122 @@
-﻿# StartPage-for-Playnite
-
-[Playnite Add-ons Page](https://playnite.link/addons.html#felixkmh_StartPage_Plugin)
-
-Extension for [Playnite](https://github.com/JosefNemec/Playnite) that adds a configurable start page.
-
-The layout can be customized by splitting and merging panels in a grid when in Edit Mode (can be opened by left-clicking the background).
-Each panel can have a view attached to it and views can be swapped in Edit Mode via drag-and-drop.
-
-|Default Mode | Edit Mode |
-|-------------|-----------|
-|![grafik](https://user-images.githubusercontent.com/24227002/166326510-6121a702-7abd-482b-b727-2ef2786fdaf4.png)|![grafik](https://user-images.githubusercontent.com/24227002/166326546-ed639a7d-6141-415f-8316-d98bc71118e5.png)|
-
-[![Crowdin](https://badges.crowdin.net/startpage-for-playnite/localized.svg)](https://crowdin.com/project/startpage-for-playnite)
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C1C6CH5IN)
-
-## Dashboard pages
-
-Add **StartPage > Toolbar** to a panel in Edit Mode for configurable native Playnite toolbar items and dashboard page navigation. Configure it under **Appearance > Toolbar settings**. Each page has its own layout and background; your existing dashboard becomes **Main** automatically. **Manage dashboard pages...** is also available from StartPage's background right-click menu. See the [dashboard and toolbar guide](docs/DASHBOARD-PAGES.md).
-
-## Dashboard profiles
-
-Right-click StartPage and choose **Dashboard profiles...** to save, apply, import, or export all dashboard pages and StartPage widget/shelf settings. Profiles are independent snapshots; applying one automatically saves a backup of the current dashboard. The **Starter profiles** gallery includes Minimal, Achievements, and a two-page Library template with previews. See the [profile guide](docs/DASHBOARD-PROFILES.md).
-
-## Shelf pattern filters
-
-See the [shelf pattern guide](docs/SHELF-PATTERNS.md) for wildcard syntax, supported fields, and examples. The **?** button under **Shelf settings ? Advanced rules ? Pattern filters** opens that guide on GitHub.
-
-## Features
-
-- Open StartPage when Playnite launches
-- Support for Playnite's notifications
-- Support for the global progress bar on the StartPage
-- Customizable layout
-- Customizable background image
-  - Source can be the background image of a random game, the background of the last played game and a few more
-  - Can also be set to a fixed image or a folder of images
-  - Adjustable blur and noise overlay
-  - Customizable transition animation
-- Built-in views as well as support for other extensions to add views to StartPage (see [here](https://github.com/felixkmh/StartPage-for-Playnite/wiki/Integrating-with-other-Extensions))
-
-## External Views
-
-Other views can be added by other extensions. For some info on how to add support for StartPage to an extension, see [here](https://github.com/felixkmh/StartPage-for-Playnite/wiki/Integrating-with-other-Extensions).
-
-Known extension with StartPage support (potentially incomplete):
-| Extension | Views |
-|-----------|-------|
-|[PlayState](https://github.com/darklinkpower/PlayniteExtensionsCollection/tree/master/source/Generic/PlayState)|PlayState manager|
-|[QuickSearch](https://github.com/felixkmh/QuickSearch-for-Playnite)|Search bar|
-|[ScreenshotVisualizer](https://github.com/Lacro59/playnite-screenshotsvisualizer-plugin)|Carousel|
-|[HowLongToBeat](https://github.com/Lacro59/playnite-howlongtobeat-plugin)|Chart stats|
-|[Play Next](https://github.com/SparrowBrain/Playnite.PlayNext)|Top Recommendations|
-
-## Built-in Views
-
-StartPage comes with a set of built-in views.
-
-### Game Shelves
-
-Game Shelves with customizable sorting, grouping and filters.
-
-| Shelves | Shelve Properties |
-|--------------|-----------|
-|![grafik](https://user-images.githubusercontent.com/24227002/166330058-2fb741be-d0ad-4878-858e-a3092a25eae0.png)|![grafik](https://user-images.githubusercontent.com/24227002/166330144-1d99c2c6-0e26-4721-b989-60db832eabef.png)|
 
 
-### Clock
+<p align="center">
+  <img src="source/icon.png" width="128" alt="StartPage Enhanced icon" />
+</p>
 
-Clock also showing the current date. Uses the system time format.
+# StartPage-for-Playnite-Enhance
 
-![grafik](https://user-images.githubusercontent.com/24227002/166329790-286656da-09f4-4106-8780-f29c98560c6e.png)
+<p align="center">
+  <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/v/release/Santodan/StartPage-for-Playnite-Enhance?include_prereleases&amp;sort=date&amp;style=for-the-badge&amp;logo=github&amp;label=Release&amp;color=00A8E8" alt="Latest release, including experimental releases" /></a>
+  <a href="https://github.com/JosefNemec/PlayniteSDK"><img src="https://img.shields.io/badge/Playnite%20SDK-6.1.0-6C63FF?style=for-the-badge" alt="Playnite SDK 6.1.0" /></a>
+  <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/downloads/Santodan/StartPage-for-Playnite-Enhance/total?style=for-the-badge&amp;label=Total%20downloads&amp;color=00BE8E" alt="Total release downloads" /></a>
+  <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/downloads/Santodan/StartPage-for-Playnite-Enhance/v0.14.0/total?style=for-the-badge&amp;label=Latest%20release%20downloads&amp;color=8B5CF6" alt="Latest release downloads" /></a>
+    <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/stargazers"><img src="https://img.shields.io/github/stars/Santodan/StartPage-for-Playnite-Enhance?style=for-the-badge&amp;logo=github&amp;label=Stars&amp;color=F5A000" alt="GitHub stars" /></a>
+</p>
 
-### Weekly Activity
+> **Disclaimer:** I'm not a developer. All changes and enhancements in this fork were made using AI, I'm just a troubleshooting guy that try to test everything as much as possible. The original StartPage extension and SDK remain credited to felixkmh.
 
-Brief summary of the playtime in the last 7 days. Requires the [GameActivity](https://github.com/Lacro59/playnite-gameactivity-plugin) extension.
+Build your own Playnite desktop dashboard with configurable pages, game shelves, widgets, statistics and charts. This fork extends [StartPage by felixkmh](https://github.com/felixkmh/StartPage-for-Playnite), retaining its layout system and support for external widget providers.
 
-![grafik](https://user-images.githubusercontent.com/24227002/166330561-607c278e-e18a-4037-bf54-919366cbb61e.png)
+[Roadmap](CUSTOMIZATION-ROADMAP.md) - [Report a bug](https://github.com/Santodan/StartPage-for-Playnite-Enhance/issues/new) - [Suggest a feature](https://github.com/Santodan/StartPage-for-Playnite-Enhance/issues) - [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases)
 
-### Most Played
-Shows most played games for different timeframes. Can be customized in Edit Mode. Requires the [GameActivity](https://github.com/Lacro59/playnite-gameactivity-plugin) extension.
+## Install or move from the original StartPage
 
-![grafik](https://user-images.githubusercontent.com/24227002/166330863-d50389dc-2a05-4183-95c8-e09b4fdcb770.png)
+1. Download the experimental `.pext` package from [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases). For a local build, use `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_14_0.pext`.
+2. Disable the original StartPage before enabling this fork. **They must not run together:** the shared runtime identity preserves settings and external widget compatibility.
+3. Open the `.pext` with Playnite and restart when prompted.
+4. Open StartPage from Playnite's sidebar. Enter Edit Mode from the dashboard's background menu to split panels and add widgets.
 
-### Recent Achievements
+The fork has its own package ID, `santodan_StartPage_Enhanced_Plugin`. It keeps the original runtime GUID and public StartPage SDK interfaces, so your original configuration may already be available. Do not delete the original settings data when switching.
 
-Shows recent achievements. Requires the [SuccessStory](https://github.com/Lacro59/playnite-successstory-plugin) extension.
+To recover an earlier configuration, open **Add-ons --> Extension settings --> StartPage-for-Playnite-Enhance --> Import from original StartPage**, choose the original `config.json`, and save settings. The import becomes a saved dashboard profile; it does not replace your current pages. Open **Dashboard profiles...** from the dashboard background menu to use it.
 
-![grafik](https://user-images.githubusercontent.com/24227002/166331100-90e1e535-74b1-4618-9cce-03dac4b26fdd.png)
+See [fork identity, import scope and compatibility](docs/FORK-IDENTITY.md) for the details. This extension targets Playnite's desktop interface and SDK API 6.1.0.
 
+## What you can customize
 
+| Area | Features |
+| --- | --- |
+| Dashboard layout | Split panels, resize widgets, arrange multiple named pages and give each page its own background. |
+| Widget appearance | Backgrounds, opacity, borders, corners, spacing, shadows, titles, text and supported content colors, with color pickers and theme defaults. |
+| Game shelves | Cover rows, grids, compact lists and wide cards; sorting, grouping, include/exclude filters and advanced wildcard rules. |
+| Shelf metadata | Titles, source icons, playtime, last played, favorites, installation status and achievement progress, including artwork overlays. |
+| Shelf interactions | Dock magnification, zoom, lift, tilt, bounce, glow and dimming; animation direction and optional details popups. |
+| Toolbar | Native Playnite and extension items, page navigation, labels, configurable groups, alignment and group appearance. |
+| Clock, text and images | Configurable clock/date formats, text styling, image sizing and optional links. |
+| Featured game | Selected, hovered, pinned or automatically chosen game, with artwork, formatted description, activity and actions. |
+| Game detail widgets | Independent artwork, title, description, activity, details, library information, scores, links and actions, synchronized to the same game. |
+| Library statistics | Library totals, playtime, progress, metadata coverage and source/platform breakdowns; per-counter layout, text and colors. |
+| Library charts | Multiple bar, vertical bar, pie and doughnut charts with configurable data, size, rotation, legends, labels and segment borders. |
+| Transitions | Fade, slide, zoom, wipe and custom presets with previews and JSON import/export. |
+| Profiles | Save, import, export, append or restore complete dashboards, with independent snapshots and automatic backups when applying. |
 
+Some data depends on other extensions. Weekly Activity, Most Played and period playtime statistics use **GameActivity** history. Achievement widgets and progress use the achievement provider selected in settings, with data supplied by that provider. Playtime charts grouped by source use Playnite's recorded lifetime playtime.
 
-Dashboard page transitions are configurable under **Manage dashboard pages... > Dashboard transitions**. Choose None, Fade or Slide, duration and slide direction. The current dashboard remains visible while the next one prepares. Windows animation preferences are respected by default and can be overridden there.
+## Start with a profile
 
-Custom transition presets can be created and previewed inside **Manage dashboard pages > Dashboard transitions > Custom transition editor**, then saved or shared as JSON. See [Transition presets](docs/TRANSITION-PRESETS.md) and the [Gentle slide example](docs/transition-presets/gentle-slide.json).
+Right-click the dashboard background, choose **Dashboard profiles...**, then expand **Starter profiles**.
 
-The **Featured game** widget shows a pinned or automatically selected game with artwork, description, actions and optional metadata/achievements. Add it in Edit Mode and configure it through **Appearance > Featured game settings**. See [Featured game widget](docs/FEATURED-GAME.md).
+| Profile | Layout |
+| --- | --- |
+| Minimal | Clock, welcome note and a dock-style recently played shelf. |
+| Achievements | Recent unlocks and game cards with achievement progress and trophy metadata. |
+| Library | Overview counters and recent/favorite shelves, plus a separate Backlog page. |
+| Game spotlight | A featured game follows hover/selection, with a dock-style shelf below it. |
+| Game inspector | Separate artwork, title, full description with images, activity and actions follow the same game. |
+| Library insights | Library and period playtime counters beside source and installation charts. |
 
-Game shelves now have optional per-shelf hover effects under **Shelf settings > Hover animations**, including dock-style neighbor magnification, lift, tilt, bounce, glow and dimming. See [Shelf hover effects](docs/SHELF-HOVER-EFFECTS.md).
+Each profile includes navigation and can be customized afterward. **Add profile** saves a copy without changing the current dashboard. The add-pages option lets you try a profile alongside existing pages. Refreshing the starter gallery does not overwrite your saved profiles.
 
-Build a game details dashboard with independent **Game: Artwork**, **Game: Title**, **Game: Description**, **Game: Activity**, **Game: Details**, **Game: Library information**, **Game: Scores**, **Game: Links** and **Game: Actions** widgets. They can follow selected or hovered games together. See [Game detail widgets](docs/GAME-DETAIL-WIDGETS.md).
+## Roadmap
 
-Library statistics widget: [configuration and counter definitions](docs/LIBRARY-STATISTICS.md).
+The [full customization roadmap](CUSTOMIZATION-ROADMAP.md) tracks implemented features and planned work.
+
+Implemented areas include widget appearance, shelf customization, dashboard pages and profiles, transitions, featured/selected-game widgets, library statistics and charts.
+
+Planned areas include:
+
+- Achievement dashboards with completion tracking and goals.
+- Shortcut widgets for games, applications, folders and websites.
+- Divider and spacer widgets.
+- More achievement display settings.
+- More background controls.
+
+Priorities may change based on experimental-release feedback. There are no release dates promised for individual items.
+
+## Guides
+
+- [Dashboard pages and toolbar](docs/DASHBOARD-PAGES.md)
+- [Dashboard profiles and starter templates](docs/DASHBOARD-PROFILES.md)
+- [Shelf patterns and typed filter selection](docs/SHELF-PATTERNS.md)
+- [Shelf hover effects](docs/SHELF-HOVER-EFFECTS.md)
+- [Featured game](docs/FEATURED-GAME.md)
+- [Selected/hovered game detail widgets](docs/GAME-DETAIL-WIDGETS.md)
+- [Library statistics and counter definitions](docs/LIBRARY-STATISTICS.md)
+- [Transitions and custom JSON presets](docs/TRANSITION-PRESETS.md)
+- [Fork compatibility and original-settings import](docs/FORK-IDENTITY.md)
+
+## Feedback and troubleshooting
+
+When reporting an issue, include:
+
+- Extension and Playnite versions, plus your theme.
+- Steps to reproduce, expected behavior and actual behavior.
+- Relevant widget/profile settings, a screenshot or a short recording.
+- A debug log for crashes, slow loading or refresh problems, when available.
+
+Enable **Extension settings > Debug > Enable StartPage debug logging**, reproduce the issue, then click **Open log folder**. Disable logging when finished. To capture startup, enable it before restarting Playnite.
+
+The log is `startpage-debug.log` inside:
+
+```text
+<Playnite ExtensionsDataPath>/a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5/diagnostics/
+```
+
+Portable installations normally keep `ExtensionsData` under the Playnite directory. Logs rotate at 4 MiB and keep one previous file. Review logs and screenshots before sharing them, since they can contain game names or local paths.
+
+## External widgets and attribution
+
+Compatible extensions can provide widgets through the original StartPage SDK. Keep their providers installed and enabled. A missing provider cannot be restored by importing a dashboard profile. See the [original SDK integration guide](https://github.com/felixkmh/StartPage-for-Playnite/wiki/Integrating-with-other-Extensions); compatibility with every third-party provider is not guaranteed.
+
+Original StartPage and SDK work by **felixkmh**; fork enhancements maintained by **Santodan**. The original attribution is retained under the [MIT license](LICENSE).

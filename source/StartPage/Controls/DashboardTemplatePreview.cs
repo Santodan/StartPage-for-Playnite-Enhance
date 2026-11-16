@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Collections.Generic;
 using LandingPage.Settings;
@@ -36,12 +36,12 @@ namespace LandingPage.Controls
                 var horizontal = node.Orientation == Orientation.Horizontal;
                 var available = Math.Max(0, (horizontal ? bounds.Width : bounds.Height) - 4 * (node.Children.Count - 1));
                 var scale = horizontal ? ActualWidth / 1200 : ActualHeight / 720;
-                var fixedSize = node.Children.Where(child => child.Size.IsAbsolute).Sum(child => Math.Max(24, child.Size.Value * scale));
-                var stars = node.Children.Where(child => !child.Size.IsAbsolute).Sum(child => child.Size.IsStar ? child.Size.Value : 1);
+                var fixedSize = node.Children.Where(child => child.Size.IsAbsolute || child.Size.IsAuto).Sum(child => child.Size.IsAuto ? 20 : Math.Max(24, child.Size.Value * scale));
+                var stars = node.Children.Where(child => child.Size.IsStar).Sum(child => child.Size.IsStar ? child.Size.Value : 1);
                 var offset = 0.0;
                 foreach (var child in node.Children)
                 {
-                    var length = child.Size.IsAbsolute ? Math.Max(24, child.Size.Value * scale) : Math.Max(0, available-fixedSize) * (child.Size.IsStar ? child.Size.Value : 1) / Math.Max(1,stars);
+                    var length = child.Size.IsAuto ? 20 : child.Size.IsAbsolute ? Math.Max(24, child.Size.Value * scale) : Math.Max(0, available-fixedSize) * (child.Size.IsStar ? child.Size.Value : 1) / Math.Max(1,stars);
                     var rectangle = horizontal ? new Rect(bounds.X+offset,bounds.Y,length,bounds.Height) : new Rect(bounds.X,bounds.Y+offset,bounds.Width,length);
                     DrawNode(drawing, child, rectangle); offset += length+4;
                 }
@@ -60,8 +60,32 @@ namespace LandingPage.Controls
                     case "ToolbarWidget": label = "Page navigation / profiles"; break;
                     case "TextWidget": label = view.TextSettings.Text.Split('\n')[0]; break;
                     case "RecentAchivements": label = "Recent unlocks"; break;
-                    default: label = "Game shelves"; break;
+                    case "LibraryStatistics": label = "Library overview"; break;
+                    case "LibraryChart": label = "Library charts"; break;
+                    case "FeaturedGame": label = "Game spotlight"; break;
+                    default: label = GameDetailWidgets.Find(view.ViewId)?.Name ?? "Game shelves"; break;
                 }
+            if (view.ViewId == "LibraryStatistics" && bounds.Height > 36 && bounds.Width > 40)
+            {
+                for (var index = 0; index < 6; index++)
+                {
+                    var x = bounds.X + 8 + index % 3 * (bounds.Width-16)/3;
+                    var y = bounds.Y + 23 + index/3 * (bounds.Height-30)/2;
+                    drawing.DrawRoundedRectangle(Brushes.LightSkyBlue,null,new Rect(x,y,Math.Max(2,(bounds.Width-30)/4),4),1,1);
+                    drawing.DrawRoundedRectangle(Brushes.SlateGray,null,new Rect(x,y+7,Math.Max(2,(bounds.Width-30)/4),2),1,1);
+                }
+            }
+            if (view.ViewId == "LibraryChart" && bounds.Height > 45 && bounds.Width > 40)
+            {
+                var count = 1+view.LibraryStatisticsSettings.ExtraCharts.Count;
+                var height = (bounds.Height-27)/count;
+                for(var index = 0; index < count; index++)
+                    for(var bar = 0; bar < 3; bar++)
+                        drawing.DrawRoundedRectangle(bar == 0 ? Brushes.CornflowerBlue : bar == 1 ? Brushes.MediumSeaGreen : Brushes.Orange,
+                            null,new Rect(bounds.X+12,bounds.Y+23+index*height+bar*height/4,(bounds.Width-26)*(0.85-bar*0.2),Math.Max(1,height/6)),1,1);
+            }
+            if ((view.ViewId == "FeaturedGame" || view.ViewId == "GameDetailArtwork") && bounds.Height > 40 && bounds.Width > 36)
+                drawing.DrawRoundedRectangle(Brushes.SteelBlue,null,new Rect(bounds.X+8,bounds.Y+23,bounds.Width-16,bounds.Height-30),3,3);
             if (view.ViewId == "GameShelves" && bounds.Height > 48)
             {
                 var rules = Shelves != null && Shelves.TryGetValue(view.InstanceId, out var settings) ? settings.ShelveProperties.ToArray() : new ShelveProperties[0];

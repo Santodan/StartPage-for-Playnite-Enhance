@@ -1,4 +1,4 @@
-# powershell.exe -STA -File tests/Test-StarterProfiles.ps1
+﻿# powershell.exe -STA -File tests/Test-StarterProfiles.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $build = Join-Path $root 'source\StartPage\bin\Release'
@@ -14,9 +14,9 @@ $settingsType.GetProperty('BackgroundImagePath').SetValue($context,'Z:\Private\m
 $settingsType.GetProperty('BackgroundImageUri').SetValue($context,[uri]'file:///Z:/Private/my-background.jpg')
 $builtin = [guid]'a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5'
 $templates = [LandingPage.Models.DashboardStarterTemplates]::Create($context,$builtin)
-if ($templates.Count -ne 3 -or (@($templates | ForEach-Object Key) -join ',') -ne 'minimal,achievements,library') { throw 'Expected three starter templates' }
+if ($templates.Count -ne 6 -or (@($templates | ForEach-Object Key) -join ',') -ne 'minimal,achievements,library,spotlight,inspector,insights') { throw 'Expected six starter templates' }
 if ($settingsType.GetProperty('DashboardPages').GetValue($context).Count -ne 0 -or $settingsType.GetProperty('BackgroundImagePath').GetValue($context) -ne 'Z:\Private\my-background.jpg') { throw 'Generating templates changed the live dashboard' }
-$allowed = @('DigitalClock','TextWidget','ToolbarWidget','GameShelves','RecentAchivements')
+$allowed = @('DigitalClock','TextWidget','ToolbarWidget','GameShelves','RecentAchivements','FeaturedGame','GameDetailArtwork','GameDetailTitle','GameDetailDescription','GameDetailActivity','GameDetailActions','LibraryStatistics','LibraryChart')
 $previewHashes = [Collections.Generic.HashSet[string]]::new()
 $output = Join-Path $env:TEMP ('StartPage-starter-previews-' + [guid]::NewGuid())
 [void][IO.Directory]::CreateDirectory($output)
@@ -68,5 +68,16 @@ if ($minimal.Profile.Snapshot.Pages[0].Name -ne 'Home') { throw 'Applying/editin
 $other = [LandingPage.Models.DashboardStarterTemplates]::Create($context,$builtin)
 $other[0].Profile.Snapshot.Pages[0].Name = 'Separate gallery'
 if ($templates[0].Profile.Snapshot.Pages[0].Name -ne 'Home') { throw 'Starter generations share mutable data' }
-'PASS: three portable starters, page navigation, shelf recipes, achievement provider, independent snapshots, profile round-trip, and distinct rendered previews.'
+$spotlight = $templates | Where-Object Key -eq 'spotlight'
+$feature = @($spotlight.Profile.Snapshot.Pages[0].Layout.Enumerate() | Where-Object { $_.ViewProperties.ViewId -eq 'FeaturedGame' })[0]
+if ($feature.ViewProperties.FeaturedGameSettings.Source -ne [LandingPage.Settings.FeaturedGameSource]::HoveredOrSelectedGame) { throw 'Spotlight does not follow hover/selection' }
+$inspector = $templates | Where-Object Key -eq 'inspector'
+$details = @($inspector.Profile.Snapshot.Pages[0].Layout.Enumerate() | Where-Object { $_.ViewProperties.ViewId -like 'GameDetail*' })
+if ($details.Count -ne 5 -or @($details | Where-Object { $_.ViewProperties.GameDetailSettings.Source -ne [LandingPage.Settings.FeaturedGameSource]::HoveredOrSelectedGame }).Count) { throw 'Inspector sections do not follow the same game' }
+$description = @($details | Where-Object { $_.ViewProperties.ViewId -eq 'GameDetailDescription' })[0]
+if ($description.ViewProperties.GameDetailSettings.DescriptionLength -ne 0 -or !$description.ViewProperties.GameDetailSettings.ShowDescriptionImages) { throw 'Inspector is missing full HTML description/images' }
+$insights = $templates | Where-Object Key -eq 'insights'
+$chart = @($insights.Profile.Snapshot.Pages[0].Layout.Enumerate() | Where-Object { $_.ViewProperties.ViewId -eq 'LibraryChart' })[0].ViewProperties.LibraryStatisticsSettings
+if ($chart.ExtraCharts.Count -ne 2 -or $chart.ChartStyle -ne [LandingPage.Settings.StatisticsChartStyle]::Doughnut -or $chart.ExtraCharts[0].Metric -ne [LandingPage.Settings.StatisticsMetric]::Playtime -or $chart.ExtraCharts[1].ChartStyle -ne [LandingPage.Settings.StatisticsChartStyle]::VerticalBars) { throw 'Insights requires three independent chart recipes' }
+'PASS: six portable starters, page navigation, shelf recipes, achievement provider, independent snapshots, profile round-trip, and distinct rendered previews.'
 ('Preview artifacts: ' + $output)

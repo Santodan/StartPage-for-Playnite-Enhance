@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows;
@@ -20,7 +20,8 @@ namespace LandingPage.Models
     public static class DashboardStarterTemplates
     {
         public static IReadOnlyList<DashboardStarterTemplate> Create(LandingPageSettings context, Guid builtinPluginId)
-            => new[] { Build("minimal", context, builtinPluginId), Build("achievements", context, builtinPluginId), Build("library", context, builtinPluginId) };
+            => new[] { Build("minimal", context, builtinPluginId), Build("achievements", context, builtinPluginId), Build("library", context, builtinPluginId),
+                Build("spotlight", context, builtinPluginId), Build("inspector", context, builtinPluginId), Build("insights", context, builtinPluginId) };
 
         private static DashboardStarterTemplate Build(string key, LandingPageSettings context, Guid pluginId)
         {
@@ -42,7 +43,9 @@ namespace LandingPage.Models
                 result.Notes = "Uses StartPage widgets only. Colors follow your theme; the background uses game artwork.";
                 var clock = widget("DigitalClock"); clock.ViewProperties.ClockSettings.TimeSize = 100;
                 var welcome = Heading("Welcome back", "Pick a game and enjoy your next session.", pluginId);
-                var shelf = Shelves(settings, pluginId, "Recently played", Rule("Recently played", SortingField.LastActivity, 12, ShelfDisplayStyle.CoverRow));
+                var recentRule = Rule("Recently played", SortingField.LastActivity, 12, ShelfDisplayStyle.CoverRow);
+                recentRule.HoverEffect = ShelfHoverEffect.Dock; recentRule.HoverScale = 1.15; recentRule.ShowSourceIcon = true;
+                var shelf = Shelves(settings, pluginId, "Recently played", recentRule);
                 AddPage(settings, "Home", Stack(Orientation.Vertical, Toolbar(pluginId), Split(Orientation.Horizontal, 1.2, clock, welcome), Weight(shelf, 3.2)));
             }
             else if (key == "achievements")
@@ -54,12 +57,13 @@ namespace LandingPage.Models
                 var recent = widget("RecentAchivements"); Decorate(recent, "Recent unlocks");
                 var games = Rule("Continue your progress", SortingField.LastActivity, 12, ShelfDisplayStyle.CoverGrid);
                 games.ShowAchievementProgress = true; games.ShowAchievementTrophy = true; games.ShowPlaytime = true;
+                games.HoverEffect = ShelfHoverEffect.Lift;
                 games.ShowSourceIcon = true; games.MetadataPosition = ShelfMetadataPosition.OverArtwork;
                 var shelf = Shelves(settings, pluginId, "Achievement progress", games);
                 AddPage(settings, "Achievements", Stack(Orientation.Vertical, Toolbar(pluginId), Height(Heading("Achievements", "Your recent unlocks and games to return to.", pluginId), 76),
                     Split(Orientation.Horizontal, 4, Weight(recent, 1.2), Weight(shelf, 2.8))));
             }
-            else
+            else if (key == "library")
             {
                 result.Name = "Library";
                 result.Description = "Two pages: recent and favorite games in Library, plus an unplayed grid and installed list in Backlog.";
@@ -67,12 +71,60 @@ namespace LandingPage.Models
                 var recent = Rule("Continue playing", SortingField.LastActivity, 12, ShelfDisplayStyle.CoverRow); recent.ShowLastPlayed = true; recent.ShowPlaytime = true; recent.ShowSourceIcon = true;
                 var added = Rule("Recently added", SortingField.DateAdded, 10, ShelfDisplayStyle.WideCards); added.CardWidth = 260; added.ShowSourceIcon = true; added.ShowInstallationStatus = true;
                 var favorites = Rule("Favorites", SortingField.Name, 14, ShelfDisplayStyle.CompactList); favorites.FavoritesOnly = true; favorites.ShowFavoriteBadge = true;
-                AddPage(settings, "Library", Stack(Orientation.Vertical, Toolbar(pluginId), Height(Heading("My library", "Continue playing, explore recent additions, or revisit a favorite.", pluginId), 76),
+                var summary = Statistics(pluginId, false); summary.ViewProperties.LibraryStatisticsSettings.ShowPlaytime = false;
+                AddPage(settings, "Library", Stack(Orientation.Vertical, Toolbar(pluginId), Height(summary, 110),
                     Split(Orientation.Horizontal, 4, Weight(Shelves(settings, pluginId, "Your games", recent, added), 3), Weight(Shelves(settings, pluginId, "Favorites", favorites), 1.4))));
                 var unplayed = Rule("Never played", SortingField.DateAdded, 30, ShelfDisplayStyle.CoverGrid); unplayed.NeverPlayedOnly = true; unplayed.ShowSourceIcon = true; unplayed.ShowInstallationStatus = true;
                 var installed = Rule("Ready to play", SortingField.Name, 20, ShelfDisplayStyle.CompactList); installed.InstalledOnly = true; installed.ShowPlaytime = true;
                 AddPage(settings, "Backlog", Stack(Orientation.Vertical, Toolbar(pluginId), Height(Heading("Find your next game", "Unplayed games and installed titles, ready when you are.", pluginId), 76),
                     Split(Orientation.Horizontal, 4, Weight(Shelves(settings, pluginId, "Backlog", unplayed), 3), Weight(Shelves(settings, pluginId, "Installed", installed), 1.4))));
+            }
+            else if (key == "spotlight")
+            {
+                result.Name = "Game spotlight";
+                result.Description = "A large featured game follows the hovered or selected game, with a dock-style recent-games shelf below.";
+                result.Notes = "Uses built-in widgets. Without a selection, the featured game starts with the first shelf game. Artwork follows the available game background.";
+                var feature = widget("FeaturedGame"); Decorate(feature, "Game spotlight");
+                feature.ViewProperties.FeaturedGameSettings.Source = FeaturedGameSource.HoveredOrSelectedGame;
+                feature.ViewProperties.FeaturedGameSettings.ArtworkSizing = FeaturedArtworkSizing.Fit;
+                feature.ViewProperties.FeaturedGameSettings.DescriptionLength = 600;
+                var recent = Rule("Explore your games", SortingField.LastActivity, 16, ShelfDisplayStyle.CoverRow);
+                recent.HoverEffect = ShelfHoverEffect.Dock; recent.HoverScale = 1.2; recent.ShowSourceIcon = true; recent.ShowPlaytime = true;
+                AddPage(settings, "Spotlight", Stack(Orientation.Vertical, Toolbar(pluginId), Weight(feature, 3),
+                    Weight(Shelves(settings, pluginId, "Explore", recent), 1.2)));
+            }
+            else if (key == "inspector")
+            {
+                result.Name = "Game inspector";
+                result.Description = "Independent artwork, title, HTML description, activity and action widgets follow the same hovered or selected game.";
+                result.Notes = "Hover a game in the top shelf to update every game section. The description shows the complete text and images, with scrolling. Achievement activity needs your selected provider.";
+                var recent = Rule("Choose a game", SortingField.LastActivity, 12, ShelfDisplayStyle.CoverRow);
+                recent.HoverEffect = ShelfHoverEffect.Lift; recent.HoverDirection = ShelfHoverDirection.Down; recent.ShowSourceIcon = true;
+                var artwork = widget("GameDetailArtwork"); Decorate(artwork, "Artwork");
+                var description = widget("GameDetailDescription"); Decorate(description, "Description");
+                description.ViewProperties.GameDetailSettings.DescriptionLength = 0;
+                description.ViewProperties.GameDetailSettings.ShowDescriptionImages = true;
+                var title = widget("GameDetailTitle");
+                var activity = widget("GameDetailActivity"); Decorate(activity, "Activity");
+                var actions = widget("GameDetailActions");
+                AddPage(settings, "Game inspector", Stack(Orientation.Vertical, Toolbar(pluginId),
+                    Weight(Shelves(settings, pluginId, "Choose a game", recent), 1.1),
+                    Split(Orientation.Horizontal, 3, Weight(artwork, 1), Weight(Stack(Orientation.Vertical,
+                        Height(title, 70), Weight(description, 3), Weight(activity, 1.2), Height(actions, 54)), 2.3))));
+            }
+            else if (key == "insights")
+            {
+                result.Name = "Library insights";
+                result.Description = "Library totals and recorded playtime alongside three charts: games by source, playtime by source and installation status.";
+                result.Notes = "Source groups are detected from your library. Period playtime counters need GameActivity session history; source playtime charts use Playnite lifetime totals. Charts start with animations disabled.";
+                var counters = Statistics(pluginId, true);
+                var chart = widget("LibraryChart"); Decorate(chart, "Library charts");
+                chart.ViewProperties.LibraryStatisticsSettings = Chart(StatisticsBreakdown.Sources, StatisticsMetric.GameCount, StatisticsChartStyle.Doughnut);
+                var charts = chart.ViewProperties.LibraryStatisticsSettings;
+                charts.ExtraCharts.Add(Chart(StatisticsBreakdown.Sources, StatisticsMetric.Playtime, StatisticsChartStyle.Bars));
+                charts.ExtraCharts.Add(Chart(StatisticsBreakdown.Installation, StatisticsMetric.GameCount, StatisticsChartStyle.VerticalBars));
+                AddPage(settings, "Library insights", Stack(Orientation.Vertical, Toolbar(pluginId),
+                    Split(Orientation.Horizontal, 1, Weight(counters, 1.2), Weight(chart, 2))));
             }
             settings.ActiveDashboardPageId = settings.DashboardPages[0].Id;
             settings.GridLayout = settings.DashboardPages[0].Layout;
@@ -80,6 +132,24 @@ namespace LandingPage.Models
             return result;
         }
 
+        private static GridNode Statistics(Guid pluginId, bool periods)
+        {
+            var node = Widget("LibraryStatistics", pluginId); Decorate(node, "Library overview");
+            var options = node.ViewProperties.LibraryStatisticsSettings;
+            options.ShowChart = false; options.UseCounterGrid = true; options.CounterColumns = 3;
+            options.ShowTotal = true; options.ShowInstalled = true; options.ShowUnplayed = true;
+            options.ShowCompleted = periods; options.ShowPlaytime = true; options.ShowAveragePlaytime = periods;
+            options.ShowTodayPlaytime = periods; options.ShowWeekPlaytime = periods;
+            options.ShowMonthPlaytime = periods; options.ShowYearPlaytime = periods;
+            return node;
+        }
+        private static LibraryStatisticsSettings Chart(StatisticsBreakdown breakdown, StatisticsMetric metric, StatisticsChartStyle style)
+        {
+            var options = LibraryStatisticsSettings.CreateChartSettings();
+            options.Breakdown = breakdown; options.Metric = metric; options.ChartStyle = style;
+            options.ChartHeight = 240; options.ChartAnimations = false; options.GlossySeries = false;
+            return options;
+        }
         private static void AddPage(LandingPageSettings settings, string name, GridNode layout)
             => settings.DashboardPages.Add(new DashboardPage { Name = name, Layout = layout, Background = DashboardBackground.Capture(settings) });
         private static GridNode Widget(string id, Guid pluginId) => new GridNode { Padding = 4,
@@ -93,7 +163,7 @@ namespace LandingPage.Models
         }
         private static GridNode Toolbar(Guid pluginId)
         {
-            var node = Widget("ToolbarWidget", pluginId); node.Size = new GridLength(56);
+            var node = Widget("ToolbarWidget", pluginId); node.Size = GridLength.Auto;
             node.ViewProperties.ToolbarSettings.ShowLabels = false;
             node.ViewProperties.ToolbarSettings.Items.Add(new ToolbarEntry { Id = "profile.manage" });
             return node;

@@ -1,19 +1,21 @@
-﻿# StartPage customization roadmap
+﻿# StartPage Enhanced customization roadmap
 
-Implement one numbered item at a time. Commit only when the user explicitly requests a commit. Build a Release package after each item and wait for user testing and approval before starting the next item. Do not push unless requested.
+Roadmap for the experimental **0.14.0** fork. Checked items are implemented and remain open to bug reports and feedback; unchecked items are planned, without promised release dates. See the [README](README.md) for installation, compatibility and reporting guidance.
+
+Suggestions and bug reports are welcome through [GitHub Issues](https://github.com/Santodan/StartPage-for-Playnite-Enhance/issues).
 
 1. [x] **Per-widget appearance.** Optional background color/opacity, border color/width, corner radius, internal padding, outer spacing, shadow, custom title, title visibility/color/size/alignment, and reset to theme defaults. Includes optional widget text, small bitmap icon, chart, and selection/highlight colors, including FusionZ row/header highlights used by DuplicateHider. Settings follow the widget and persist with its layout. Existing layouts retain their appearance until customization is enabled.
 2. [x] **Customizable clock.** Size, color, alignment, date visibility/format, 12/24-hour time, optional seconds, and optional clock animation.
 3. [x] **Text widget.** Custom headings and notes with font size, color, alignment, and wrapping.
 4. [x] **Image widget.** Local images, banners, and logos with fit/fill choices and optional links.
 5. [x] **Shelf display styles.** Horizontal cover rows, wrapping grids, compact lists, and wide artwork cards; configure styles per shelf.
-6. [x] **Shelf customization.** Per-shelf hover animations: dock-style neighbor magnification, zoom, lift, tilt, bounce, optional glow and dimming, with strength, reach, timing, easing, artwork overflow and reset controls. Implemented and accepted by the user.
+6. [x] **Shelf customization.** Per-shelf hover animations: dock-style neighbor magnification, zoom, lift, tilt, bounce, optional glow and dimming, with strength, reach, timing, easing, artwork overflow and reset controls. Implemented.
 7. [x] **Shelf metadata and badges.** Selectable titles, playtime, last played, platform, favorites, installation status, and achievement progress where available.
 8. [x] **Advanced shelf rules.** Never played, inactivity and date-added ranges, include/exclude rules, and match-all/match-any selection.
 9. [x] **Multiple dashboard pages and toolbar widget.** Named pages with independent layouts/backgrounds. A placeable toolbar supports configurable native Playnite toolbar items, a page selector, previous/next arrows, and page management.
 10. [x] **Complete dashboard profiles.** Save/import/export layout, appearance, widget settings, backgrounds, and shelf configuration together. Ensure saved presets are independent snapshots and handle missing extensions gracefully.
-11. [x] **Starter profiles.** Minimal, Achievements, and Library layouts with previews.
-12. [x] **Dashboard transitions.** Optional None/Fade/Slide transitions with duration and direction controls. Prepare the destination before revealing it and coordinate the page/background change. Begin only after the user approves dashboard switching smoothness.
+11. [x] **Starter profiles.** Refreshed Minimal, Achievements, and Library layouts, plus Game spotlight, Game inspector, and Library insights with previews.
+12. [x] **Dashboard transitions.** Optional None/Fade/Slide transitions with duration and direction controls. Prepare the destination before revealing it and coordinate the page/background change.
 13. [x] **Featured game widget.** Pinned or automatically selected game, large artwork, description, play button, playtime, and optional achievement progress.
 14. [x] **Selected/hovered game detail widgets.** Separate placeable widgets for a game's title/artwork, description, activity, game details, library information, scores, links, and actions. Each widget can follow Playnite's selected game or the game under the mouse, with a shared selected-or-hovered mode for synchronized layouts. Reuse Featured Game section fields/appearance controls, allow independent placement and resizing through dashboard panels, and persist choices in profiles. See scope below.
 15. [x] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime. Implemented.
@@ -26,7 +28,7 @@ Implement one numbered item at a time. Commit only when the user explicitly requ
 
 ## First change: testing in Playnite
 
-- Install `source/StartPage/bin/felixkmh_StartPage_Plugin_2_14_1.pext` and restart Playnite when prompted.
+- Install `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_14_0.pext` and restart Playnite when prompted.
 - Enter StartPage Edit Mode and click **Appearance** in the upper-left corner of a populated panel (or right-click it and choose **Panel appearance...**). An overlay inside StartPage shows all controls, without a separate operating-system window. Close it with Done, Escape, or a click outside the editor.
 - Enable **Use custom appearance**. Expand each color picker to choose palette swatches, adjust RGB/alpha channels, or enter a color name/hex value. Try opacity, borders, corners, padding, spacing, and shadow.
 - Enable **Show title** and try a custom title, size, color, and alignment. A blank title uses the widget name.

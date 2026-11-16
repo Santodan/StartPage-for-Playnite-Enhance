@@ -308,6 +308,33 @@ namespace LandingPage
 
         private readonly LandingPageExtension plugin;
         public string DebugLogPath => ExtensionDiagnostics.GetPath(plugin ?? LandingPageExtension.Instance);
+        public string OriginalSettingsPath => Path.Combine(plugin.PlayniteApi.Paths.ExtensionsDataPath,
+            "a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5", "config.json");
+        private string originalImportStatus;
+        public string OriginalImportStatus { get => originalImportStatus; private set => SetValue(ref originalImportStatus, value); }
+        public void ImportOriginalSettings()
+        {
+            var path = plugin.PlayniteApi.Dialogs.SelectFile("StartPage settings (config.json)|*.json");
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                // Validate completely before touching the settings being edited.
+                if (new FileInfo(path).Length > 16 * 1024 * 1024)
+                    throw new ArgumentException("The settings file exceeds the 16 MiB import limit.");
+                var profile = DashboardProfiles.ImportOriginalSettings(File.ReadAllText(path));
+                var name = profile.Name;
+                for (int suffix = 2; Settings.DashboardProfiles.Any(item => item.Name == profile.Name); suffix++)
+                    profile.Name = name + " (" + suffix + ")";
+                Settings.DashboardProfiles.Add(profile);
+                OriginalImportStatus = "Imported as saved profile: " + profile.Name + ". Save settings, then open Dashboard profiles to preview or add its page.";
+                LandingPageExtension.logger.Info("Original StartPage configuration imported as a saved dashboard profile.");
+            }
+            catch (Exception ex)
+            {
+                OriginalImportStatus = "Import failed: " + ex.Message;
+                LandingPageExtension.logger.Error(ex, "Original StartPage settings import failed.");
+            }
+        }
         private LandingPageSettings editingClone { get; set; }
 
         private LandingPageSettings settings;
@@ -431,6 +458,7 @@ namespace LandingPage
         public void BeginEdit()
         {
             // Code executed when settings view is opened and user starts editing values.
+            OriginalImportStatus = null;
             editingClone = Serialization.GetClone(Settings);
             editingSnapshot = Serialization.ToJson(Settings, false);
         }

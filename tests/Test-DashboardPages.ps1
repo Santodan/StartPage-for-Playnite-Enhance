@@ -698,9 +698,9 @@ try {
     'PASS: runtime profile save/import/apply, automatic backups, independent snapshots, missing-provider placeholders, external instance reuse/lifecycle, invalid-profile isolation, and in-app manager.'
     $view.ShowProfiles(); $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     $starterPreviews = @([ToolbarTestVisuals]::Previews($view.FindName('ProfilesOverlay')))
-    if ($starterPreviews.Count -ne 4 -or @($starterPreviews | Where-Object { !$_.Layout -or !$_.Shelves }).Count -ne 0) { throw 'Starter gallery preview layout/shelf bindings failed' }
+    if ($starterPreviews.Count -ne 7 -or @($starterPreviews | Where-Object { !$_.Layout -or !$_.Shelves }).Count -ne 0) { throw 'Starter gallery preview layout/shelf bindings failed' }
     $starterButtons = @([ToolbarTestVisuals]::Buttons($view.FindName('ProfilesOverlay')) | Where-Object { $_.Content -eq 'Add profile' })
-    if ($starterButtons.Count -ne 3 -or @($starterButtons | Where-Object { !$_.Command -or !$_.CommandParameter }).Count -ne 0) { throw 'Starter gallery cards are missing their commands or template parameters' }
+    if ($starterButtons.Count -ne 6 -or @($starterButtons | Where-Object { !$_.Command -or !$_.CommandParameter }).Count -ne 0) { throw 'Starter gallery cards are missing their commands or template parameters' }
     $minimalCard = $starterButtons | Where-Object { $_.CommandParameter.Key -eq 'minimal' }
     $recipe = $minimalCard.CommandParameter
     $rootBeforeTemplate = $vm.RootNodeViewModel; $profileCount = $vm.Profiles.Count
@@ -796,6 +796,23 @@ try {
     foreach ($profile in $deleteTargets) { if ($vm.Profiles.Contains($profile)) { throw 'A selected profile was not deleted' } }
     'PASS: append default/command, existing controls/pages/settings preserved, repeated independent append, page navigation, and multi-select deletion through the real list.'
     $refreshShelf = [LandingPage.ViewModels.ShelveViewModel].GetConstructors()[0].Invoke([object[]]@([LandingPage.Models.ShelveProperties]::new(),[LandingPage.Settings.ShelvesSettings]::new(),$api,[Collections.ObjectModel.ObservableCollection[LandingPage.ViewModels.ShelveViewModel]]::new(),$null))
+    $filterSet = [Collections.Generic.HashSet[guid]]::new()
+    $firstFilterId = [guid]::NewGuid(); $secondFilterId = [guid]::NewGuid()
+    $firstFilter = [LandingPage.ViewModels.ShelveViewModel+ToggleFilter]::new($firstFilterId,'Action',$filterSet,$refreshShelf,$false)
+    $secondFilter = [LandingPage.ViewModels.ShelveViewModel+ToggleFilter]::new($secondFilterId,'Action RPG',$filterSet,$refreshShelf,$false)
+    $typedFilter = [Windows.Controls.ComboBox]::new(); $typedFilter.IsEditable = $true; $typedFilter.IsTextSearchEnabled = $false
+    [void]$typedFilter.Items.Add($firstFilter); [void]$typedFilter.Items.Add($secondFilter)
+    $typedFilter.Text = ' action '
+    if (![LandingPage.Views.ShelveView]::ApplyTypedFilter($typedFilter,$false) -or !$filterSet.Contains($firstFilterId) -or $typedFilter.IsDropDownOpen) { throw 'Typed exact filter cannot be added with dropdown closed' }
+    if (![LandingPage.Views.ShelveView]::ApplyTypedFilter($typedFilter,$false) -or $filterSet.Contains($firstFilterId)) { throw 'Typed filter cannot be toggled off' }
+    $typedFilter.Text = 'Act'
+    if ([LandingPage.Views.ShelveView]::ApplyTypedFilter($typedFilter,$false) -or $filterSet.Count) { throw 'Ambiguous partial filter changed a selection' }
+    $typedFilter.Text = 'Action R'
+    if (![LandingPage.Views.ShelveView]::ApplyTypedFilter($typedFilter,$false) -or !$filterSet.Contains($secondFilterId)) { throw 'Unique partial name cannot be added' }
+    if (![LandingPage.Views.ShelveView]::ApplyTypedFilter($typedFilter,$true) -or $filterSet.Count) { throw 'Remove action did not remove typed selection' }
+    $typedFilter.Text = 'Unknown'
+    if ([LandingPage.Views.ShelveView]::ApplyTypedFilter($typedFilter,$false) -or $filterSet.Count) { throw 'Unknown typed name changed filter selections' }
+    'PASS: closed-dropdown typed filters add/remove, exact names ignore case/whitespace, unique prefixes work and ambiguous/unknown names preserve selections.'
     $gameA = [Playnite.SDK.Models.Game]::new(); $gameA.Name = 'Stable cover A'
     $gameB = [Playnite.SDK.Models.Game]::new(); $gameB.Name = 'Stable cover B'
     $selection = [Collections.Generic.List[Playnite.SDK.Models.Game]]::new(); $selection.Add($gameA); $selection.Add($gameB)
