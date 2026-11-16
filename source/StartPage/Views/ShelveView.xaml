@@ -1030,6 +1030,7 @@
                                     </StackPanel>
                                 <TextBlock Text="Shelf actions" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Margin="2,8,2,3"/>
                                     <StackPanel Margin="0,5,0,0">
+                                <Button Content="Refresh shelf" Command="{Binding ManualUpdateCommand}" Margin="2" Padding="2" ToolTip="Reapply filters and refill the shelf with matching games up to its configured count."/>
                                 <Button Margin="2" Padding="2"
                                                                 Command="{Binding RelativeSource={RelativeSource AncestorType=local:ShelvesView, Mode=FindAncestor}, Path=DataContext.ExtendShelveCommand}"
                                                                 CommandParameter="{Binding .}">

@@ -112,3 +112,7 @@ New toolbar widgets include **Add dashboard page** (+) and **Remove current dash
 ## Organize toolbar items by group
 
 In **Toolbar settings > Toolbar items**, select a group to show only its items. **Add item** uses that group, and the arrows reorder items within it. Each item still has a Group selector for moving it to another group; it immediately leaves the current list. Groups and alignment remains available for naming, sizing, styling and ordering the groups. Removing a group moves its items to a remaining group.
+
+## Reorder pages without opening them
+
+Open **Manage dashboard pages > Page order**, select a page in the list, and choose **Move up**, **Move down**, **Move to first** or **Move to last**. Selecting this list does not open the page. The order controls the toolbar page selector and previous/next navigation. Press **Done** to save; dismissing the manager restores the previous order. Moving a page to first does not rename it or change the existing behavior of reopening the last active dashboard.

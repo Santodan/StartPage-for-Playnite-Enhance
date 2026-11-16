@@ -217,3 +217,7 @@ Enable **Never played only** in Advanced rules. Both source and publisher restri
 ## Typing in include/exclude dropdowns
 
 For platform, genre, category, tag, feature, completion status and source selectors, type an existing name and press **Enter** to toggle that filter without opening the dropdown. **Ctrl+Delete** removes the matched filter. Matching ignores case and surrounding whitespace. A partial name works only when it identifies one item; ambiguous or unknown names do not change selections. Plain Delete/Backspace still edit the text. These selectors choose existing library metadata; wildcard expressions belong in the pattern fields described above.
+
+## Refresh a shelf
+
+Open the individual shelf settings and choose **Shelf actions > Refresh shelf**. This reapplies its rules and refreshes the displayed collection. Exclusions are evaluated before the configured game count, so a shelf fills with up to that many eligible games, subject to its other filters, skipped games and previous-shelf exclusions. With Debug enabled, `Shelf filter display` entries show the requested, selected, model and view counts.

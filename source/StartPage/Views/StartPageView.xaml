@@ -150,7 +150,7 @@
                 </Style>
             </Border.Style>
         </Border>
-        <ScrollViewer x:Name="StartPageScrollViewer" HorizontalScrollBarVisibility="Disabled" Padding="{Binding Settings.Settings.Padding}">
+        <ScrollViewer x:Name="StartPageScrollViewer" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" CanContentScroll="False" Padding="{Binding Settings.Settings.Padding}">
             <local:GridNodeView DataContext="{Binding RootNodeViewModel}">
                 <local:GridNodeView.RenderTransform>
                     <ScaleTransform/>
@@ -161,7 +161,7 @@
                             <ElasticEase x:Key="EasingFunctiton" Oscillations="1"/>
                         </Style.Resources>
                         <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-                        <Setter Property="Height" Value="{Binding ActualHeight, ElementName=StartPageScrollViewer}"/>
+                        <Setter Property="Height" Value="{Binding ViewportHeight, ElementName=StartPageScrollViewer}"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=local:StartPageView, Mode=FindAncestor}, Path=DataContext.Settings.Settings.FixGridSize}" Value="{StaticResource True}">
                                 <Setter Property="Height" Value="{Binding RelativeSource={RelativeSource AncestorType=local:StartPageView, Mode=FindAncestor}, Path=DataContext.Settings.Settings.FixedGridHeight}"/>
@@ -436,14 +436,25 @@
                         <StackPanel IsEnabled="{Binding CanChangePages}">
                             <TextBlock Text="Current page"/>
                             <ComboBox ItemsSource="{Binding Pages}" SelectedValue="{Binding SelectedPageId, Mode=TwoWay}" SelectedValuePath="Id" DisplayMemberPath="Name" Margin="0,4,0,8"/>
-                            <Expander Header="Page name and order" IsExpanded="True">
+                            <Expander Header="Page name" IsExpanded="True">
                                 <StackPanel Margin="8,6,0,8">
                                     <TextBlock Text="Page name"/>
                                     <TextBox Text="{Binding EditedPageName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,6"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Content="Move left" Command="{Binding MovePageUpCommand}" Margin="0,0,6,0"/>
-                                        <Button Content="Move right" Command="{Binding MovePageDownCommand}"/>
-                                    </StackPanel>
+
+                                </StackPanel>
+                            </Expander>
+                            <Expander x:Name="PageOrderSection" Header="Page order" IsExpanded="True" Margin="0,6,0,0">
+                                <StackPanel Margin="8,6,0,8">
+                                    <TextBlock Text="Select a page to move without opening it. Move to first places it at the start of the toolbar selector and navigation order. Press Done to save." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"/>
+                                    <ListBox x:Name="PageOrderList" ItemsSource="{Binding Pages}" DisplayMemberPath="Name"
+                                             SelectedItem="{Binding PageSelectedForOrdering, Mode=TwoWay}" IsSynchronizedWithCurrentItem="False"
+                                             MinHeight="100" MaxHeight="240" Margin="0,8,0,8" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                    <WrapPanel>
+                                        <Button Content="Move up" Command="{Binding MoveOrderedPageUpCommand}" Margin="0,0,6,6"/>
+                                        <Button Content="Move down" Command="{Binding MoveOrderedPageDownCommand}" Margin="0,0,6,6"/>
+                                        <Button Content="Move to first" Command="{Binding MoveOrderedPageFirstCommand}" Margin="0,0,6,6"/>
+                                        <Button Content="Move to last" Command="{Binding MoveOrderedPageLastCommand}" Margin="0,0,6,6"/>
+                                    </WrapPanel>
                                 </StackPanel>
                             </Expander>
                             <Expander Header="Dashboard transitions" Margin="0,6,0,0">

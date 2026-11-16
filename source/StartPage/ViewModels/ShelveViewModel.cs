@@ -104,7 +104,12 @@ namespace LandingPage.ViewModels
                 await UpdateGamesAsync(ShelveProperties, true);
             });
             // FillWithPlaceholders(shelveProperties);
-            manualUpdateCommand = new RelayCommand(async () => await UpdateGamesAsync(ShelveProperties, true));
+            manualUpdateCommand = new RelayCommand(async () =>
+            {
+                await UpdateGamesAsync(ShelveProperties, true);
+                // An explicit refresh also repairs the view when the game IDs did not change.
+                CollectionViewSource.View.Refresh();
+            });
 
             ToggleSortDirectionCommand = new RelayCommand(() =>
             {
@@ -539,7 +544,7 @@ namespace LandingPage.ViewModels
                 var gameSelection = await GetGamesAsync(shelveProperties, librarySnapshot);
                 ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Shelf selection available: widget {ParentViewModel?.InstanceId}, sort {shelveProperties.SortBy}, {selectionWatch.ElapsedMilliseconds} ms (includes scheduling/UI wait).");
                 var applyWatch = System.Diagnostics.Stopwatch.StartNew();
-                ApplyGameSelection(gameSelection);
+                ApplyRequestedSelection(gameSelection, manualUpdate);
                 LandingPageExtension.Instance.NotifyPreviewFallbackChanged();
                 ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Shelf models applied: widget {ParentViewModel?.InstanceId}, {gameSelection.Count} games, {applyWatch.ElapsedMilliseconds} ms.");
             }
@@ -548,6 +553,21 @@ namespace LandingPage.ViewModels
 
         // Preserve GameModels and item containers; an unchanged shelf must not emit
         // a collection-view Reset and reload every cover/metadata control.
+        private void ApplyRequestedSelection(IList<Game> selection, bool filterRefresh)
+        {
+            var currentIds = filterRefresh ? new HashSet<Guid>(Games.Select(model => model.Game.Id)) : null;
+            var membershipChanged = filterRefresh && (Games.Count != selection.Count
+                || selection.Any(game => !currentIds.Contains(game.Id)));
+            ApplyGameSelection(selection);
+            // Re-evaluate grouped/virtualized views after all replacements are in place.
+            // Do not defer source mutations on a live-sorted view: WPF may access its
+            // CurrentPosition while processing each collection change.
+            if (filterRefresh && membershipChanged) CollectionViewSource.View.Refresh();
+            if (LandingPageExtension.Instance?.SettingsViewModel?.Settings?.EnableDashboardDiagnostics == true)
+                ExtensionDiagnostics.Record(LandingPageExtension.Instance,
+                    $"Shelf filter display: shelf={ShelveProperties.Name}; requested={ShelveProperties.NumberOfGames}; unlimited={ShelveProperties.UnlimitedGames}; selected={selection.Count}; models={Games.Count}; view={CollectionViewSource.View.Cast<object>().Count()}; skip={ShelveProperties.SkippedGames}; excludedTags={ShelveProperties.ExcludedTags.Count}; groupedRefresh={filterRefresh && membershipChanged}.");
+        }
+
         private void ApplyGameSelection(IList<Game> selection)
         {
             var ids = new HashSet<Guid>(selection.Select(game => game.Id));
@@ -579,7 +599,7 @@ namespace LandingPage.ViewModels
             try
             {
                 var selection = GetGames(shelveProperties);
-                Application.Current.Dispatcher.Invoke(() => ApplyGameSelection(selection));
+                Application.Current.Dispatcher.Invoke(() => ApplyRequestedSelection(selection, manualUpdate));
             }
             finally { IsBusy = false; }
         }

@@ -67,6 +67,7 @@ namespace LandingPage.ViewModels
             pageEditSnapshot = DashboardProfiles.Clone(Settings.Settings);
             pageEditBaseline = Newtonsoft.Json.JsonConvert.SerializeObject(Settings.Settings);
             draftPageNames = Pages.ToDictionary(page => page.Id,page => page.Name);
+            PageSelectedForOrdering = Pages.FirstOrDefault(page => page.Id == PageSelectedForOrdering?.Id) ?? SelectedPage;
             RefreshPageDeletionCommands();
             OnPropertyChanged(nameof(EditedPageName));
         }
@@ -145,6 +146,25 @@ namespace LandingPage.ViewModels
         public ICommand QuickRemovePageCommand { get; private set; }
         public ICommand MovePageUpCommand { get; private set; }
         public ICommand MovePageDownCommand { get; private set; }
+        private DashboardPage pageSelectedForOrdering;
+        public DashboardPage PageSelectedForOrdering
+        {
+            get => pageSelectedForOrdering;
+            set { SetValue(ref pageSelectedForOrdering, value); RefreshPageDeletionCommands(); }
+        }
+        public ICommand MoveOrderedPageUpCommand { get; private set; }
+        public ICommand MoveOrderedPageDownCommand { get; private set; }
+        public ICommand MoveOrderedPageFirstCommand { get; private set; }
+        public ICommand MoveOrderedPageLastCommand { get; private set; }
+        private bool CanOrderPage => CanChangePages && PageSelectedForOrdering != null && Pages.Contains(PageSelectedForOrdering);
+        private void MoveOrderedPage(int destination)
+        {
+            if (!CanOrderPage || destination < 0 || destination >= Pages.Count) return;
+            var page = PageSelectedForOrdering;
+            Pages.Move(Pages.IndexOf(page), destination);
+            PageSelectedForOrdering = page;
+            SaveCurrentPage();
+        }
         private sealed class PageDeletionCommand : ICommand
         {
             private readonly Action execute;
@@ -161,6 +181,10 @@ namespace LandingPage.ViewModels
             (DeleteSelectedPagesCommand as PageDeletionCommand)?.Refresh();
             (QuickAddPageCommand as PageDeletionCommand)?.Refresh();
             (QuickRemovePageCommand as PageDeletionCommand)?.Refresh();
+            (MoveOrderedPageUpCommand as PageDeletionCommand)?.Refresh();
+            (MoveOrderedPageDownCommand as PageDeletionCommand)?.Refresh();
+            (MoveOrderedPageFirstCommand as PageDeletionCommand)?.Refresh();
+            (MoveOrderedPageLastCommand as PageDeletionCommand)?.Refresh();
         }
         public ObservableCollection<DashboardPage> PagesSelectedForDeletion { get; } = new ObservableCollection<DashboardPage>();
         public string PageDeletionSummary => PagesSelectedForDeletion.Count == 0 ? "Select pages to delete. At least one page must remain."
@@ -247,6 +271,14 @@ namespace LandingPage.ViewModels
             }, () => CanChangePages && pageEditSnapshot == null);
             QuickRemovePageCommand = new PageDeletionCommand(() => QuickPageDeletionRequested?.Invoke(SelectedPage),
                 () => CanChangePages && pageEditSnapshot == null && Pages.Count > 1);
+            MoveOrderedPageUpCommand = new PageDeletionCommand(() => MoveOrderedPage(Pages.IndexOf(PageSelectedForOrdering) - 1),
+                () => CanOrderPage && Pages.IndexOf(PageSelectedForOrdering) > 0);
+            MoveOrderedPageDownCommand = new PageDeletionCommand(() => MoveOrderedPage(Pages.IndexOf(PageSelectedForOrdering) + 1),
+                () => CanOrderPage && Pages.IndexOf(PageSelectedForOrdering) < Pages.Count - 1);
+            MoveOrderedPageFirstCommand = new PageDeletionCommand(() => MoveOrderedPage(0),
+                () => CanOrderPage && Pages.IndexOf(PageSelectedForOrdering) > 0);
+            MoveOrderedPageLastCommand = new PageDeletionCommand(() => MoveOrderedPage(Pages.Count - 1),
+                () => CanOrderPage && Pages.IndexOf(PageSelectedForOrdering) < Pages.Count - 1);
             MovePageUpCommand = new RelayCommand(() => MovePage(-1), () => CanChangePages && Pages.IndexOf(SelectedPage) > 0);
             MovePageDownCommand = new RelayCommand(() => MovePage(1), () => CanChangePages && Pages.IndexOf(SelectedPage) < Pages.Count - 1);
             RequestDeletePageCommand = new RelayCommand(() => ConfirmPageDeletion = true, () => CanChangePages && Pages.Count > 1);
@@ -512,6 +544,7 @@ namespace LandingPage.ViewModels
             if (args.PropertyName != nameof(LandingPageSettingsViewModel.Settings)) return;
             LandingPageExtension.logger.Info($"Dashboard settings object replaced: pages={Pages?.Count ?? 0}; active={Settings.Settings.ActiveDashboardPageId}; editorPending={pageEditSnapshot != null}.");
             WatchPageInputs();
+            PageSelectedForOrdering = Pages.FirstOrDefault(page => page.Id == PageSelectedForOrdering?.Id);
             // Canceling the settings dialog supplies cloned models. Keep cached live
             // layouts attached to those models without resetting inactive backgrounds.
             foreach (var page in Settings.Settings.DashboardPages)

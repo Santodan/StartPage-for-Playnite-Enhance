@@ -5,6 +5,8 @@ Packages:
     ReleaseDate: 2026-11-16
     PackageUrl: https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases/download/v0.16.0/santodan_StartPage_Enhanced_Plugin_0_16_0.pext
     Changelog:
+      - Added page ordering without navigation, including move-to-first and move-to-last.
+      - Fixed padding-induced dashboard scrolling and improved shelf filter display refresh.
       - Development version aligned with roadmap step 16: Library charts.
       - Fixed new-page layout persistence, rendering and popup positioning.
       - Added multi-page deletion, quick toolbar page actions and grouped toolbar item editing.

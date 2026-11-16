@@ -10,6 +10,10 @@ Download **santodan_StartPage_Enhanced_Plugin_0_16_0.pext**, open it with Playni
 
 ## Latest fixes and toolbar improvements
 
+- Reorder pages from a dedicated list without opening them, including move-to-first/last.
+- Correct automatic dashboard sizing so padding does not create an unnecessary scrollbar.
+- Refresh shelf display groups after filter replacements and add a labelled Refresh shelf action with count diagnostics.
+
 - New pages use an automatically sized toolbar above an empty panel and retain their layout after saving/restarting.
 - Fixed page rendering, toolbar sizing and popup positioning; added clearance below Playnite title-bar controls.
 - Multi-select page deletion without opening each page, with immediate button availability and final-page protection.

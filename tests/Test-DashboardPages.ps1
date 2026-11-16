@@ -2348,6 +2348,81 @@ try {
     if ($vm.QuickAddPageCommand.CanExecute($null) -or $vm.QuickRemovePageCommand.CanExecute($null)) { throw 'Quick actions can bypass pending page-manager edits' }
     Wait-Task ($vm.EndPageEditingAsync($false))
     'PASS: quick add/remove default toolbar bindings, immediate persistence, in-app confirmation/cancel, surviving-page navigation and pending-editor protection.'
+    $orderExtraA = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Reorder A')
+    $orderExtraB = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Reorder B')
+    $vm.SaveCurrentPage()
+    $orderBefore = @($vm.Pages | ForEach-Object Id); $orderActive = $vm.SelectedPage.Id; $orderRoot = $vm.RootNodeViewModel
+    $view.ShowPages(); $window.UpdateLayout()
+    $orderList = $view.FindName('PageOrderList'); $orderList.SelectedItem = $orderExtraB
+    if ($vm.PageSelectedForOrdering.Id -ne $orderExtraB.Id -or $vm.SelectedPage.Id -ne $orderActive) { throw 'Selecting a page for ordering opened it' }
+    $vm.MoveOrderedPageFirstCommand.Execute($null)
+    if ($vm.Pages[0].Id -ne $orderExtraB.Id -or $vm.MoveOrderedPageFirstCommand.CanExecute($null) -or $vm.MoveOrderedPageUpCommand.CanExecute($null) -or ![object]::ReferenceEquals($orderRoot,$vm.RootNodeViewModel)) { throw 'Move to first failed or changed the active dashboard' }
+    $vm.MoveOrderedPageDownCommand.Execute($null)
+    if ($vm.Pages[1].Id -ne $orderExtraB.Id) { throw 'Move down did not reorder the highlighted page' }
+    $vm.MoveOrderedPageUpCommand.Execute($null); $vm.MoveOrderedPageLastCommand.Execute($null)
+    if ($vm.Pages[$vm.Pages.Count-1].Id -ne $orderExtraB.Id -or $vm.MoveOrderedPageLastCommand.CanExecute($null)) { throw 'Move to last or its boundary state failed' }
+    Wait-Task ($vm.EndPageEditingAsync($false))
+    if ((@($vm.Pages | ForEach-Object Id) -join ',') -ne ($orderBefore -join ',')) { throw 'Dismissing the manager did not restore page order' }
+    $vm.BeginPageEditing(); $orderList.SelectedItem = @($vm.Pages | Where-Object Id -eq $orderExtraB.Id)[0]
+    $vm.MoveOrderedPageFirstCommand.Execute($null)
+    Wait-Task ($vm.EndPageEditingAsync($true))
+    $orderDisk = [Newtonsoft.Json.JsonConvert]::DeserializeObject([IO.File]::ReadAllText($savedFile.FullName),[LandingPage.LandingPageSettings])
+    if ([LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($orderDisk)[0].Id -ne $orderExtraB.Id -or $vm.SelectedPage.Id -ne $orderActive) { throw 'Done did not persist page order while preserving the active page' }
+    [void]$view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    'PASS: independent page-order selection, up/down/first/last, immediate boundaries, unchanged active widgets, dismissal rollback and saved order.'
+    $fitOriginalPadding = Get-Setting $vm.Settings.Settings 'Padding'; $fitOriginalFixed = Get-Setting $vm.Settings.Settings 'FixGridSize'; $fitOriginalHeight = Get-Setting $vm.Settings.Settings 'FixedGridHeight'
+    $fitWindowHeight = $window.Height
+    try {
+        Set-Setting $vm.Settings.Settings 'FixGridSize' $false
+        Set-Setting $vm.Settings.Settings 'Padding' ([double]12)
+        $fitViewport = $view.FindName('StartPageScrollViewer')
+        foreach ($height in @(500,800,1100)) {
+            $window.Height = $height; $window.UpdateLayout()
+            $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+            if ($fitViewport.ScrollableHeight -gt 0.5 -or $fitViewport.ComputedVerticalScrollBarVisibility -ne [Windows.Visibility]::Collapsed) { throw ('Automatic dashboard height includes outer padding and creates fake overflow at ' + $height + ': viewport=' + $fitViewport.ViewportHeight + '; extent=' + $fitViewport.ExtentHeight) }
+        }
+        Set-Setting $vm.Settings.Settings 'FixedGridHeight' ([double]1600); Set-Setting $vm.Settings.Settings 'FixGridSize' $true
+        $window.Height = 700; $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+        if ($fitViewport.ScrollableHeight -lt 500 -or $fitViewport.ComputedVerticalScrollBarVisibility -ne [Windows.Visibility]::Visible) { throw 'Deliberately tall fixed dashboards lost scrolling' }
+    } finally {
+        Set-Setting $vm.Settings.Settings 'Padding' $fitOriginalPadding; Set-Setting $vm.Settings.Settings 'FixedGridHeight' $fitOriginalHeight; Set-Setting $vm.Settings.Settings 'FixGridSize' $fitOriginalFixed
+        $window.Height = $fitWindowHeight; $window.UpdateLayout()
+    }
+    'PASS: automatic dashboard fits its inner viewport with padding at three window heights; fixed oversized canvases still scroll.'
+    $beforeFilterGames = @([DashboardTestProxy]::FeaturedFixtureGames)
+    $refillShelf = $null
+    try {
+        [DashboardTestProxy]::FeaturedFixtureGames.Clear()
+        $nsfwTag = [guid]::NewGuid()
+        for ($index = 0; $index -lt 30; $index++) {
+            $candidate = [Playnite.SDK.Models.Game]::new(); $candidate.Name = 'Refill ' + $index.ToString('00')
+            $candidate.TagIds = [Collections.Generic.List[guid]]::new()
+            if ($index -lt 10) { $candidate.TagIds.Add($nsfwTag) }
+            [DashboardTestProxy]::FeaturedFixtureGames.Add($candidate)
+        }
+        $refillRules = [LandingPage.Models.ShelveProperties]::new(); $refillRules.NumberOfGames = 20
+        $refillRules.SortBy = [LandingPage.Models.SortingField]::Name; $refillRules.Order = [LandingPage.Models.Order]::Ascending
+        $refillShelf = [LandingPage.ViewModels.ShelveViewModel].GetConstructors()[0].Invoke([object[]]@($refillRules,[LandingPage.Settings.ShelvesSettings]::new(),$api,[Collections.ObjectModel.ObservableCollection[LandingPage.ViewModels.ShelveViewModel]]::new(),$null))
+        $refillShelf.UpdateGames($refillRules,$true)
+        if ($refillShelf.Games.Count -ne 20) { throw 'Refill fixture did not initially contain 20 games' }
+        $excludeNsfw = [LandingPage.ViewModels.ShelveViewModel+ToggleFilter]::new($nsfwTag,'NSFW',$refillRules.ExcludedTags,$refillShelf,$false)
+        $script:filterViewResets = 0
+        $filterViewListener = [Collections.Specialized.NotifyCollectionChangedEventHandler]{ param($sender,$change) if ($change.Action -eq 'Reset') { $script:filterViewResets++ } }
+        $refillShelf.CollectionViewSource.View.add_CollectionChanged($filterViewListener)
+        $excludeNsfw.IsChecked = $true
+        if ($script:filterViewResets -ne 1) { throw 'Filter replacement did not refresh the displayed collection as one batch' }
+        if ($refillShelf.Games.Count -ne 20 -or @($refillShelf.Games | Where-Object { $_.Game.TagIds.Contains($nsfwTag) }).Count -ne 0 -or @($refillShelf.CollectionViewSource.View).Count -ne 20) { throw 'Tag exclusion removed games from the limited window instead of refilling it to 20 eligible games' }
+        $script:filterViewResets = 0
+        $refillShelf.UpdateGames($refillRules,$true)
+        if ($script:filterViewResets -ne 0) { throw 'Unchanged manual refresh reset all shelf cards unnecessarily' }
+        $excludeNsfw.IsChecked = $false
+        if ($refillShelf.Games.Count -ne 20) { throw 'Removing an exclusion changed the configured shelf count' }
+    } finally {
+        if ($refillShelf) { $refillShelf.OnViewClosed() }
+        [DashboardTestProxy]::FeaturedFixtureGames.Clear()
+        foreach ($originalGame in $beforeFilterGames) { [DashboardTestProxy]::FeaturedFixtureGames.Add($originalGame) }
+    }
+    'PASS: excluding ten NSFW-tagged games from a 20-game shelf backfills from later matches and retains 20 models/view entries.'
     $deletablePage = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Deletion rollback fixture')
     Wait-Task ($vm.SwitchPageAsync($deletablePage))
     $countBeforePendingDelete = $vm.Pages.Count
