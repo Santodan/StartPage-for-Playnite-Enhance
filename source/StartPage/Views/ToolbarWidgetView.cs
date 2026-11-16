@@ -55,6 +55,13 @@ namespace LandingPage.Views
             Unloaded += (sender, args) => { nativeRetryTimer.Stop(); DetachSettings(); if (openNativeMenu != null) openNativeMenu.IsOpen = false; };
         }
 
+        protected override Size MeasureOverride(Size constraint)
+        {
+            if (Content is ScrollViewer viewer && viewer.Content is FrameworkElement layout)
+                layout.MinHeight = double.IsInfinity(constraint.Height) ? 0 : Math.Max(0, constraint.Height - Padding.Top - Padding.Bottom);
+            return base.MeasureOverride(constraint);
+        }
+
         private void DetachSettings()
         {
             if (observedSettings != null)
@@ -129,6 +136,7 @@ namespace LandingPage.Views
         internal void RenderToolbar()
         {
             if (Settings == null) return;
+            ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Toolbar render: items={Settings.Items.Count}; groups={Settings.Groups.Count}; attached={Host() != null}; loaded={IsLoaded}; bounds={ActualWidth:0.#}x{ActualHeight:0.#}.");
             if (openNativeMenu != null) openNativeMenu.IsOpen = false;
             var host = Host();
             var model = host?.DataContext as StartPageViewModel;
@@ -295,7 +303,8 @@ namespace LandingPage.Views
                 grid.Children.Add(border);
             }
             FrameworkElement layout = grid;
-            layout.SetBinding(MinHeightProperty, new Binding(nameof(ActualHeight)) { Source = this });
+            // Do not feed ActualHeight back into desired size: Auto dashboard rows must
+            // be able to shrink after their content first renders off-tree.
             Content = new ScrollViewer { Content = layout, HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Stretch, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0) };

@@ -15,7 +15,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800"
              d:DataContext="{d:DesignInstance IsDesignTimeCreatable=False, Type={x:Type viewModels:StartPageViewModel}}"
-             Background="Transparent">
+             Background="Transparent" ContextMenuOpening="Dashboard_ContextMenuOpening">
     <UserControl.Resources>
         <sys:Boolean x:Key="True">True</sys:Boolean>
         <sys:Boolean x:Key="False">False</sys:Boolean>
@@ -577,10 +577,10 @@
                                     <TextBlock Foreground="{DynamicResource TextBrush}" Text="Uncheck to animate even when Windows animations are disabled. None switches without an animation." TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Expander>
-                            <Expander Header="Create a page" Margin="0,6,0,0">
+                            <Expander x:Name="CreatePageSection" Header="Create a page" Margin="0,6,0,0">
                                 <StackPanel Margin="8,6,0,8">
                                     <TextBox Text="{Binding NewPageName, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <Button Content="Create empty page" Command="{Binding AddPageCommand}" Margin="0,6,0,0"/>
+                                    <Button x:Name="CreatePageButton" Content="Create page" Command="{Binding AddPageCommand}" Margin="0,6,0,0"/>
                                     <TextBlock Text="Starts with an empty layout and a copy of this page's background settings. Add widgets in Edit Mode." TextWrapping="Wrap" Margin="0,6,0,0"/>
                                 </StackPanel>
                             </Expander>
@@ -613,21 +613,32 @@
                                     <numeric:IntBox Value="{Binding Settings.Settings.BackgroundRefreshInterval}" MinValue="0" Style="{StaticResource {x:Type TextBox}}"/>
                                 </StackPanel>
                             </Expander>
-                            <Expander Header="Delete this page" Margin="0,6,0,0">
+                            <Expander x:Name="DeletePagesSection" Header="Delete pages" Margin="0,6,0,0">
                                 <StackPanel Margin="8,6,0,8">
                                     <TextBlock Text="Deleting a page removes its layout and widget settings. At least one page must remain." TextWrapping="Wrap"/>
-                                    <Button Content="Delete page..." Command="{Binding RequestDeletePageCommand}" Margin="0,6,0,0"/>
+                                    <ListBox x:Name="PagesToDeleteList" ItemsSource="{Binding Pages}" SelectionMode="Multiple" IsSynchronizedWithCurrentItem="False"
+                                             SelectionChanged="PagesToDelete_SelectionChanged" MinHeight="100" MaxHeight="240" Margin="0,8,0,6"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Name}" Foreground="{DynamicResource TextBrush}" Padding="4"
+                                                          IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Mode=TwoWay}"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock Text="{Binding PageDeletionSummary}" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="0,4"/>
+                                    <Button Content="Delete selected pages..." Command="{Binding RequestDeleteSelectedPagesCommand}" Margin="0,6,0,0"/>
                                     <StackPanel Visibility="{Binding ConfirmPageDeletion, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,8,0,0">
-                                        <TextBlock Text="Delete the current page?"/>
+                                        <TextBlock Text="Confirm deletion of the selected pages." Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                            <Button Content="Delete" Command="{Binding DeletePageCommand}" Margin="0,0,6,0"/>
+                                            <Button Content="Delete" Command="{Binding DeleteSelectedPagesCommand}" Margin="0,0,6,0"/>
                                             <Button Content="Cancel" Command="{Binding CancelDeletePageCommand}"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
-                        <Button Content="Done" Click="SavePages_Click" Margin="0,16,0,0"/>
+                        <Button x:Name="SavePagesButton" Content="Done" Click="SavePages_Click" Margin="0,16,0,0"/>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

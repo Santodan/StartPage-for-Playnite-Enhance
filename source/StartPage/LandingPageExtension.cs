@@ -225,19 +225,6 @@ namespace LandingPage
             Task initTask = Task.CompletedTask;
             if (startPageView == null)
             {
-                if (Settings.GridLayout == null)
-                {
-                    Settings.GridLayout = new GridNode { Orientation = Orientation.Vertical };
-                    string path = Path.Combine(Path.GetDirectoryName(typeof(LandingPageExtension).Assembly.Location), "DefaultLayout.json");
-                    if (File.Exists(path))
-                    {
-                        if (JsonConvert.DeserializeObject<GridNode>(File.ReadAllText(path)) is GridNode node)
-                        {
-                            Settings.GridLayout = node;
-                        }
-                    }
-                }
-
                 DashboardPages.Ensure(Settings);
                 startPageViewModel = new StartPageViewModel(PlayniteApi, this, SettingsViewModel, new GridNodeViewModel(Settings.GridLayout), BackgroundViewModel);
 

@@ -207,7 +207,7 @@
                                 <Setter Property="VerticalAlignment" Value="{Binding GridNode.VerticalAlignment}"/>
                                 <Setter Property="HorizontalAlignment" Value="{Binding GridNode.HorizontalAlignment}"/>
                                 <Setter Property="Margin" Value="{Binding GridNode.Padding}"/>
-                                <Setter Property="Opacity" Value="0"/>
+                                <Setter Property="Opacity" Value="1"/>
                             </DataTrigger>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
@@ -218,19 +218,7 @@
                                     <Setter Property="Opacity" Value="0.65"/>
                                 </MultiDataTrigger.Setters>
                             </MultiDataTrigger>
-                            <MultiDataTrigger>
-                                <MultiDataTrigger.Conditions>
-                                    <Condition Binding="{Binding IsLeaf}" Value="{StaticResource True}"/>
-                                    <Condition Binding="{Binding IsLoading}" Value="False"/>
-                                </MultiDataTrigger.Conditions>
-                                <MultiDataTrigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.5"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </MultiDataTrigger.EnterActions>
-                            </MultiDataTrigger>
+                            <!-- Dashboard transitions control reveal; leaf content must remain visible even when loaded off-tree. -->
                         </Style.Triggers>
                     </Style>
                 </ContentControl.Style>

@@ -11,7 +11,8 @@ namespace LandingPage.Models
         public Guid Id { get; set; } = Guid.NewGuid();
         private string name = "Page";
         public string Name { get => name; set => SetValue(ref name, string.IsNullOrWhiteSpace(value) ? "Page" : value.Trim()); }
-        public GridNode Layout { get; set; } = new GridNode();
+        [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
+        public GridNode Layout { get; set; } = DashboardPages.CreateDefaultLayout();
         public DashboardBackground Background { get; set; } = new DashboardBackground();
     }
 
@@ -78,12 +79,12 @@ namespace LandingPage.Models
             var pages = settings.DashboardPages;
             foreach (var page in pages.Where(page => page == null).ToArray()) pages.Remove(page);
             if (pages.Count == 0)
-                pages.Add(new DashboardPage { Name = "Main", Layout = settings.GridLayout ?? new GridNode(), Background = DashboardBackground.Capture(settings) });
+                pages.Add(new DashboardPage { Name = "Main", Layout = settings.GridLayout ?? CreateDefaultLayout(), Background = DashboardBackground.Capture(settings) });
             var ids = new System.Collections.Generic.HashSet<Guid>();
             foreach (var page in pages)
             {
                 if (page.Id == Guid.Empty || !ids.Add(page.Id)) { page.Id = Guid.NewGuid(); ids.Add(page.Id); }
-                if (page.Layout == null) page.Layout = new GridNode();
+                if (page.Layout == null) page.Layout = CreateDefaultLayout();
                 if (page.Background == null) page.Background = DashboardBackground.Capture(settings);
             }
             var active = pages.FirstOrDefault(page => page.Id == settings.ActiveDashboardPageId);
@@ -100,16 +101,24 @@ namespace LandingPage.Models
             return active;
         }
 
+        public static GridNode CreateDefaultLayout()
+        {
+            var layout = new GridNode { Orientation = System.Windows.Controls.Orientation.Vertical };
+            var toolbar = new GridNode { Size = System.Windows.GridLength.Auto, ViewProperties = new ViewProperties
+                { ViewId = "ToolbarWidget", PluginId = Guid.Parse("a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5") } };
+            toolbar.ViewProperties.ToolbarSettings.ShowLabels = false;
+            layout.Children.Add(toolbar);
+            layout.Children.Add(new GridNode());
+            return layout;
+        }
+
         public static DashboardPage Add(LandingPageSettings settings, string requestedName)
         {
             var name = string.IsNullOrWhiteSpace(requestedName) ? "New page" : requestedName.Trim();
             var unique = name;
             for (int suffix = 2; settings.DashboardPages.Any(page => string.Equals(page.Name, unique, StringComparison.OrdinalIgnoreCase)); ++suffix)
                 unique = name + " (" + suffix + ")";
-            var layout = new GridNode { Orientation = System.Windows.Controls.Orientation.Vertical };
-            var toolbar = new GridNode { Size = System.Windows.GridLength.Auto, ViewProperties = new ViewProperties { ViewId = "ToolbarWidget", PluginId = Guid.Parse("a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5") } };
-            toolbar.ViewProperties.ToolbarSettings.ShowLabels = false;
-            layout.Children.Add(toolbar); layout.Children.Add(new GridNode());
+            var layout = CreateDefaultLayout();
             var created = new DashboardPage { Name = unique, Layout = layout, Background = DashboardBackground.Capture(settings) };
             settings.DashboardPages.Add(created);
             return created;

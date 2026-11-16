@@ -416,6 +416,8 @@ namespace LandingPage
                 Settings.ShelveInstanceSettings = Settings.ShelveInstances.ToDictionary(s => s.Key, s => new Settings.ShelvesSettings(Settings) { ShelveProperties = s.Value });
             }
 
+            LandingPageExtension.logger.Info($"Dashboard settings loaded: pages={Settings.DashboardPages?.Count ?? 0}; active={Settings.ActiveDashboardPageId}; config={Path.Combine(plugin.PlayniteApi.Paths.ExtensionsDataPath, plugin.Id.ToString(), "config.json")}.");
+
             SelectImagePathCommand = new RelayCommand(() =>
             {
                 if (plugin.PlayniteApi.Dialogs.SelectImagefile() is string path)

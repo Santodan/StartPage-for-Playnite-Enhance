@@ -18,6 +18,15 @@ $serializerField = [Playnite.SDK.Data.Serialization].GetField('serializer',[Refl
 $previousSerializer = $serializerField.GetValue($null)
 try {
     $serializerField.SetValue($null, [Playnite.Common.DataSerializer]::new())
+    $pageCloneMethod = [Playnite.SDK.Data.Serialization].GetMethods() | Where-Object { $_.Name -eq 'GetClone' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 } | Select-Object -First 1
+    $defaultPage = [LandingPage.Models.DashboardPage]::new()
+    $defaultCopy = $pageCloneMethod.MakeGenericMethod([LandingPage.Models.DashboardPage]).Invoke($null,@($defaultPage))
+    if ($defaultCopy.Layout.Children.Count -ne 2) { throw 'Playnite serializer appended default panels to a saved page' }
+    $defaultPage.Layout = [LandingPage.Models.Layout.GridNode]::new()
+    $defaultPage.Layout.ViewProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $defaultPage.Layout.ViewProperties.ViewId = 'TextWidget'
+    $customCopy = $pageCloneMethod.MakeGenericMethod([LandingPage.Models.DashboardPage]).Invoke($null,@($defaultPage))
+    if ($customCopy.Layout.Children.Count -ne 0 -or $customCopy.Layout.ViewProperties.ViewId -ne 'TextWidget') { throw 'Playnite serializer injected a default toolbar into an existing custom layout' }
+    'PASS: actual Playnite serializer replaces page defaults without duplicating panels or changing custom layouts.'
     $detailProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $detailProperties.ViewId = 'GameDetailDescription'
     $detailProperties.GameDetailSettings.Source = [LandingPage.Settings.FeaturedGameSource]::HoveredGame
     $detailProperties.GameDetailSettings.DescriptionLength = 0; $detailProperties.GameDetailSettings.TextSize = 29

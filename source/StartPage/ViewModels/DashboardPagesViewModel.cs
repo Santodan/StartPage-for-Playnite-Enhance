@@ -22,6 +22,7 @@ namespace LandingPage.ViewModels
     {
         public event EventHandler<DashboardTransitionEventArgs> PageTransitionStarting;
         public event Func<Task> PageTransitionFinishing;
+        public event Func<Task> PageLayoutReady;
 
         private readonly Dictionary<Guid, GridNodeViewModel> pageRoots = new Dictionary<Guid, GridNodeViewModel>();
         private readonly HashSet<Guid> initializedPages = new HashSet<Guid>();
@@ -59,7 +60,9 @@ namespace LandingPage.ViewModels
         public void BeginPageEditing()
         {
             if(draftPageNames != null) return;
+            SetPagesSelectedForDeletion(Enumerable.Empty<DashboardPage>());
             CaptureCurrentPage(); navigationSaveTimer?.Stop();
+            LandingPageExtension.logger.Info($"Dashboard page editor begin: active={SelectedPage?.Id}; pages={Pages.Count}.");
             pageEditSnapshot = DashboardProfiles.Clone(Settings.Settings);
             pageEditBaseline = Newtonsoft.Json.JsonConvert.SerializeObject(Settings.Settings);
             draftPageNames = Pages.ToDictionary(page => page.Id,page => page.Name);
@@ -75,10 +78,40 @@ namespace LandingPage.ViewModels
         {
             var snapshot = pageEditSnapshot;
             var changed = !save && snapshot != null && Newtonsoft.Json.JsonConvert.SerializeObject(Settings.Settings) != pageEditBaseline;
-            EndPageNameEditing(save); pageEditSnapshot = null; pageEditBaseline = null;
-            if(save) { SaveCurrentPage(); return; }
+            LandingPageExtension.logger.Info($"Dashboard page editor finish requested: save={save}; active={SelectedPage?.Id}; pages={Pages.Count}; draft={snapshot != null}.");
+            if (save)
+            {
+                var pendingNames = draftPageNames;
+                try
+                {
+                    EndPageNameEditing(true);
+                    CaptureCurrentPage();
+                    // Commit explicitly while retaining the rollback snapshot until the disk write succeeds.
+                    plugin.SavePluginSettings(Settings.Settings);
+                    var configPath = System.IO.Path.Combine(playniteAPI.Paths.ExtensionsDataPath, plugin.Id.ToString(), "config.json");
+                    var saved = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(configPath));
+                    var storedPages = saved["DashboardPages"] as Newtonsoft.Json.Linq.JArray;
+                    if (storedPages == null || storedPages.Count != Pages.Count
+                        || Pages.Any(page => !storedPages.Any(stored => (Guid?)stored["Id"] == page.Id))
+                        || (Guid?)saved["ActiveDashboardPageId"] != SelectedPage?.Id)
+                        throw new InvalidOperationException("The saved configuration does not contain the current dashboard pages.");
+                    ExtensionDiagnostics.Record(plugin, $"Dashboard page save verified on disk: {configPath}; pages={storedPages.Count}.");
+                    pageEditSnapshot = null; pageEditBaseline = null;
+                    navigationSaveTimer?.Stop();
+                    LandingPageExtension.logger.Info($"Dashboard page editor saved: active={SelectedPage?.Id}; pages={Pages.Count}; layouts=[{string.Join("; ", Pages.Select(page => page.Id + ":" + string.Join(",", page.Layout.Enumerate().Where(node => node.ViewProperties != null).Select(node => node.ViewProperties.ViewId))))}].");
+                }
+                catch (Exception ex)
+                {
+                    draftPageNames = pendingNames;
+                    LandingPageExtension.logger.Error(ex, "Dashboard page editor save failed; pending pages retained for retry.");
+                    throw;
+                }
+                return;
+            }
+            EndPageNameEditing(false); pageEditSnapshot = null; pageEditBaseline = null;
             navigationSaveTimer?.Stop();
             if(!changed) return;
+            LandingPageExtension.logger.Info($"Dashboard page editor cancelling pending changes: restoring {snapshot.DashboardPages.Count} pages.");
             var target = snapshot.DashboardPages.FirstOrDefault(page => page.Id == SelectedPage?.Id)
                 ?? snapshot.DashboardPages.First(page => page.Id == snapshot.ActiveDashboardPageId);
             foreach(var added in Pages.Where(page => !snapshot.DashboardPages.Any(original => original.Id == page.Id)).ToList())
@@ -106,6 +139,24 @@ namespace LandingPage.ViewModels
         public ICommand AddPageCommand { get; private set; }
         public ICommand MovePageUpCommand { get; private set; }
         public ICommand MovePageDownCommand { get; private set; }
+        public ObservableCollection<DashboardPage> PagesSelectedForDeletion { get; } = new ObservableCollection<DashboardPage>();
+        public string PageDeletionSummary => PagesSelectedForDeletion.Count == 0 ? "Select pages to delete. At least one page must remain."
+            : PagesSelectedForDeletion.Count >= Pages.Count ? "Keep at least one page: deselect a page to continue."
+            : $"Delete {PagesSelectedForDeletion.Count} selected page(s)? Changes are saved when you press Done.";
+        public void SetPagesSelectedForDeletion(IEnumerable<DashboardPage> pages)
+        {
+            var ids = new HashSet<Guid>((pages ?? Enumerable.Empty<DashboardPage>()).Select(page => page.Id));
+            var selected = Pages.Where(page => ids.Contains(page.Id)).ToArray();
+            PagesSelectedForDeletion.Clear();
+            foreach (var page in selected) PagesSelectedForDeletion.Add(page);
+            ConfirmPageDeletion = false;
+            OnPropertyChanged(nameof(PageDeletionSummary));
+            CommandManager.InvalidateRequerySuggested();
+        }
+        private bool CanDeleteSelectedPages => CanChangePages && PagesSelectedForDeletion.Count > 0
+            && PagesSelectedForDeletion.Count < Pages.Count;
+        public ICommand RequestDeleteSelectedPagesCommand { get; private set; }
+        public ICommand DeleteSelectedPagesCommand { get; private set; }
         public ICommand RequestDeletePageCommand { get; private set; }
         public ICommand CancelDeletePageCommand { get; private set; }
         public ICommand DeletePageCommand { get; private set; }
@@ -147,6 +198,7 @@ namespace LandingPage.ViewModels
                 if (!CanChangePages) return;
                 CaptureCurrentPage();
                 var page = DashboardPages.Add(Settings.Settings, NewPageName);
+                LandingPageExtension.logger.Info($"Dashboard page created: id={page.Id}; panels={page.Layout.Children.Count}; widgets={string.Join(",", page.Layout.Enumerate().Where(node => node.ViewProperties != null).Select(node => node.ViewProperties.ViewId))}; editorPending={pageEditSnapshot != null}.");
                 page.Background = SelectedPage.Background.Copy();
                 await SwitchPageAsync(page);
             }, () => CanChangePages);
@@ -156,17 +208,15 @@ namespace LandingPage.ViewModels
             CancelDeletePageCommand = new RelayCommand(() => ConfirmPageDeletion = false);
             DeletePageCommand = new RelayCommand(async () =>
             {
-                if (!CanChangePages || Pages.Count < 2 || !ConfirmPageDeletion) return;
-                var removed = SelectedPage;
-                var target = Pages[Pages.IndexOf(removed) == 0 ? 1 : Pages.IndexOf(removed) - 1];
-                await SwitchPageAsync(target);
-                if (SelectedPage != target) return;
-                GridNodeViewModel.OnNodeRemoved(removed.Layout);
-                Pages.Remove(removed);
-                pageRoots.Remove(removed.Id);
-                initializedPages.Remove(removed.Id);
-                SaveCurrentPage();
+                if (CanChangePages && Pages.Count > 1 && ConfirmPageDeletion)
+                    await DeletePagesAsync(new[] { SelectedPage });
             }, () => CanChangePages && Pages.Count > 1 && ConfirmPageDeletion);
+            RequestDeleteSelectedPagesCommand = new RelayCommand(() => ConfirmPageDeletion = true, () => CanDeleteSelectedPages);
+            DeleteSelectedPagesCommand = new RelayCommand(async () =>
+            {
+                if (CanDeleteSelectedPages && ConfirmPageDeletion)
+                    await DeletePagesAsync(PagesSelectedForDeletion.ToArray());
+            }, () => CanDeleteSelectedPages && ConfirmPageDeletion);
             BrowsePageImageCommand = new RelayCommand(() =>
             {
                 var path = playniteAPI.Dialogs.SelectFile("Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tiff;*.webp|All files|*.*");
@@ -178,6 +228,32 @@ namespace LandingPage.ViewModels
                 if (!string.IsNullOrEmpty(path)) SetPageImage(path);
             }, () => CanChangePages);
             ClearPageImageCommand = new RelayCommand(() => SetPageImage(null), () => CanChangePages);
+        }
+
+        private async Task DeletePagesAsync(IEnumerable<DashboardPage> selection)
+        {
+            var ids = new HashSet<Guid>(selection.Select(page => page.Id));
+            var removed = Pages.Where(page => ids.Contains(page.Id)).ToArray();
+            if (!CanChangePages || removed.Length == 0 || removed.Length >= Pages.Count) return;
+            var active = SelectedPage;
+            if (ids.Contains(active.Id))
+            {
+                var index = Pages.IndexOf(active);
+                var target = Pages.Take(index).LastOrDefault(page => !ids.Contains(page.Id))
+                    ?? Pages.First(page => !ids.Contains(page.Id));
+                await SwitchPageAsync(target);
+                if (SelectedPage != target) return;
+            }
+            foreach (var page in removed)
+            {
+                GridNodeViewModel.OnNodeRemoved(page.Layout);
+                Pages.Remove(page);
+                pageRoots.Remove(page.Id);
+                initializedPages.Remove(page.Id);
+            }
+            SetPagesSelectedForDeletion(Enumerable.Empty<DashboardPage>());
+            LandingPageExtension.logger.Info($"Dashboard pages deleted: count={removed.Length}; active={SelectedPage.Id}; remaining={Pages.Count}.");
+            SaveCurrentPage();
         }
 
         public void SetPageImage(string path)
@@ -241,7 +317,12 @@ namespace LandingPage.ViewModels
         {
             navigationSaveTimer?.Stop();
             CaptureCurrentPage();
-            if(pageEditSnapshot == null) plugin.SavePluginSettings(Settings.Settings);
+            if(pageEditSnapshot == null)
+            {
+                plugin.SavePluginSettings(Settings.Settings);
+                ExtensionDiagnostics.Record(plugin, $"Dashboard pages saved: active={SelectedPage?.Id}; count={Pages.Count}.");
+            }
+            else ExtensionDiagnostics.Record(plugin, "Dashboard save deferred: page editor is waiting for Done or Cancel.");
         }
 
         private void ApplyPageBackground(DashboardPage page)
@@ -306,6 +387,8 @@ namespace LandingPage.ViewModels
                     initializedPages.Add(page.Id);
                     if (!isPageVisible) await HidePageAsync();
                 }
+                if (PageLayoutReady != null)
+                    foreach (Func<Task> arrange in PageLayoutReady.GetInvocationList()) await arrange();
                 // Let the destination render before serializing profiles/settings;
                 // rapid navigation only needs to persist the final active page.
                 var timing = $"Dashboard switch '{page.Name}': background selected {backgroundMilliseconds} ms; ready {switchWatch.ElapsedMilliseconds} ms.";
@@ -336,6 +419,12 @@ namespace LandingPage.ViewModels
                     IsLoading = false; IsSwitchingPage = false;
                     ExtensionDiagnostics.Record(plugin, $"Switch complete (including transition): {switchWatch.ElapsedMilliseconds} ms.");
                     QueueNavigationSave();
+                    var displayedRoot = RootNodeViewModel;
+                    if (Settings.Settings.EnableDashboardDiagnostics) _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+                    {
+                        if (displayedRoot != RootNodeViewModel) return;
+                        ExtensionDiagnostics.Record(plugin, $"Dashboard rendered: page={SelectedPage?.Id}; root={displayedRoot.View.ActualWidth:0.#}x{displayedRoot.View.ActualHeight:0.#}; nodes=[{string.Join("; ", displayedRoot.AllNodes.Select(node => (node.GridNode.ViewProperties?.ViewId ?? "panel") + ":" + node.View.ActualWidth.ToString("0.#") + "x" + node.View.ActualHeight.ToString("0.#") + ":visible=" + node.View.IsVisible + ":children=" + node.View.Children.Count))}].");
+                    }));
                 }
             }
         }
@@ -354,7 +443,10 @@ namespace LandingPage.ViewModels
             CommandManager.InvalidateRequerySuggested();
         }
         private void PageOrderChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs args)
-            => CommandManager.InvalidateRequerySuggested();
+        {
+            OnPropertyChanged(nameof(PageDeletionSummary));
+            CommandManager.InvalidateRequerySuggested();
+        }
         private void PageInputChanged(object sender, PropertyChangedEventArgs args)
         {
             if (args.PropertyName == nameof(LandingPageSettings.DashboardPages)) WatchPageInputs();
@@ -366,6 +458,7 @@ namespace LandingPage.ViewModels
         private void PageSettingsReplaced(object sender, PropertyChangedEventArgs args)
         {
             if (args.PropertyName != nameof(LandingPageSettingsViewModel.Settings)) return;
+            LandingPageExtension.logger.Info($"Dashboard settings object replaced: pages={Pages?.Count ?? 0}; active={Settings.Settings.ActiveDashboardPageId}; editorPending={pageEditSnapshot != null}.");
             WatchPageInputs();
             // Canceling the settings dialog supplies cloned models. Keep cached live
             // layouts attached to those models without resetting inactive backgrounds.

@@ -25,10 +25,84 @@ namespace LandingPage.Views
         public StartPageView()
         {
             InitializeComponent();
+            ContextMenu.Opened += DashboardMenu_Opened;
+            PreviewMouseDown += (sender, args) => PrepareDropdown(args.OriginalSource as DependencyObject);
+            PreviewKeyDown += (sender, args) =>
+            {
+                if (args.Key == Key.F4 || args.Key == Key.Down) PrepareDropdown(Keyboard.FocusedElement as DependencyObject);
+            };
             Unloaded += (sender, args) => { CloseAppearance(); ClosePages(); CloseProfiles(); WatchPageModel(false); };
             Loaded += (sender, args) => WatchPageModel(true);
             LayoutUpdated += (sender, args) => PositionNotifications();
             DataContextChanged += (sender, args) => WatchPageModel(true);
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct ScreenPoint { public int X; public int Y; }
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out ScreenPoint point);
+
+        private void Dashboard_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            if (e.Handled || ContextMenu == null) return;
+            if (e.CursorLeft >= 0 && e.CursorTop >= 0 && GetCursorPos(out var cursor))
+                PositionDashboardContextMenuScreen(new Point(cursor.X, cursor.Y));
+            else PositionDashboardContextMenu(new Point(24, 24));
+        }
+
+        private void PositionDashboardContextMenu(Point point)
+            => PositionDashboardContextMenuScreen(PresentationSource.FromVisual(this) == null ? point : PointToScreen(point));
+
+        private void PositionDashboardContextMenuScreen(Point screen)
+        {
+            var dpi = VisualTreeHelper.GetDpi(this);
+            var point = new Point(screen.X / dpi.DpiScaleX, screen.Y / dpi.DpiScaleY);
+            var placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
+            ContextMenuService.SetPlacement(this, placement);
+            ContextMenuService.SetPlacementTarget(this, this);
+            ContextMenuService.SetHorizontalOffset(this, point.X);
+            ContextMenuService.SetVerticalOffset(this, point.Y);
+            ContextMenu.Placement = placement;
+            ContextMenu.PlacementTarget = this;
+            ContextMenu.PlacementRectangle = Rect.Empty;
+            ContextMenu.HorizontalOffset = point.X;
+            ContextMenu.VerticalOffset = point.Y;
+            var window = Window.GetWindow(this);
+            if (window != null)
+            {
+                ContextMenu.MaxWidth = Math.Max(160, window.ActualWidth - 16);
+                ContextMenu.MaxHeight = Math.Max(100, window.ActualHeight - 16);
+            }
+        }
+
+        private void DashboardMenu_Opened(object sender, RoutedEventArgs args)
+        {
+            var window = Window.GetWindow(this);
+            if (window == null) return;
+            var dpi = VisualTreeHelper.GetDpi(window);
+            var origin = window.PointToScreen(new Point());
+            var left = origin.X / dpi.DpiScaleX + 8;
+            var top = origin.Y / dpi.DpiScaleY + 8;
+            ContextMenu.HorizontalOffset = Math.Max(left, Math.Min(ContextMenu.HorizontalOffset, left + window.ActualWidth - 16 - ContextMenu.ActualWidth));
+            ContextMenu.VerticalOffset = Math.Max(top, Math.Min(ContextMenu.VerticalOffset, top + window.ActualHeight - 16 - ContextMenu.ActualHeight));
+        }
+
+        private void PrepareDropdown(DependencyObject source)
+        {
+            while (source != null && source != this && !(source is ComboBox))
+                source = source is Visual ? VisualTreeHelper.GetParent(source) : LogicalTreeHelper.GetParent(source);
+            if (!(source is ComboBox box)) return;
+            box.ApplyTemplate();
+            box.UpdateLayout();
+            if (PresentationSource.FromVisual(box) == null) return;
+            if (!(box.Template?.FindName("PART_Popup", box) is System.Windows.Controls.Primitives.Popup popup)) return;
+            popup.PlacementTarget = box;
+            popup.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            popup.HorizontalOffset = 0;
+            popup.VerticalOffset = 0;
+            popup.PlacementRectangle = Rect.Empty;
+            ExtensionDiagnostics.Record(LandingPageExtension.Instance,
+                $"Dashboard dropdown anchored: bounds={box.ActualWidth:0.#}x{box.ActualHeight:0.#}; screen={box.PointToScreen(new Point())}.");
         }
 
         private ViewModels.StartPageViewModel observedPageModel;
@@ -40,6 +114,7 @@ namespace LandingPage.Views
                 observedPageModel.PropertyChanged -= PageModelChanged;
                 observedPageModel.PageTransitionStarting -= BeginDashboardTransition;
                 observedPageModel.PageTransitionFinishing -= CompleteDashboardTransition;
+                observedPageModel.PageLayoutReady -= ArrangeDashboardPage;
             }
             ResetDashboardTransition();
             observedPageModel = watch ? DataContext as ViewModels.StartPageViewModel : null;
@@ -48,7 +123,22 @@ namespace LandingPage.Views
                 observedPageModel.PropertyChanged += PageModelChanged;
                 observedPageModel.PageTransitionStarting += BeginDashboardTransition;
                 observedPageModel.PageTransitionFinishing += CompleteDashboardTransition;
+                observedPageModel.PageLayoutReady += ArrangeDashboardPage;
             }
+        }
+
+        private async Task ArrangeDashboardPage()
+        {
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            if (!IsLoaded) return;
+            var root = StartPageScrollViewer.Content as GridNodeView;
+            root?.RefreshContentLayout();
+            StartPageScrollViewer.InvalidateMeasure();
+            StartPageScrollViewer.InvalidateArrange();
+            StartPageScrollViewer.UpdateLayout();
+            var screen = root != null && PresentationSource.FromVisual(root) != null ? root.PointToScreen(new Point()).ToString() : "detached";
+            ExtensionDiagnostics.Record(LandingPageExtension.Instance,
+                $"Dashboard arranged: page={observedPageModel?.SelectedPage?.Id}; root={root?.ActualWidth:0.#}x{root?.ActualHeight:0.#}; screen={screen}.");
         }
 
         internal Func<bool> DashboardAnimationsEnabled = () => SystemParameters.ClientAreaAnimation;
@@ -335,18 +425,33 @@ namespace LandingPage.Views
             if (PagesOverlay.Visibility != Visibility.Visible || pagesClosing) return;
             pagesClosing = true;
             PagesOverlay.Focus();
-            PagesOverlay.Visibility = Visibility.Collapsed;
-            if (DataContext is ViewModels.StartPageViewModel model)
+            PagesOverlay.IsEnabled = false;
+            LandingPageExtension.logger.Info($"Dashboard page window closing: save={save}; loaded={IsLoaded}.");
+            try
             {
-                model.ConfirmPageDeletion = false;
-                try { while(model.IsSwitchingPage) await Task.Delay(16); await model.EndPageEditingAsync(save); }
-                catch (Exception ex) { LandingPageExtension.logger.Error(ex,"Unable to finish dashboard page editing."); }
+                if (DataContext is ViewModels.StartPageViewModel model)
+                {
+                    model.ConfirmPageDeletion = false;
+                    while (model.IsSwitchingPage) await Task.Delay(16);
+                    await model.EndPageEditingAsync(save);
+                }
+                PagesOverlay.Visibility = Visibility.Collapsed;
             }
-            pagesClosing = false;
+            catch (Exception ex)
+            {
+                LandingPageExtension.logger.Error(ex,"Unable to finish dashboard page editing.");
+                LandingPageExtension.Instance?.PlayniteApi.Dialogs.ShowErrorMessage("The dashboard pages could not be saved. Your pending changes are still open. Please try Done again and check the debug log.", "Dashboard pages");
+            }
+            finally { PagesOverlay.IsEnabled = true; pagesClosing = false; }
         }
 
         private void ClosePages_Click(object sender, RoutedEventArgs e) => ClosePages();
-        private void SavePages_Click(object sender, RoutedEventArgs e) => ClosePages(true);
+        private void SavePages_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            LandingPageExtension.logger.Info("Dashboard page Done button clicked.");
+            ClosePages(true);
+        }
         private void PagesOverlay_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape) { ClosePages(); e.Handled = true; }
@@ -375,6 +480,11 @@ namespace LandingPage.Views
                 model.ConfirmDeleteProfile = false;
                 if (model.CanChangePages) model.SaveCurrentPage();
             }
+        }
+        private void PagesToDelete_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DataContext is ViewModels.StartPageViewModel model && sender is ListBox list)
+                model.SetPagesSelectedForDeletion(list.SelectedItems.Cast<Models.DashboardPage>().ToArray());
         }
         private void SavedProfiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {

@@ -286,6 +286,7 @@ try {
 
     # A real StartPage view model saves only inside our unique temporary directory.
     $plugin = [Runtime.Serialization.FormatterServices]::GetUninitializedObject([LandingPage.LandingPageExtension])
+    [LandingPage.LandingPageExtension].GetField('<Id>k__BackingField',$flags).SetValue($plugin,[guid]'a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5')
     [LandingPage.LandingPageExtension].GetProperty('Instance').SetValue($null,$plugin)
     # Startup logging occurs before SettingsViewModel has been assigned.
     [LandingPage.LandingPageExtension].GetField('logger',[Reflection.BindingFlags]'Static,NonPublic').GetValue($null).Info('Fixture startup before settings initialization')
@@ -380,6 +381,22 @@ try {
     $view.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     $manageMenu = @($view.ContextMenu.Items | Where-Object { $_ -is [Windows.Controls.MenuItem] -and $_.Header -eq 'Manage dashboard pages...' })
     if ($manageMenu.Count -ne 1) { throw 'Page management must remain available without a toolbar widget' }
+    $positionMenu = $view.GetType().GetMethod('PositionDashboardContextMenu',$flags)
+    [void]$positionMenu.Invoke($view,@([Windows.Point]::new(260,180)))
+    if ($view.ContextMenu.Placement -ne [Windows.Controls.Primitives.PlacementMode]::AbsolutePoint -or ![object]::ReferenceEquals($view.ContextMenu.PlacementTarget,$view) -or $view.ContextMenu.HorizontalOffset -ne 260 -or $view.ContextMenu.VerticalOffset -ne 180) { throw 'Background menu is not anchored at the clicked position' }
+    [void]$positionMenu.Invoke($view,@([Windows.Point]::new(420,240)))
+    if ([Windows.Controls.ContextMenuService]::GetHorizontalOffset($view) -ne 420 -or [Windows.Controls.ContextMenuService]::GetVerticalOffset($view) -ne 240) { throw 'Repeated clicks retain stale menu coordinates' }
+    $newSettings = [LandingPage.LandingPageSettings]::new()
+    $freshPage = [LandingPage.Models.DashboardPages]::Ensure($newSettings)
+    $directPage = [LandingPage.Models.DashboardPage]::new()
+    $addedPage = [LandingPage.Models.DashboardPages]::Add($newSettings,'New page')
+    foreach ($defaultPage in @($freshPage,$directPage,$addedPage)) {
+        $defaultLayout = $defaultPage.Layout
+        if ($defaultLayout.Orientation -ne [Windows.Controls.Orientation]::Vertical -or $defaultLayout.Children.Count -ne 2 -or $defaultLayout.Children[0].ViewProperties.ViewId -ne 'ToolbarWidget' -or !$defaultLayout.Children[0].Size.IsAuto -or $defaultLayout.Children[1].ViewProperties -or !$defaultLayout.Children[1].Size.IsStar) { throw 'New page does not contain a fitted toolbar above an empty content panel' }
+    }
+    if ([object]::ReferenceEquals($freshPage.Layout,$addedPage.Layout)) { throw 'New page layouts share mutable instances' }
+    'PASS: click-relative background menu placement and independent toolbar/content defaults for first, direct and added pages.'
+
     $view.GetType().GetMethod('ManagePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
     if ($view.FindName('PagesOverlay').Visibility -ne [Windows.Visibility]::Visible) { throw 'Page manager did not open inside StartPage' }
     $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
@@ -391,7 +408,7 @@ try {
     $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
     if($vm.SelectedPage.Name -ne $pageNameBefore -or ![object]::ReferenceEquals($vm.RootNodeViewModel,$pageRootBefore)) { throw 'Dismissed rename was saved or rebuilt the page' }
     $view.ShowPages(); $vm.EditedPageName = 'Accepted rename'
-    $view.GetType().GetMethod('SavePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    $view.GetType().GetMethod('SavePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent)))
     if($vm.SelectedPage.Name -ne 'Accepted rename') { throw 'Done did not commit the rename' }
     $vm.SelectedPage.Name = $pageNameBefore
     $oldOverlay = (Get-Setting $vm.Settings.Settings 'OverlayOpacity')
@@ -2139,8 +2156,107 @@ try {
     Wait-Task ($vm.SwitchPageAsync($pendingPage))
     $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
     if(!$vm.RootNodeViewModel.View.RowDefinitions[0].Height.IsAuto) { throw 'Toolbar row did not retain automatic height in WPF' }
+    if($vm.RootNodeViewModel.View.RowDefinitions[0].ActualHeight -lt 12) { throw 'Default toolbar collapsed to an invisible row' }
+    $pendingToolbar = [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).GetValue($pendingPage.Layout.Children[0].ViewProperties)
+    if ($pendingToolbar -isnot [LandingPage.Views.ToolbarWidgetView]) { throw 'New-page test rendered a missing-provider placeholder instead of the real toolbar' }
     Wait-Task ($vm.EndPageEditingAsync($false))
     if($vm.Pages.Count -ne $beforePendingCount -or $vm.SelectedPage.Id -ne $beforePendingPage -or ![object]::ReferenceEquals($vm.RootNodeViewModel,$beforePendingRoot)) { throw 'Dismiss did not remove a pending page and restore the original dashboard' }
+    $measureToolbar = [LandingPage.Views.ToolbarWidgetView]::new()
+    [void]$measureToolbar.GetType().GetMethod('RenderToolbar',$flags).Invoke($measureToolbar,@())
+    $measureToolbar.Measure([Windows.Size]::new(600,[double]::PositiveInfinity))
+    $measureToolbar.Arrange([Windows.Rect]::new(0,0,600,600)); $measureToolbar.UpdateLayout()
+    $measureToolbar.InvalidateMeasure(); $measureToolbar.Measure([Windows.Size]::new(600,[double]::PositiveInfinity))
+    if ($measureToolbar.DesiredSize.Height -gt 160) { throw 'Content-sized toolbar retained its previous stretched height' }
+    $menuOpacity = $view.ContextMenu.Opacity
+    try {
+        $view.ContextMenu.Opacity = 0
+        [void]$view.GetType().GetMethod('PositionDashboardContextMenu',$flags).Invoke($view,@([Windows.Point]::new(980,780)))
+        $view.ContextMenu.IsOpen = $true
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        $view.ContextMenu.UpdateLayout()
+        $menuScreen = $view.ContextMenu.PointToScreen([Windows.Point]::new(0,0))
+        $windowScreen = $window.PointToScreen([Windows.Point]::new(0,0))
+        if ($menuScreen.X -lt $windowScreen.X - 2 -or $menuScreen.Y -lt $windowScreen.Y - 2 -or $menuScreen.X + $view.ContextMenu.ActualWidth -gt $windowScreen.X + $window.ActualWidth + 2 -or $menuScreen.Y + $view.ContextMenu.ActualHeight -gt $windowScreen.Y + $window.ActualHeight + 2) { throw 'Background context menu escaped the Playnite window bounds' }
+    } finally { $view.ContextMenu.IsOpen = $false; $view.ContextMenu.Opacity = $menuOpacity }
+    $dropdownProbe = [Windows.Controls.ComboBox]::new(); [void]$dropdownProbe.Items.Add('Probe')
+    [void]$layout.Children.Add($dropdownProbe); $window.UpdateLayout(); $dropdownProbe.ApplyTemplate() | Out-Null
+    $dropdownPopup = $dropdownProbe.Template.FindName('PART_Popup',$dropdownProbe)
+    if (!$dropdownPopup) { throw 'Probe combo has no real popup template' }
+    $dropdownPopup.Placement = [Windows.Controls.Primitives.PlacementMode]::AbsolutePoint
+    $dropdownPopup.HorizontalOffset = -3000; $dropdownPopup.VerticalOffset = -3000
+    [void]$view.GetType().GetMethod('PrepareDropdown',$flags).Invoke($view,@($dropdownProbe))
+    if (![object]::ReferenceEquals($dropdownPopup.PlacementTarget,$dropdownProbe) -or $dropdownPopup.Placement -ne [Windows.Controls.Primitives.PlacementMode]::Bottom -or $dropdownPopup.HorizontalOffset -ne 0 -or $dropdownPopup.VerticalOffset -ne 0) { throw 'Dropdown popup retained a detached/absolute screen anchor' }
+    $layout.Children.Remove($dropdownProbe)
+    'PASS: Auto toolbar shrinks after a stretched allocation and dropdown anchoring replaces invalid screen coordinates.'
+    $persistedNewPageIds = @()
+    foreach ($attempt in @(1,2)) {
+        $view.ShowPages(); $vm.NewPageName = 'Saved new page attempt ' + $attempt
+        $view.FindName('CreatePageSection').IsExpanded = $true; $window.UpdateLayout()
+        $createButton = $view.FindName('CreatePageButton')
+        [void]$createButton.GetType().GetMethod('OnClick',$flags).Invoke($createButton,@())
+        $createDeadline = [datetime]::UtcNow.AddSeconds(15)
+        while ($vm.IsSwitchingPage -and [datetime]::UtcNow -lt $createDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 10 }
+        if ($vm.SelectedPage.Name -ne $vm.NewPageName) { throw 'Create page button did not select the created page' }
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+        if ($vm.RootNodeViewModel.View.RowDefinitions[0].ActualHeight -gt 160) { throw 'New page toolbar consumed the empty content section' }
+        $createdId = $vm.SelectedPage.Id
+        $persistedNewPageIds += $createdId
+        $createdToolbar = [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).GetValue($vm.SelectedPage.Layout.Children[0].ViewProperties)
+        if ($createdToolbar -isnot [LandingPage.Views.ToolbarWidgetView] -or !$createdToolbar.IsVisible -or $createdToolbar.ActualHeight -lt 12) { throw 'Created page toolbar is missing or invisible' }
+        $leafPresenter = $vm.RootNodeViewModel.View.Children[0].FindName('ViewContentControl')
+        if ($leafPresenter.Opacity -lt 0.99) { throw 'New toolbar is hidden by a stale leaf opacity animation' }
+        $doneButton = $view.FindName('SavePagesButton')
+        [void]$doneButton.GetType().GetMethod('OnClick',$flags).Invoke($doneButton,@())
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        if ($view.FindName('PagesOverlay').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Done did not complete the page save' }
+        $diskSettings = [Newtonsoft.Json.JsonConvert]::DeserializeObject([IO.File]::ReadAllText($savedFile.FullName),[LandingPage.LandingPageSettings])
+        $diskPages = [LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($diskSettings)
+        foreach ($pageId in $persistedNewPageIds) {
+            $diskPage = @($diskPages | Where-Object Id -eq $pageId)[0]
+            if (!$diskPage -or $diskPage.Layout.Children.Count -ne 2 -or $diskPage.Layout.Children[0].ViewProperties.ViewId -ne 'ToolbarWidget') { throw 'Saved settings lost a newly created page or its toolbar/content layout' }
+        }
+        $reloadedActive = [LandingPage.Models.DashboardPages]::Ensure($diskSettings)
+        if ($reloadedActive.Id -ne $createdId -or $reloadedActive.Layout.Children[0].ViewProperties.ViewId -ne 'ToolbarWidget') { throw 'Reloading settings lost the active new page or toolbar' }
+    }
+    'PASS: real Create page/Done buttons persist first and second pages, render the real toolbar visibly and retain layouts after settings reload.'
+    $bulkOne = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Inactive bulk deletion A')
+    $bulkTwo = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Inactive bulk deletion B')
+    $vm.SaveCurrentPage()
+    $beforeBulkRoot = $vm.RootNodeViewModel; $beforeBulkActive = $vm.SelectedPage.Id; $beforeBulkCount = $vm.Pages.Count
+    $view.ShowPages(); $view.FindName('DeletePagesSection').IsExpanded = $true; $window.UpdateLayout()
+    $pageDeleteList = $view.FindName('PagesToDeleteList')
+    $pageDeleteList.SelectedItems.Add($bulkOne); $pageDeleteList.SelectedItems.Add($bulkTwo)
+    if ($vm.PagesSelectedForDeletion.Count -ne 2 -or $vm.SelectedPage.Id -ne $beforeBulkActive -or ![object]::ReferenceEquals($beforeBulkRoot,$vm.RootNodeViewModel)) { throw 'Selecting deletion targets navigated or replaced the active dashboard' }
+    $vm.RequestDeleteSelectedPagesCommand.Execute($null); $vm.CancelDeletePageCommand.Execute($null)
+    if ($vm.DeleteSelectedPagesCommand.CanExecute($null) -or $vm.Pages.Count -ne $beforeBulkCount) { throw 'Cancel did not cancel the bulk delete confirmation' }
+    $vm.RequestDeleteSelectedPagesCommand.Execute($null); $vm.DeleteSelectedPagesCommand.Execute($null)
+    if ($vm.Pages.Count -ne $beforeBulkCount - 2 -or $vm.Pages.Contains($bulkOne) -or $vm.Pages.Contains($bulkTwo) -or ![object]::ReferenceEquals($beforeBulkRoot,$vm.RootNodeViewModel) -or $vm.SelectedPage.Id -ne $beforeBulkActive) { throw 'Inactive bulk deletion loaded targets or changed the active page' }
+    Wait-Task ($vm.EndPageEditingAsync($false))
+    if ($vm.Pages.Count -ne $beforeBulkCount -or !@($vm.Pages | Where-Object Id -eq $bulkOne.Id) -or !@($vm.Pages | Where-Object Id -eq $bulkTwo.Id)) { throw 'Dismissing page manager did not restore bulk-deleted pages' }
+    $vm.BeginPageEditing()
+    $pageDeleteList.SelectAll()
+    if ($vm.RequestDeleteSelectedPagesCommand.CanExecute($null) -or $vm.DeleteSelectedPagesCommand.CanExecute($null)) { throw 'Bulk deletion allows deleting every dashboard page' }
+    $pageDeleteList.UnselectAll()
+    $bulkOne = @($vm.Pages | Where-Object Name -eq 'Inactive bulk deletion A')[0]
+    $bulkTwo = @($vm.Pages | Where-Object Name -eq 'Inactive bulk deletion B')[0]
+    $pageDeleteList.SelectedItems.Add($bulkOne); $pageDeleteList.SelectedItems.Add($bulkTwo)
+    $vm.RequestDeleteSelectedPagesCommand.Execute($null); $vm.DeleteSelectedPagesCommand.Execute($null)
+    Wait-Task ($vm.EndPageEditingAsync($true))
+    $bulkDisk = [Newtonsoft.Json.JsonConvert]::DeserializeObject([IO.File]::ReadAllText($savedFile.FullName),[LandingPage.LandingPageSettings])
+    $bulkDiskPages = [LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($bulkDisk)
+    if (@($bulkDiskPages | Where-Object { $_.Id -eq $bulkOne.Id -or $_.Id -eq $bulkTwo.Id }).Count) { throw 'Done did not persist bulk page deletion' }
+    $vm.BeginPageEditing()
+    $activeDeleteId = $vm.SelectedPage.Id
+    $extraBulk = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Active bulk deletion companion')
+    $pageDeleteList.UnselectAll(); $pageDeleteList.SelectedItems.Add($vm.SelectedPage); $pageDeleteList.SelectedItems.Add($extraBulk)
+    $vm.RequestDeleteSelectedPagesCommand.Execute($null); $vm.DeleteSelectedPagesCommand.Execute($null)
+    $bulkDeadline = [datetime]::UtcNow.AddSeconds(15)
+    while (@($vm.Pages | Where-Object Id -eq $activeDeleteId).Count -and [datetime]::UtcNow -lt $bulkDeadline) { $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 10 }
+    if ($vm.SelectedPage.Id -eq $activeDeleteId -or $vm.Pages.Contains($extraBulk) -or !@($vm.Pages | Where-Object Id -eq $vm.SelectedPage.Id)) { throw 'Deleting the active page did not switch to a surviving page first' }
+    Wait-Task ($vm.EndPageEditingAsync($false))
+    if (!@($vm.Pages | Where-Object Id -eq $activeDeleteId)) { throw 'Cancelling active bulk deletion did not restore the deleted page' }
+    $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    'PASS: real multi-select page list, inactive deletion without navigation, confirmation cancel, all-pages protection, Done persistence, active-page fallback and editor rollback.'
     $deletablePage = [LandingPage.Models.DashboardPages]::Add($vm.Settings.Settings,'Deletion rollback fixture')
     Wait-Task ($vm.SwitchPageAsync($deletablePage))
     $countBeforePendingDelete = $vm.Pages.Count

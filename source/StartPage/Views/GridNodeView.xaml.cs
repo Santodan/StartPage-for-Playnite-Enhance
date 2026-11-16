@@ -31,6 +31,16 @@ namespace LandingPage.Views
             };
         }
 
+        internal void RefreshContentLayout()
+        {
+            ViewContentControl.GetBindingExpression(ContentControl.ContentProperty)?.UpdateTarget();
+            ViewContentControl.InvalidateMeasure();
+            ViewContentControl.InvalidateArrange();
+            InvalidateMeasure();
+            InvalidateArrange();
+            InvalidateVisual();
+        }
+
         private void OpenAppearance_Click(object sender, RoutedEventArgs e)
         {
             var model = (sender as FrameworkElement)?.DataContext as GridNodeViewModel;

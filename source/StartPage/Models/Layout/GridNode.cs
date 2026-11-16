@@ -33,6 +33,7 @@ namespace LandingPage.Models.Layout
         public ViewProperties ViewProperties { get => viewProperties; set => SetValue(ref viewProperties, value); }
 
         private ObservableCollection<GridNode> children = new ObservableCollection<GridNode>();
+        [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
         public ObservableCollection<GridNode> Children { get => children; set => SetValue(ref children, value); }
 
         static public void Minimize(GridNode current, GridNode parent)

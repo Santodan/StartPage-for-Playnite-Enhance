@@ -1,4 +1,4 @@
-# Dashboard pages and the toolbar widget
+﻿# Dashboard pages and the toolbar widget
 
 ## Add and configure a toolbar
 
@@ -98,3 +98,7 @@ Under **Toolbar settings > Groups and alignment**, expand a group's **Group size
 Width and height are independent. In a horizontal toolbar, width determines each group's column; in a vertical toolbar, height determines each group's row. Alignment positions the contents within the group.
 
 In **Group appearance**, enable a background and use the color picker, opacity slider/numeric field, border color picker, border width, corner radius, internal padding, and outer spacing. Background opacity affects only the background, not icons or labels. Fixed width/height includes padding and border; outer spacing is added outside. **Reset group appearance** clears decoration/spacing while preserving its sizing, alignment, and items.
+
+## Delete several pages without opening them
+
+Open **Manage dashboard pages > Delete pages**. Tick the pages in the list; this does not navigate to them. Choose **Delete selected pages...**, then confirm with **Delete**. At least one page must remain, so selecting every page disables deletion. Removing inactive pages keeps the current page and its live widgets in place; removing the active page switches to a surviving page first. Press **Done** to save the deletions. Closing or dismissing the manager without Done restores the pending changes.
