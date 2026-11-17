@@ -33,6 +33,9 @@ namespace LandingPage.Models.Layout
         public Settings.ClockSettings ClockSettings { get => clockSettings; set => SetValue(ref clockSettings, value ?? new Settings.ClockSettings()); }
         private Settings.TextWidgetSettings textSettings = new Settings.TextWidgetSettings();
         public Settings.TextWidgetSettings TextSettings { get => textSettings; set => SetValue(ref textSettings, value ?? new Settings.TextWidgetSettings()); }
+        private Settings.DividerWidgetSettings dividerSettings;
+        public Settings.DividerWidgetSettings DividerSettings { get => dividerSettings ?? (dividerSettings = new Settings.DividerWidgetSettings()); set => SetValue(ref dividerSettings,value ?? new Settings.DividerWidgetSettings()); }
+        public bool ShouldSerializeDividerSettings() => ViewId == "DividerWidget";
         private Settings.ShortcutWidgetSettings shortcutSettings;
         public Settings.ShortcutWidgetSettings ShortcutSettings { get => shortcutSettings ?? (shortcutSettings = new Settings.ShortcutWidgetSettings()); set => SetValue(ref shortcutSettings,value ?? new Settings.ShortcutWidgetSettings()); }
         public bool ShouldSerializeShortcutSettings() => ViewId == "ShortcutWidget";

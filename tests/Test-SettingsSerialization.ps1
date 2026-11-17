@@ -19,6 +19,16 @@ $previousSerializer = $serializerField.GetValue($null)
 try {
     $serializerField.SetValue($null, [Playnite.Common.DataSerializer]::new())
     $pageCloneMethod = [Playnite.SDK.Data.Serialization].GetMethods() | Where-Object { $_.Name -eq 'GetClone' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 } | Select-Object -First 1
+    $dividerProps = [LandingPage.Models.Layout.ViewProperties]::new(); $dividerProps.ViewId = 'DividerWidget'
+    $dividerProps.DividerSettings.Mode = 'Spacer'; $dividerProps.DividerSettings.Orientation = 'Vertical'; $dividerProps.DividerSettings.SpaceSize = 57
+    $dividerProps.DividerSettings.ConnectEnds = $true; $dividerProps.DividerSettings.ConnectStart = $false; $dividerProps.DividerSettings.ConnectionRange = 175
+    $dividerProps.DividerSettings.Decoration = 'DoubleWave'; $dividerProps.DividerSettings.PatternSize = 13; $dividerProps.DividerSettings.PatternSpacing = 37; $dividerProps.DividerSettings.DashGap = 7; $dividerProps.DividerSettings.FillShapes = $true
+    $dividerProps.DividerSettings.LineStyle = 'Dotted'; $dividerProps.DividerSettings.Color = '#12ABEF'; $dividerProps.DividerSettings.CustomColor = $true
+    $dividerClone = $pageCloneMethod.MakeGenericMethod([LandingPage.Models.Layout.ViewProperties]).Invoke($null,@($dividerProps))
+    if($dividerClone.DividerSettings.Mode -ne 'Spacer' -or $dividerClone.DividerSettings.Orientation -ne 'Vertical' -or $dividerClone.DividerSettings.SpaceSize -ne 57 -or $dividerClone.DividerSettings.Color -ne '#12ABEF' -or $dividerClone.DividerSettings.LineStyle -ne 'Dotted' -or !$dividerClone.DividerSettings.ConnectEnds -or $dividerClone.DividerSettings.ConnectStart -or $dividerClone.DividerSettings.ConnectionRange -ne 175 -or $dividerClone.DividerSettings.Decoration -ne 'DoubleWave' -or $dividerClone.DividerSettings.PatternSize -ne 13 -or $dividerClone.DividerSettings.PatternSpacing -ne 37 -or $dividerClone.DividerSettings.DashGap -ne 7 -or !$dividerClone.DividerSettings.FillShapes) { throw 'Playnite serializer lost divider settings' }
+    $dividerClone.DividerSettings.SpaceSize = 19
+    if($dividerProps.DividerSettings.SpaceSize -ne 57) { throw 'Divider settings share mutable profile data' }
+    'PASS: actual Playnite serializer preserves independent divider/spacer mode, orientation, spacing, style and color.'
     $shortcutProps = [LandingPage.Models.Layout.ViewProperties]::new(); $shortcutProps.ViewId = 'ShortcutWidget'
     $shortcutProps.ShortcutSettings.FontSize = 19; $shortcutProps.ShortcutSettings.CustomBackground = $true
     $shortcutEntry = [LandingPage.Settings.ShortcutEntry]::new(); $shortcutEntry.Kind = 'Application'; $shortcutEntry.Target = 'C:\Example\app.exe'; $shortcutEntry.Arguments = '--flag "a b"'; $shortcutEntry.WorkingDirectory = 'C:\Example'; $shortcutEntry.Label = 'App'

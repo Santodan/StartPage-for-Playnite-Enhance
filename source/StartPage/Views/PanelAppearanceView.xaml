@@ -17,6 +17,10 @@
                                             <Expander x:Name="ProviderSettingsSection" Header="Widget settings" IsExpanded="True" Visibility="Collapsed" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
                                                 <ContentControl x:Name="ProviderSettingsHost" HorizontalContentAlignment="Stretch"/>
                                             </Expander>
+                                            <Expander Header="Divider / spacer settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
+                                                <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding GridNode.ViewProperties.ViewId}" Value="DividerWidget"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Expander.Style>
+                                                <StackPanel><settingsViews:DividerWidgetSettingsView DataContext="{Binding GridNode.ViewProperties.DividerSettings}"/><Button Content="Reset divider / spacer settings" Click="ResetDivider_Click" Margin="0,8,0,0"/></StackPanel>
+                                            </Expander>
                                             <Expander Header="Shortcut settings" IsExpanded="True" Margin="0,0,0,12" Foreground="{DynamicResource TextBrush}">
                                                 <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding GridNode.ViewProperties.ViewId}" Value="ShortcutWidget"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Expander.Style>
                                                 <StackPanel><settingsViews:ShortcutWidgetSettingsView DataContext="{Binding GridNode.ViewProperties.ShortcutSettings}"/><Button Content="Reset shortcut settings" Click="ResetShortcuts_Click" Margin="0,8,0,0"/></StackPanel>

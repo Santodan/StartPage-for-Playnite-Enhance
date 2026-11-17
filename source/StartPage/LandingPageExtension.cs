@@ -821,6 +821,7 @@ namespace LandingPage
                 Description = "Local images, banners, and logos with an optional website link. Configure in Appearance.",
                 AllowMultipleInstances = true
             });
+            views.Add(new StartPageViewArgsBase { ViewId = "DividerWidget", Name = "Divider / spacer", Description = "Configurable horizontal or vertical separator lines and empty space.", AllowMultipleInstances = true });
             views.Add(new StartPageViewArgsBase { ViewId = "ShortcutWidget", Name = "Shortcuts", Description = "Game, application, folder and website buttons with configurable labels and icons.", AllowMultipleInstances = true });
             foreach (var entry in new[] { new[] { "AchievementProgress", "Achievement progress cards" }, new[] { "AchievementFinishNext", "Achievement finish next" }, new[] { "AchievementGoals", "Achievement goals" }, new[] { "GameAchievementList", "Game achievements list" } })
                 views.Add(new StartPageViewArgsBase { ViewId = entry[0], Name = entry[1], Description = entry[0] == "GameAchievementList" ? "Individual achievements for the selected, hovered or pinned game. Configure in Appearance." : "Customizable achievement cards, rings, bars and game targets. Configure in Appearance.", AllowMultipleInstances = true });
@@ -875,6 +876,7 @@ namespace LandingPage
                 }
             }
             if (id == "ToolbarWidget") return new ToolbarWidgetView();
+            if (id == "DividerWidget") return new DividerWidgetView();
             if (id == "ShortcutWidget") return new ShortcutWidgetView();
             if (id == "ImageWidget")
             {

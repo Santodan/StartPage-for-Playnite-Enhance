@@ -140,3 +140,7 @@ In Edit Mode, **Add view > StartPage** groups widgets into **General**, **Achiev
 ## Compact text editors
 
 Where a widget has multiple text elements, its formatting editor uses a **Text element** dropdown and shows only that element's controls. This applies to achievement widgets, clock time/date, featured-game title/description/metadata, statistic values/labels, shelf title/metadata and applicable standalone game text. Widgets with just one applicable text element keep a direct editor. Selection changes only which controls are visible; formatting values, inheritance, theme defaults and the rendered widget are preserved.
+
+### Merge adjacent spaces safely
+
+In Edit Mode, right-click the panel you want to extend and choose **Merge adjacent space > Left / Right / Above / Below**. The two spaces must share aligned edges and form a rectangle. The merge changes only those spaces; widgets above, below and beside them are retained, including when the spaces belong to separate nested columns or rows. Adjust the split dividers if an edge needs aligning. If one space is empty, the populated widget is kept. If both contain widgets, a confirmation identifies the neighboring widget that will be removed while retaining the selected widget. Splitter merge menus are limited to individual panels so they cannot remove an entire nested section.

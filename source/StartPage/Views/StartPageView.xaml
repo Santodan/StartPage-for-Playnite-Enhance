@@ -201,6 +201,7 @@
                 </local:GridNodeView.Style>
             </local:GridNodeView>
         </ScrollViewer>
+        <controls:DividerConnectionLayer x:Name="DividerConnections" Panel.ZIndex="700"/>
         <Canvas x:Name="ShelfHoverLayer" Panel.ZIndex="800" IsHitTestVisible="False" ClipToBounds="True"/>
         </Grid>
         <Image x:Name="DashboardTransitionImage" Visibility="Collapsed" Panel.ZIndex="900" Stretch="Fill" IsHitTestVisible="False"/>

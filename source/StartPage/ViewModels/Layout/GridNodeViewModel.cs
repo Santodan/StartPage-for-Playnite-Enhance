@@ -80,6 +80,10 @@ namespace LandingPage.ViewModels.Layout
         public ICommand SplitVerticallyCommand { get; private set; }
         public ICommand RemoveViewCommand { get; private set; }
         public ICommand RemovePanelCommand { get; private set; }
+        public ICommand MergeLeftSpaceCommand { get; private set; }
+        public ICommand MergeRightSpaceCommand { get; private set; }
+        public ICommand MergeAboveSpaceCommand { get; private set; }
+        public ICommand MergeBelowSpaceCommand { get; private set; }
         public ICommand MergeWithPreviousPanelCommand { get; private set; }
         public ICommand MergeWithNextPanelCommand { get; private set; }
         public ICommand SetVerticalAlignmentCommand { get; private set; }
@@ -267,11 +271,12 @@ namespace LandingPage.ViewModels.Layout
             RemoveViewCommand = new RelayCommand(RemoveCurrentView);
             RemovePanelCommand = new RelayCommand(RemovePanel, () => Parent != null);
 
-            MergeWithNextPanelCommand = new RelayCommand(MergeWithNextPanel,
-                () => Parent != null && Parent.GridNode.Children.IndexOf(GridNode) < Parent.GridNode.Children.Count - 1);
-
-            MergeWithPreviousPanelCommand = new RelayCommand(MergeWithPreviousPanel,
-                () => Parent != null && Parent.GridNode.Children.IndexOf(GridNode) > 0);
+            MergeLeftSpaceCommand = new RelayCommand(() => MergeAdjacentSpace(Orientation.Horizontal,false),() => EditModeEnabled && FindAdjacentSpace(Orientation.Horizontal,false) != null);
+            MergeRightSpaceCommand = new RelayCommand(() => MergeAdjacentSpace(Orientation.Horizontal,true),() => EditModeEnabled && FindAdjacentSpace(Orientation.Horizontal,true) != null);
+            MergeAboveSpaceCommand = new RelayCommand(() => MergeAdjacentSpace(Orientation.Vertical,false),() => EditModeEnabled && FindAdjacentSpace(Orientation.Vertical,false) != null);
+            MergeBelowSpaceCommand = new RelayCommand(() => MergeAdjacentSpace(Orientation.Vertical,true),() => EditModeEnabled && FindAdjacentSpace(Orientation.Vertical,true) != null);
+            MergeWithNextPanelCommand = new RelayCommand(MergeWithNextPanel,() => EditModeEnabled && Parent != null && FindAdjacentSpace(Parent.GridNode.Orientation,true) != null);
+            MergeWithPreviousPanelCommand = new RelayCommand(MergeWithPreviousPanel,() => EditModeEnabled && Parent != null && FindAdjacentSpace(Parent.GridNode.Orientation,false) != null);
 
             SetHorizontalAlignmentCommand = new RelayCommand<HorizontalAlignment>(SetHorizontalAlignment);
             SetVerticalAlignmentCommand = new RelayCommand<VerticalAlignment>(SetVerticalAlignment);
@@ -359,35 +364,32 @@ namespace LandingPage.ViewModels.Layout
             GridNode.VerticalAlignment = align;
         }
 
-        public void MergeWithPreviousPanel()
+        private Tuple<GridNodeViewModel,AdjacentPanelMerge> FindAdjacentSpace(Orientation orientation,bool next)
         {
-            if (Parent != null)
-            {
-                var root = Root.GridNode;
-                var index = Parent.GridNode.Children.IndexOf(GridNode);
-                if (index > 0)
-                {
-                    var removed = Parent.GridNode.Children[index - 1];
-                    Parent.GridNode.Children.RemoveAt(index - 1);
-                }
-                GridNode.Minimize(root, null);
+            if(!GridNode.IsLeaf) return null;
+            for(var owner = Parent; owner != null; owner = owner.Parent) {
+                var plan = AdjacentPanelMerge.Find(owner.GridNode,GridNode,orientation,next);
+                if(plan != null) return Tuple.Create(owner,plan);
             }
+            return null;
         }
-
-        public void MergeWithNextPanel()
+        private void MergeAdjacentSpace(Orientation orientation,bool next)
         {
-            if (Parent != null)
-            {
-                var root = Root.GridNode;
-                var index = Parent.GridNode.Children.IndexOf(GridNode);
-                if (index > -1 && index < Parent.GridNode.Children.Count - 1)
-                {
-                    var removed = Parent.GridNode.Children[index + 1];
-                    Parent.GridNode.Children.RemoveAt(index + 1);
-                }
-                GridNode.Minimize(root, null);
-            }
+            if(!EditModeEnabled) return;
+            var match = FindAdjacentSpace(orientation,next); if(match == null) return;
+            var owner = match.Item1; var plan = match.Item2;
+            if(plan.Removed.ViewProperties != null && plan.Kept.ViewProperties != null &&
+                LandingPageExtension.Instance.PlayniteApi.Dialogs.ShowMessage("Keep this widget and remove the neighboring widget ("+(plan.Removed.ViewProperties.StartPageViewArgs?.Name ?? plan.Removed.ViewProperties.ViewId)+")? All other panels and widgets will be kept.","Merge adjacent spaces",MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            foreach(var child in owner.View.Children.OfType<GridNodeView>().Select(element => element.DataContext).OfType<GridNodeViewModel>().ToList()) child.DetachLayoutObservers();
+            owner.View.Children.Clear();
+            plan.Apply();
+            if(plan.Removed.ViewProperties != null) OnNodeRemoved(plan.Removed);
+            CommandManager.InvalidateRequerySuggested();
+            LandingPageExtension.Instance?.startPageViewModel?.SaveCurrentPage();
+            ExtensionDiagnostics.Record(LandingPageExtension.Instance,"Merged adjacent spaces: orientation="+orientation+"; next="+next+"; remainingWidgets="+Root.GridNode.ViewCount+".");
         }
+        public void MergeWithPreviousPanel() { if(Parent != null) MergeAdjacentSpace(Parent.GridNode.Orientation,false); }
+        public void MergeWithNextPanel() { if(Parent != null) MergeAdjacentSpace(Parent.GridNode.Orientation,true); }
 
         private void RemovePanel()
         {
@@ -953,41 +955,17 @@ namespace LandingPage.ViewModels.Layout
             return addItem;
         }
 
-        private MenuItem GetMergeMenuItem(GridNode node, int curr)
+        private MenuItem GetMergeMenuItem(GridNode node,int curr)
         {
-            MenuItem mergeItem = new MenuItem
-            {
-                Header = ResourceProvider.GetString("LOC_SPG_Merge")
+            var item = new MenuItem { Header = "Merge adjacent spaces",IsEnabled = node.Children[curr].IsLeaf && node.Children[curr+1].IsLeaf,
+                ToolTip = "For nested layouts, use a panel's Merge adjacent space menu to preserve the panels around it." };
+            Action<int> merge = index => {
+                var model = View.Children.OfType<GridNodeView>().Select(view => view.DataContext).OfType<GridNodeViewModel>().FirstOrDefault(view => view.GridNode == node.Children[index]);
+                model?.MergeAdjacentSpace(node.Orientation,index == curr);
             };
-            mergeItem.Items.Add(new MenuItem
-            {
-                Header = node.Orientation == Orientation.Horizontal ? ResourceProvider.GetString("LOC_SPG_MergeKeepLeft") : ResourceProvider.GetString("LOC_SPG_MergeKeepUpper"),
-                Command = new RelayCommand(() =>
-                {
-                    var root = Root.GridNode;
-                    var left = node.Children[curr];
-                    var right = node.Children[curr + 1];
-                    var newSize = left.Size.Value + right.Size.Value;
-                    node.Children[curr].Size = new GridLength(newSize, GridUnitType.Star);
-                    node.Children.RemoveAt(curr + 1);
-                    GridNode.Minimize(root, null);
-                })
-            });
-            mergeItem.Items.Add(new MenuItem
-            {
-                Header = node.Orientation == Orientation.Horizontal ? ResourceProvider.GetString("LOC_SPG_MergeKeepRight") : ResourceProvider.GetString("LOC_SPG_MergeKeepLower"),
-                Command = new RelayCommand(() =>
-                {
-                    var root = Root.GridNode;
-                    var left = node.Children[curr];
-                    var right = node.Children[curr + 1];
-                    var newSize = left.Size.Value + right.Size.Value;
-                    node.Children[curr + 1].Size = new GridLength(newSize, GridUnitType.Star);
-                    node.Children.RemoveAt(curr);
-                    GridNode.Minimize(root, null);
-                })
-            });
-            return mergeItem;
+            item.Items.Add(new MenuItem { Header = node.Orientation == Orientation.Horizontal ? "Merge from left panel" : "Merge from upper panel",Command = new RelayCommand(() => merge(curr)) });
+            item.Items.Add(new MenuItem { Header = node.Orientation == Orientation.Horizontal ? "Merge from right panel" : "Merge from lower panel",Command = new RelayCommand(() => merge(curr+1)) });
+            return item;
         }
 
         private async void Children_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

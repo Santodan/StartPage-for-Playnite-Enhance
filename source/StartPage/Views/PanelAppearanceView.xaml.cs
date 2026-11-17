@@ -79,6 +79,12 @@ namespace LandingPage.Views
                 model.GridNode.ViewProperties.ToolbarSettings = new LandingPage.Settings.ToolbarWidgetSettings();
         }
 
+        private void ResetDivider_Click(object sender,RoutedEventArgs e)
+        {
+            if(DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)
+                model.GridNode.ViewProperties.DividerSettings = new LandingPage.Settings.DividerWidgetSettings();
+        }
+
         private void ResetShortcuts_Click(object sender,RoutedEventArgs e)
         {
             if(DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)
