@@ -10,6 +10,20 @@ namespace LandingPage.Models.Layout
 {
     public class ViewProperties : ObservableObject
     {
+        private Settings.AchievementWidgetSettings achievementSettings;
+        public Settings.AchievementWidgetSettings AchievementSettings {
+            get => achievementSettings ?? (achievementSettings = Settings.AchievementWidgetSettings.Create(ViewId));
+            set => SetValue(ref achievementSettings,value ?? Settings.AchievementWidgetSettings.Create(ViewId));
+        }
+        internal void MigrateRecentAchievementSettings(int total,int perGame)
+        {
+            if (ViewId != "RecentAchivements" || achievementSettings != null) return;
+            achievementSettings = Settings.AchievementWidgetSettings.Create(ViewId);
+            achievementSettings.Limit = Math.Max(0,total); achievementSettings.PerGameLimit = Math.Max(0,perGame);
+        }
+        public bool ShouldSerializeAchievementSettings() => Settings.AchievementWidgetSettings.IsWidget(ViewId) && (ViewId != "RecentAchivements" || achievementSettings != null);
+        [DontSerialize, Newtonsoft.Json.JsonIgnore]
+        public bool IsAchievementWidget => Settings.AchievementWidgetSettings.IsWidget(ViewId);
         private PanelAppearance appearance = new PanelAppearance();
         public PanelAppearance Appearance { get => appearance; set => SetValue(ref appearance, value ?? new PanelAppearance()); }
         private Settings.LibraryStatisticsSettings libraryStatisticsSettings;

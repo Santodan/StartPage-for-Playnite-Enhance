@@ -14,9 +14,9 @@ $settingsType.GetProperty('BackgroundImagePath').SetValue($context,'Z:\Private\m
 $settingsType.GetProperty('BackgroundImageUri').SetValue($context,[uri]'file:///Z:/Private/my-background.jpg')
 $builtin = [guid]'a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5'
 $templates = [LandingPage.Models.DashboardStarterTemplates]::Create($context,$builtin)
-if ($templates.Count -ne 6 -or (@($templates | ForEach-Object Key) -join ',') -ne 'minimal,achievements,library,spotlight,inspector,insights') { throw 'Expected six starter templates' }
+if ($templates.Count -ne 7 -or (@($templates | ForEach-Object Key) -join ',') -ne 'minimal,achievements,library,spotlight,inspector,insights,achievement-cards') { throw 'Expected seven starter templates' }
 if ($settingsType.GetProperty('DashboardPages').GetValue($context).Count -ne 0 -or $settingsType.GetProperty('BackgroundImagePath').GetValue($context) -ne 'Z:\Private\my-background.jpg') { throw 'Generating templates changed the live dashboard' }
-$allowed = @('DigitalClock','TextWidget','ToolbarWidget','GameShelves','RecentAchivements','FeaturedGame','GameDetailArtwork','GameDetailTitle','GameDetailDescription','GameDetailActivity','GameDetailActions','LibraryStatistics','LibraryChart')
+$allowed = @('DigitalClock','TextWidget','ToolbarWidget','GameShelves','RecentAchivements','FeaturedGame','GameDetailArtwork','GameDetailTitle','GameDetailDescription','GameDetailActivity','GameDetailActions','LibraryStatistics','LibraryChart','AchievementProgress','AchievementFinishNext')
 $previewHashes = [Collections.Generic.HashSet[string]]::new()
 $output = Join-Path $env:TEMP ('StartPage-starter-previews-' + [guid]::NewGuid())
 [void][IO.Directory]::CreateDirectory($output)
@@ -79,5 +79,39 @@ if ($description.ViewProperties.GameDetailSettings.DescriptionLength -ne 0 -or !
 $insights = $templates | Where-Object Key -eq 'insights'
 $chart = @($insights.Profile.Snapshot.Pages[0].Layout.Enumerate() | Where-Object { $_.ViewProperties.ViewId -eq 'LibraryChart' })[0].ViewProperties.LibraryStatisticsSettings
 if ($chart.ExtraCharts.Count -ne 2 -or $chart.ChartStyle -ne [LandingPage.Settings.StatisticsChartStyle]::Doughnut -or $chart.ExtraCharts[0].Metric -ne [LandingPage.Settings.StatisticsMetric]::Playtime -or $chart.ExtraCharts[1].ChartStyle -ne [LandingPage.Settings.StatisticsChartStyle]::VerticalBars) { throw 'Insights requires three independent chart recipes' }
-'PASS: six portable starters, page navigation, shelf recipes, achievement provider, independent snapshots, profile round-trip, and distinct rendered previews.'
+'PASS: seven portable starters, page navigation, shelf recipes, achievement provider, independent snapshots, profile round-trip, and distinct rendered previews.'
 ('Preview artifacts: ' + $output)
+
+# Provider-backed dashboard: discover capabilities rather than adding duplicate achievement widgets.
+$externalPlugin = [guid]::NewGuid()
+$ids = @('PlayniteAchievements_GameSummariesGrid','PlayniteAchievements_RecentUnlocksGrid','PlayniteAchievements_Showcase_Statistics','PlayniteAchievements_Showcase_ActivityCalendar')
+$views = [Collections.Generic.List[LandingPage.Models.Layout.StartPageViewArgs]]::new()
+foreach ($id in $ids) {
+    $view = [LandingPage.Models.Layout.StartPageViewArgs]::new($externalPlugin)
+    $view.ViewId = $id; $view.Name = $id; $view.AllowMultipleInstances = $true
+    $views.Add($view)
+}
+$integrated = [LandingPage.Models.DashboardStarterTemplates]::Create($context,$builtin,$views)
+if ($integrated.Count -ne 8) { throw 'Enabled provider should offer the achievement dashboard starter' }
+$dashboard = $integrated | Where-Object Key -eq 'provider-achievements'
+[LandingPage.Models.DashboardProfiles]::Validate($dashboard.Profile)
+$nodes = @($dashboard.Profile.Snapshot.Pages[0].Layout.Enumerate() | Where-Object ViewProperties)
+$external = @($nodes | Where-Object { $_.ViewProperties.PluginId -eq $externalPlugin })
+if ($external.Count -ne 4 -or @($external | Where-Object { $_.ViewProperties.ViewId -notin $ids }).Count) { throw 'Dashboard must use the four advertised external widgets' }
+if (@($nodes | Where-Object { $_.ViewProperties.ViewId -eq 'ToolbarWidget' -and $_.Size.IsAuto }).Count -ne 1 -or $dashboard.Profile.Snapshot.Shelves.Count) { throw 'Achievement dashboard needs a toolbar and no leftover shelf data' }
+$copy = [LandingPage.Models.DashboardProfiles]::Import([LandingPage.Models.DashboardProfiles]::Export($dashboard.Profile))
+$prepared = [LandingPage.Models.DashboardProfiles]::Prepare($copy,$builtin)
+foreach ($node in $external) {
+    if (!@($prepared.Pages[0].Layout.Enumerate() | Where-Object { $_.ViewProperties.InstanceId -eq $node.ViewProperties.InstanceId -and $_.ViewProperties.PluginId -eq $externalPlugin })) { throw 'External widget identity lost in profile round-trip' }
+}
+$again = [LandingPage.Models.DashboardStarterTemplates]::Create($context,$builtin,$views) | Where-Object Key -eq 'provider-achievements'
+$againIds = @($again.Profile.Snapshot.Pages[0].Layout.Enumerate() | Where-Object { $_.ViewProperties.PluginId -eq $externalPlugin } | ForEach-Object { $_.ViewProperties.InstanceId })
+if (@($external | Where-Object { $_.ViewProperties.InstanceId -in $againIds }).Count) { throw 'New starter generations must not reuse external widget instances' }
+$views[0].AllowMultipleInstances = $false
+if ([LandingPage.Models.DashboardStarterTemplates]::Create($context,$builtin,$views).Count -ne 7) { throw 'Single-instance providers must not be duplicated by a starter' }
+$views[0].AllowMultipleInstances = $true
+$views[0].PluginId = [guid]::NewGuid()
+if ([LandingPage.Models.DashboardStarterTemplates]::Create($context,$builtin,$views).Count -ne 7) { throw 'Capabilities from unrelated providers must not be combined' }
+$views.RemoveAt(0)
+if ([LandingPage.Models.DashboardStarterTemplates]::Create($context,$builtin,$views).Count -ne 7) { throw 'Incomplete providers must keep the portable fallback gallery' }
+'PASS: achievement integration discovery, missing/partial/single-instance providers, fresh instances and profile persistence.'

@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="LandingPage.Views.Settings.GameDetailSettingsView"
+<UserControl x:Class="LandingPage.Views.Settings.GameDetailSettingsView"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:settings="clr-namespace:LandingPage.Settings" xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:numeric="http://gu.se/NumericInput">
  <UserControl.Resources>
@@ -24,7 +24,7 @@
   </StackPanel></Expander>
   <Expander x:Name="TitleOptions" Header="Title"><StackPanel Margin="8,6,0,8">
    <CheckBox Content="Show game title" IsChecked="{Binding ShowTitle}"/>
-   <TextBlock Text="Title size"/><numeric:DoubleBox Value="{Binding TitleSize}" MinValue="12" MaxValue="96" Style="{StaticResource {x:Type TextBox}}"/>
+
   </StackPanel></Expander>
   <Expander x:Name="DescriptionOptions" Header="Description"><StackPanel Margin="8,6,0,8">
    <CheckBox Content="Show description" IsChecked="{Binding ShowDescription}"/>
@@ -45,7 +45,7 @@
    </ComboBox>
    <TextBlock Text="Image opacity"/><numeric:DoubleBox Value="{Binding ArtworkOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
    <TextBlock Text="Overlay opacity"/><numeric:DoubleBox Value="{Binding OverlayOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
-   <Expander Header="Colors"><StackPanel Margin="8,6,0,8"><TextBlock Text="Overlay color"/><controls:ColorPicker SelectedColor="{Binding OverlayColor, Mode=TwoWay, ValidatesOnExceptions=True}"/></StackPanel></Expander>
+   <Expander Header="Colors"><UniformGrid Columns="3" Margin="8,6,0,8"><controls:PopupColorPicker Label="Overlay color" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding OverlayColor, Mode=TwoWay, ValidatesOnExceptions=True}"/></UniformGrid></Expander>
   </StackPanel></Expander>
   <Expander x:Name="ActivityOptions" Header="Activity"><StackPanel Margin="8,6,0,8">
    <CheckBox Content="Playtime" IsChecked="{Binding ShowPlaytime}"/><CheckBox Content="Last played" IsChecked="{Binding ShowLastPlayed}"/>
@@ -70,9 +70,9 @@
   <Expander x:Name="ActionsOptions" Header="Actions"><StackPanel Margin="8,6,0,8">
    <CheckBox Content="Play / Install button" IsChecked="{Binding ShowPlayButton}"/><CheckBox Content="Open in library button" IsChecked="{Binding ShowLibraryButton}"/>
   </StackPanel></Expander>
-  <Expander x:Name="FormattingOptions" Header="Text and layout"><StackPanel Margin="8,6,0,8">
+  <Expander x:Name="FormattingOptions" Header="Text and layout"><StackPanel Margin="8,6,0,8"><controls:TextSettingsSelector x:Name="SectionTextEditor"><controls:TextSettingsEntry x:Name="GameTitleTextEntry" Header="Title"><StackPanel>   <TextBlock Text="Title size"/><WrapPanel><numeric:DoubleBox Width="64" VerticalAlignment="Center" Value="{Binding TitleSize}" MinValue="12" MaxValue="96" Style="{StaticResource {x:Type TextBox}}"/><controls:PopupColorPicker Margin="8,0,0,0" VerticalAlignment="Center" SelectedColor="{Binding TitleColor, Mode=TwoWay, ValidatesOnExceptions=True}" UseCustomColor="{Binding UseCustomTextColor, Mode=TwoWay}"/></WrapPanel>    </StackPanel></controls:TextSettingsEntry><controls:TextSettingsEntry x:Name="GameBodyTextEntry" Header="Other text"><StackPanel>   <TextBlock Text="Text size"/><WrapPanel><numeric:DoubleBox Width="64" VerticalAlignment="Center" Value="{Binding TextSize}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/><controls:PopupColorPicker Margin="8,0,0,0" VerticalAlignment="Center" SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}" UseCustomColor="{Binding UseCustomTextColor, Mode=TwoWay}"/></WrapPanel>    </StackPanel></controls:TextSettingsEntry></controls:TextSettingsSelector>
    <CheckBox Content="Show section headings" IsChecked="{Binding ShowSectionHeadings}"/>
-   <TextBlock Text="Text size"/><numeric:DoubleBox Value="{Binding TextSize}" MinValue="8" MaxValue="48" Style="{StaticResource {x:Type TextBox}}"/>
+
    <TextBlock Text="Maximum content width"/><numeric:DoubleBox Value="{Binding ContentWidth}" MinValue="160" MaxValue="1400" Style="{StaticResource {x:Type TextBox}}"/>
    <TextBlock Text="Horizontal position"/><ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag">
     <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/><ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/><ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/><ComboBoxItem Content="Stretch" Tag="{x:Static HorizontalAlignment.Stretch}"/>
@@ -80,11 +80,6 @@
    <TextBlock Text="Vertical position"/><ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
     <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/><ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/><ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
    </ComboBox>
-   <Expander Header="Colors"><StackPanel Margin="8,6,0,8">
-    <CheckBox Content="Use custom text colors" IsChecked="{Binding UseCustomTextColor}"/>
-    <TextBlock Text="Title color"/><controls:ColorPicker SelectedColor="{Binding TitleColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
-    <TextBlock Text="Text color"/><controls:ColorPicker SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
-   </StackPanel></Expander>
   </StackPanel></Expander>
   <Expander x:Name="ScrollingOptions" Header="Scrolling"><StackPanel Margin="8,6,0,8">
    <TextBlock Text="Overflow scrolls within this widget. Each widget has its own scrolling settings." TextWrapping="Wrap"/>

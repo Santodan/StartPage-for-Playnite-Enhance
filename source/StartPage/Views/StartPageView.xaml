@@ -827,7 +827,7 @@
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <DockPanel Margin="8">
                         <Button Content="Close" DockPanel.Dock="Right" Click="CloseAppearance_Click" MinWidth="64"/>
-                        <TextBlock Text="Panel appearance" FontSize="20" VerticalAlignment="Center"/>
+                        <TextBlock Text="Widget settings" FontSize="20" VerticalAlignment="Center"/>
                     </DockPanel>
                     <local:PanelAppearanceView x:Name="AppearanceEditor" Grid.Row="1" Done="CloseAppearance_Click"/>
                 </Grid>

@@ -75,6 +75,8 @@ namespace LandingPage.ViewModels.Layout
 
         public ICommand AddCommand { get; private set; }
         public ICommand SplitHorizontallyCommand { get; private set; }
+        public ICommand IndependentColumnHeightsCommand { get; private set; }
+        public ICommand IndependentRowWidthsCommand { get; private set; }
         public ICommand SplitVerticallyCommand { get; private set; }
         public ICommand RemoveViewCommand { get; private set; }
         public ICommand RemovePanelCommand { get; private set; }
@@ -90,7 +92,8 @@ namespace LandingPage.ViewModels.Layout
             {
                 if (GridNode.ViewProperties?.StartPageViewArgs?.HasSettings ?? false)
                 {
-                    var plugin = LandingPageExtension.Instance.PlayniteApi.Addons.Plugins.FirstOrDefault(p => p.Id == GridNode.ViewProperties.PluginId);
+                    var owner = LandingPageExtension.Instance;
+                    var plugin = GridNode.ViewProperties.PluginId == owner.Id ? owner : owner.PlayniteApi.Addons.Plugins.FirstOrDefault(p => p.Id == GridNode.ViewProperties.PluginId);
                     if (plugin is IStartPageExtension extension)
                     {
                         return extension.GetStartPageViewSettings(GridNode.ViewProperties.ViewId, GridNode.ViewProperties.InstanceId);
@@ -184,6 +187,7 @@ namespace LandingPage.ViewModels.Layout
                 },
                 v =>
                 {
+                    if (v?.ViewArgs == null) return false;
                     return v.ViewArgs.AllowMultipleInstances || !LandingPageExtension.Instance.Settings.DashboardPages.SelectMany(page => page.Layout.Enumerate())
                         .Select(node => node.ViewProperties).Where(properties => properties != null)
                         .Any(vp => vp.PluginId == v.ViewArgs.PluginId && vp.ViewId == v.ViewArgs.ViewId);
@@ -194,6 +198,38 @@ namespace LandingPage.ViewModels.Layout
                 ViewArgs = args;
                 Model = model;
             }
+        }
+
+        public class WidgetMenuEntry
+        {
+            public string Name { get; set; }
+            public List<WidgetMenuEntry> Children { get; set; } = new List<WidgetMenuEntry>();
+            public AvailableView View { get; set; }
+            public ICommand Command => View == null ? null : AvailableView.AddCommand;
+            public string Description => View?.ViewArgs.Description;
+        }
+        public IEnumerable<WidgetMenuEntry> WidgetMenuEntries
+        {
+            get {
+                var owner = LandingPageExtension.Instance;
+                foreach (var provider in owner.AllAvailableViews) {
+                    var folder = new WidgetMenuEntry { Name = provider.Key };
+                    foreach (var group in provider.Value.GroupBy(args => args.PluginId == owner.Id ? WidgetCategory(args.ViewId) : "")
+                        .OrderBy(group => group.Key == "General" ? 0 : group.Key == "Achievements" ? 1 : group.Key == "Library" ? 2 : 3)) {
+                        var items = group.Select(args => new WidgetMenuEntry { Name = args.Name, View = new AvailableView(this,args) }).ToList();
+                        if (string.IsNullOrEmpty(group.Key)) folder.Children.AddRange(items);
+                        else folder.Children.Add(new WidgetMenuEntry { Name = group.Key, Children = items });
+                    }
+                    yield return folder;
+                }
+            }
+        }
+        private static string WidgetCategory(string id)
+        {
+            if (id == "RecentAchivements" || Settings.AchievementWidgetSettings.IsWidget(id)) return "Achievements";
+            if (id == "FeaturedGame" || Models.GameDetailWidgets.Find(id) != null) return "Game details";
+            if (id == "GameShelves" || id == "LibraryStatistics" || id == "LibraryChart" || id == "MostPlayed" || id == "WeeklyActivity") return "Library";
+            return "General";
         }
 
         public Dictionary<string, IEnumerable<AvailableView>> AvailableViews
@@ -224,6 +260,10 @@ namespace LandingPage.ViewModels.Layout
 
             });
 
+            IndependentColumnHeightsCommand = new RelayCommand(() => MakeSplitsIndependent(Orientation.Horizontal),
+                () => EditModeEnabled && FindIndependentSplitGroup(Orientation.Horizontal) != null);
+            IndependentRowWidthsCommand = new RelayCommand(() => MakeSplitsIndependent(Orientation.Vertical),
+                () => EditModeEnabled && FindIndependentSplitGroup(Orientation.Vertical) != null);
             RemoveViewCommand = new RelayCommand(RemoveCurrentView);
             RemovePanelCommand = new RelayCommand(RemovePanel, () => Parent != null);
 
@@ -603,6 +643,72 @@ namespace LandingPage.ViewModels.Layout
                 }
                 HasView = hasView;
             }
+        }
+
+        private sealed class SplitGroup
+        {
+            public GridNodeViewModel Owner;
+            public int Start, Count;
+        }
+        private SplitGroup FindIndependentSplitGroup(Orientation outer)
+        {
+            for (var owner = this; owner != null; owner = owner.Parent) {
+                var node = owner.GridNode;
+                if (node.Orientation == outer || node.Children.Count < 2) continue;
+                var index = node.Children.ToList().FindIndex(child => child.Enumerate().Contains(GridNode));
+                if (index < 0) continue;
+                Func<GridNode,bool> eligible = child => child.ViewProperties == null && child.Orientation == outer
+                    && child.Size.IsStar && child.Size.Value > 0 && child.Children.Count >= 2
+                    && child.Children.All(cell => cell.Size.IsStar && cell.Size.Value > 0);
+                if (!eligible(node.Children[index])) continue;
+                var reference = node.Children[index].Children.Select(cell => cell.Size.Value).ToArray();
+                var sum = reference.Sum();
+                Func<GridNode,bool> matches = child => eligible(child) && child.Children.Count == reference.Length
+                    && child.Children.Select((cell,i) => Math.Abs(cell.Size.Value / child.Children.Sum(item => item.Size.Value) - reference[i]/sum) < .000001).All(equal => equal);
+                var start = index; var end = index;
+                while (start > 0 && matches(node.Children[start-1])) start--;
+                while (end+1 < node.Children.Count && matches(node.Children[end+1])) end++;
+                // Fixed headers/toolbars can stay outside the matrix. Other star-sized siblings
+                // would share the recovered splitter space and move when the matrix is regrouped.
+                if (end > start && !node.Children.Take(start).Concat(node.Children.Skip(end+1)).Any(child => child.Size.IsStar))
+                    return new SplitGroup { Owner = owner, Start = start, Count = end-start+1 };
+            }
+            return null;
+        }
+        // Reparenting retained widgets is a layout change, not removal of their provider data.
+        private void DetachLayoutObservers()
+        {
+            foreach (var child in View.Children.OfType<GridNodeView>().Select(element => element.DataContext).OfType<GridNodeViewModel>().ToList()) child.DetachLayoutObservers();
+            GridNode.PropertyChanged -= Node_PropertyChanged;
+            GridNode.Children.CollectionChanged -= Children_CollectionChanged;
+            View.Children.Clear();
+        }
+        private void MakeSplitsIndependent(Orientation outer)
+        {
+            var group = FindIndependentSplitGroup(outer);
+            if (group == null || !EditModeEnabled) return;
+            var owner = group.Owner;
+            var stripes = owner.GridNode.Children.Skip(group.Start).Take(group.Count).ToArray();
+            var columnSizes = stripes[0].Children.Select(cell => cell.Size).ToArray();
+            var stripeSizes = stripes.Select(stripe => stripe.Size).ToArray();
+            var replacement = new GridNode { Orientation = outer, Size = new GridLength(stripeSizes.Sum(size => size.Value),GridUnitType.Star) };
+            // Unsubscribe obsolete view models before reusing their nodes and cached controls.
+            foreach (var child in owner.View.Children.OfType<GridNodeView>().Select(element => element.DataContext).OfType<GridNodeViewModel>().ToList()) child.DetachLayoutObservers();
+            owner.View.Children.Clear();
+            for (var column = 0; column < columnSizes.Length; column++) {
+                var strip = new GridNode { Orientation = owner.GridNode.Orientation, Size = columnSizes[column] };
+                for (var row = 0; row < stripes.Length; row++) {
+                    var cell = stripes[row].Children[column]; cell.Size = stripeSizes[row]; strip.Children.Add(cell);
+                }
+                replacement.Children.Add(strip);
+            }
+            var children = owner.GridNode.Children.Take(group.Start).Concat(new[] { replacement })
+                .Concat(owner.GridNode.Children.Skip(group.Start+group.Count));
+            owner.GridNode.Children = new ObservableCollection<GridNode>(children);
+            CommandManager.InvalidateRequerySuggested();
+            LandingPageExtension.Instance?.startPageViewModel?.SaveCurrentPage();
+            ExtensionDiagnostics.Record(LandingPageExtension.Instance,"Independent layout splits: " + (outer == Orientation.Horizontal ? "column heights" : "row widths")
+                + "; widgets=" + replacement.ViewCount + ".");
         }
 
         private void Split(Orientation orientation)

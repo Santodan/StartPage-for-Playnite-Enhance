@@ -183,6 +183,17 @@ public class ToolbarTestProvider : Plugin
     public override IEnumerable<Playnite.SDK.Plugins.TopPanelItem> GetTopPanelItems() { return Items; }
     public Control OpenPage() { return new UserControl(); }
 }
+public class WidgetSettingsTestProvider : Plugin, StartPage.SDK.IStartPageExtension
+{
+    public override Guid Id { get { return Guid.Parse("cfeee9e8-1814-4212-bda0-576c195aa341"); } }
+    public readonly UserControl Editor = new UserControl { Content = new TextBox { Text = "Provider setting" } };
+    public int Requests;
+    public WidgetSettingsTestProvider() : base(null) { }
+    public StartPage.SDK.StartPageExtensionArgs GetAvailableStartPageViews() { return new StartPage.SDK.StartPageExtensionArgs(); }
+    public object GetStartPageView(string viewId, Guid instanceId) { return new UserControl(); }
+    public Control GetStartPageViewSettings(string viewId, Guid instanceId) { Requests++; return Editor; }
+    public void OnViewRemoved(string viewId, Guid instanceId) { }
+}
 public class DashboardTestProxy : RealProxy
 {
     public static List<Plugin> ExtraPlugins = new List<Plugin>();
@@ -363,7 +374,7 @@ try {
     if ($probe.CloseCount -ne 3) { throw 'Closing StartPage did not hide current widget' }
     Wait-Task ($vm.Opened())
     if ($probe.OpenCount -ne 4 -or $probe.ShownAsyncCount -ne 3 -or $probe.HiddenAsyncCount -ne 3) { throw 'Returning to StartPage did not reopen current widget or async callbacks were missed' }
-    foreach ($type in @([Windows.Controls.TextBox],[Windows.Controls.ScrollViewer],[Windows.Controls.Button],[Windows.Controls.Border],[Windows.Controls.ComboBox],[Windows.Controls.Expander],[Windows.Controls.GridSplitter],[Windows.Controls.ListBox],[Windows.Controls.CheckBox],[Windows.Controls.ContextMenu],[Windows.Controls.Menu],[Windows.Controls.MenuItem],[Windows.Controls.Primitives.Popup])) {
+    foreach ($type in @([Windows.Controls.GroupItem],[Windows.Controls.ProgressBar],[Windows.Controls.TextBox],[Windows.Controls.ScrollViewer],[Windows.Controls.Button],[Windows.Controls.Border],[Windows.Controls.ComboBox],[Windows.Controls.Expander],[Windows.Controls.GridSplitter],[Windows.Controls.ListBox],[Windows.Controls.CheckBox],[Windows.Controls.ContextMenu],[Windows.Controls.Menu],[Windows.Controls.MenuItem],[Windows.Controls.Primitives.Popup])) {
         [void]$app.Resources.Add($type,[Windows.Style]::new($type))
     }
     [void]$app.Resources.Add('TextBrush',[Windows.Media.Brushes]::Lime)
@@ -745,9 +756,9 @@ try {
     'PASS: runtime profile save/import/apply, automatic backups, independent snapshots, missing-provider placeholders, external instance reuse/lifecycle, invalid-profile isolation, and in-app manager.'
     $view.ShowProfiles(); $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
     $starterPreviews = @([ToolbarTestVisuals]::Previews($view.FindName('ProfilesOverlay')))
-    if ($starterPreviews.Count -ne 7 -or @($starterPreviews | Where-Object { !$_.Layout -or !$_.Shelves }).Count -ne 0) { throw 'Starter gallery preview layout/shelf bindings failed' }
+    if ($starterPreviews.Count -ne 8 -or @($starterPreviews | Where-Object { !$_.Layout -or !$_.Shelves }).Count -ne 0) { throw 'Starter gallery preview layout/shelf bindings failed' }
     $starterButtons = @([ToolbarTestVisuals]::Buttons($view.FindName('ProfilesOverlay')) | Where-Object { $_.Content -eq 'Add profile' })
-    if ($starterButtons.Count -ne 6 -or @($starterButtons | Where-Object { !$_.Command -or !$_.CommandParameter }).Count -ne 0) { throw 'Starter gallery cards are missing their commands or template parameters' }
+    if ($starterButtons.Count -ne 7 -or @($starterButtons | Where-Object { !$_.Command -or !$_.CommandParameter }).Count -ne 0) { throw 'Starter gallery cards are missing their commands or template parameters' }
     $minimalCard = $starterButtons | Where-Object { $_.CommandParameter.Key -eq 'minimal' }
     $recipe = $minimalCard.CommandParameter
     $rootBeforeTemplate = $vm.RootNodeViewModel; $profileCount = $vm.Profiles.Count
@@ -2052,6 +2063,317 @@ try {
 
     [DashboardTestProxy]::FeaturedFixtureGames.Clear()
     'PASS: featured game registration, pinned rendering, live theme/color/size controls, cached revisits, settings editor and removal cleanup.'
+    $legacyTotal = Get-Setting $settingsModel.Settings 'MaxNumberRecentAchievements'
+    $legacyPerGame = Get-Setting $settingsModel.Settings 'MaxNumberRecentAchievementsPerGame'
+    Set-Setting $settingsModel.Settings 'MaxNumberRecentAchievements' 17
+    Set-Setting $settingsModel.Settings 'MaxNumberRecentAchievementsPerGame' 3
+    $legacyRecent = [LandingPage.Models.Layout.ViewProperties]::new(); $legacyRecent.ViewId = 'RecentAchivements'
+    $legacyRoot = [LandingPage.Models.Layout.GridNode]::new(); $legacyRoot.ViewProperties = $legacyRecent
+    $legacyOwner = [LandingPage.LandingPageSettings]::new(); Set-Setting $legacyOwner 'GridLayout' $legacyRoot; Set-Setting $legacyOwner 'MaxNumberRecentAchievements' 17; Set-Setting $legacyOwner 'MaxNumberRecentAchievementsPerGame' 3
+    [LandingPage.Settings.AchievementWidgetSettings]::MigrateLegacy($legacyOwner)
+    if ($legacyRecent.AchievementSettings.Limit -ne 17 -or $legacyRecent.AchievementSettings.PerGameLimit -ne 3) { throw 'Old recent achievement limits did not migrate to panel settings' }
+    $legacyRecent.AchievementSettings.Limit = 31
+    if ((Get-Setting $settingsModel.Settings 'MaxNumberRecentAchievements') -ne 17) { throw 'Editing panel limits modified legacy shared settings' }
+    Set-Setting $settingsModel.Settings 'MaxNumberRecentAchievements' $legacyTotal
+    Set-Setting $settingsModel.Settings 'MaxNumberRecentAchievementsPerGame' $legacyPerGame
+    'PASS: legacy recent achievement count/per-game limits migrate once and become independent panel settings.'
+    # Text-element selectors keep one editor visible and do not modify settings on selection.
+    function Find-TextEditors($root) {
+        if ($root -is [LandingPage.Controls.TextSettingsSelector]) { $root; return }
+        if ($root -is [Windows.DependencyObject]) { foreach ($child in [Windows.LogicalTreeHelper]::GetChildren($root)) { if ($child -is [Windows.DependencyObject]) { Find-TextEditors $child } } }
+    }
+    $textEditors = @(
+        @([LandingPage.Views.Settings.AchievementWidgetSettingsView]::new(),[LandingPage.Settings.AchievementWidgetSettings]::Create('GameAchievementList')),
+        @([LandingPage.Views.Settings.ClockSettingsView]::new(),[LandingPage.Settings.ClockSettings]::new()),
+        @([LandingPage.Views.Settings.FeaturedGameSettingsView]::new(),[LandingPage.Settings.FeaturedGameSettings]::new()),
+        @([LandingPage.Views.Settings.LibraryStatisticsSettingsView]::new(),[LandingPage.Settings.LibraryStatisticsSettings]::new()),
+        @([LandingPage.Views.Settings.GameDetailSettingsView]::new(),[LandingPage.Settings.FeaturedGameSettings]::new())
+    )
+    foreach ($pair in $textEditors) {
+        $editorControl = $pair[0]; $editorSettings = $pair[1]
+        if ($editorControl -is [LandingPage.Views.Settings.AchievementWidgetSettingsView]) { $editorControl.WidgetId = 'GameAchievementList' }
+        if ($editorControl -is [LandingPage.Views.Settings.GameDetailSettingsView]) { $editorControl.WidgetId = 'GameDetailTitle' }
+        $editorControl.DataContext = $editorSettings
+        [void]$view.Content.Children.Add($editorControl); $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        $beforeTextSwitch = [Newtonsoft.Json.JsonConvert]::SerializeObject($editorSettings)
+        $selectors = @(Find-TextEditors $editorControl)
+        if (!$selectors.Count) { throw ('No text selector in '+$editorControl.GetType().Name) }
+        foreach ($selector in $selectors) {
+            $ancestor = [Windows.LogicalTreeHelper]::GetParent($selector)
+            while ($ancestor -and ![object]::ReferenceEquals($ancestor,$editorControl)) { if ($ancestor -is [Windows.Controls.Expander]) { $ancestor.IsExpanded = $true }; $ancestor = [Windows.LogicalTreeHelper]::GetParent($ancestor) }
+            $window.UpdateLayout()
+            foreach ($entry in @($selector.ElementSelector.Items)) {
+                $selector.ElementSelector.SelectedItem = $entry; $window.UpdateLayout()
+                if (@($selector.Entries | Where-Object Visibility -eq ([Windows.Visibility]::Visible)).Count -ne 1 -or $entry.Entry.Visibility -ne [Windows.Visibility]::Visible) { throw 'Text selector exposes more than the selected editor' }
+                $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+                if ($selector.ElementSelector.Visibility -eq [Windows.Visibility]::Visible) {
+                    $visibleLabel = @([ToolbarTestVisuals]::Text($selector.ElementSelector) | ForEach-Object Text)
+                    if ($selector.ElementSelector.IsDropDownOpen -or $visibleLabel -notcontains $entry.Header) { throw ('Closed text dropdown does not display its selected label: '+$entry.Header) }
+                }
+
+            }
+        }
+        if ([Newtonsoft.Json.JsonConvert]::SerializeObject($editorSettings) -ne $beforeTextSwitch) { throw ('Switching text elements modified '+$editorControl.GetType().Name+' settings') }
+        if ($editorControl -is [LandingPage.Views.Settings.AchievementWidgetSettingsView]) {
+            $opacityField = [ToolbarTestVisuals]::Named($editorControl,'CardOpacityField'); $dimensions = [ToolbarTestVisuals]::Named($editorControl,'AppearanceDimensions')
+            if ($opacityField.Parent -is [Windows.Controls.Primitives.UniformGrid] -or $opacityField.ActualWidth -lt $dimensions.ActualWidth*.9) { throw 'Card opacity does not span both settings columns' }
+            $selector = $selectors[0]; $selector.ElementSelector.SelectedIndex = 0
+            $color = @([Windows.LogicalTreeHelper]::GetChildren($selector.Entries[0].Content) | Where-Object { $_ -is [Windows.Controls.WrapPanel] })[0].Children | Where-Object { $_ -is [LandingPage.Controls.PopupColorPicker] }
+            if (!$color) { throw 'Text color picker is not inline beside the size/style controls' }
+        }
+        [void]$view.Content.Children.Remove($editorControl)
+    }
+    'PASS: achievement, clock, featured-game, statistics and standalone game text selectors show one editor and preserve all settings when switching.'
+    # Compact color popups preserve theme defaults and write through both bindings.
+    $popupSettings = [LandingPage.Settings.AchievementWidgetSettings]::Create('GameAchievementList')
+    $popupSettings.CustomTextColors = $false; $popupSettings.TitleColor = '#123456'
+    $compactColor = [LandingPage.Controls.PopupColorPicker]::new()
+    $compactColor.DataContext = $popupSettings
+    foreach ($bindingPair in @(@('SelectedColor','TitleColor'),@('UseCustomColor','CustomTextColors'))) {
+        $binding = [Windows.Data.Binding]::new($bindingPair[1]); $binding.Mode = 'TwoWay'; $binding.UpdateSourceTrigger = 'PropertyChanged'
+        [void]$compactColor.SetBinding([LandingPage.Controls.PopupColorPicker].GetField(($bindingPair[0]+'Property')).GetValue($null),$binding)
+    }
+    [void]$view.Content.Children.Add($compactColor)
+    $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $compactColor.GetType().GetMethod('BuildEditor',$flags).Invoke($compactColor,$null)
+    $customCheck = $compactColor.GetType().GetField('custom',$flags).GetValue($compactColor)
+    $colorViewport = $compactColor.GetType().GetField('editorViewport',$flags).GetValue($compactColor)
+    $compactColor.GetType().GetMethod('UpdatePreview',$flags).Invoke($compactColor,$null)
+    if ($popupSettings.CustomTextColors -or $colorViewport.IsEnabled -or [Windows.Media.ColorConverter]::ConvertFromString($compactColor.SelectedColor) -ne [Windows.Media.ColorConverter]::ConvertFromString('#123456')) { throw 'Opening color editor changed defaults or enabled a disabled palette' }
+    $customCheck.IsChecked = $true
+    if (!$popupSettings.CustomTextColors -or !$colorViewport.IsEnabled) { throw 'Popup custom-color toggle did not update settings' }
+    $colorViewport.Content.SetCurrentValue([LandingPage.Controls.ColorPicker]::SelectedColorProperty,'#ABCDEF')
+    if ([Windows.Media.ColorConverter]::ConvertFromString($popupSettings.TitleColor) -ne [Windows.Media.ColorConverter]::ConvertFromString('#ABCDEF')) { throw 'Popup palette did not write color to widget settings' }
+    $customCheck.IsChecked = $false
+    if ($popupSettings.CustomTextColors -or $colorViewport.IsEnabled -or [Windows.Media.ColorConverter]::ConvertFromString($popupSettings.TitleColor) -ne [Windows.Media.ColorConverter]::ConvertFromString('#ABCDEF')) { throw 'Turning custom color off lost the saved color' }
+    $compactColor.ShowCustomColorOption = $false
+    if ($customCheck.Visibility -ne [Windows.Visibility]::Collapsed -or !$colorViewport.IsEnabled) { throw 'Shared-toggle palette did not remain usable' }
+    [void]$view.Content.Children.Remove($compactColor)
+    'PASS: compact popup custom-color and palette bindings preserve theme defaults and saved colors.'
+    # Actual nested picker menus preserve add commands and single-instance availability.
+    $oldRegistry = $plugin.AllAvailableViews
+    $oldChartViews = $plugin.GetType().GetField('libraryStatisticsViews',$flags).GetValue($plugin)
+    if (!$oldChartViews) { Set-Field $plugin 'libraryStatisticsViews' ([Collections.Generic.Dictionary[guid,LandingPage.Views.LibraryStatisticsView]]::new()) }
+    $menuRegistry = [Collections.Generic.Dictionary[string,Collections.Generic.List[LandingPage.Models.Layout.StartPageViewArgs]]]::new()
+    $builtinMenuViews = [Collections.Generic.List[LandingPage.Models.Layout.StartPageViewArgs]]::new()
+    foreach ($args in $plugin.GetAvailableStartPageViews().Views) { $builtinMenuViews.Add([LandingPage.Models.Layout.StartPageViewArgs]::new($args,$plugin.Id)) }
+    $menuRegistry.Add('StartPage',$builtinMenuViews)
+    $foreignMenuViews = [Collections.Generic.List[LandingPage.Models.Layout.StartPageViewArgs]]::new()
+    $foreignArgs = [LandingPage.Models.Layout.StartPageViewArgs]::new(); $foreignArgs.ViewId = 'ExternalFixture'; $foreignArgs.Name = 'External entry'; $foreignArgs.PluginId = [guid]::NewGuid(); $foreignMenuViews.Add($foreignArgs); $menuRegistry.Add('External provider',$foreignMenuViews)
+    $plugin.AllAvailableViews = $menuRegistry
+    $existingRecentPage = [LandingPage.Models.DashboardPage]::new(); $existingRecentPage.Layout = [LandingPage.Models.Layout.GridNode]::new()
+    $existingRecentPage.Layout.ViewProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $existingRecentPage.Layout.ViewProperties.PluginId = $plugin.Id; $existingRecentPage.Layout.ViewProperties.ViewId = 'RecentAchivements'
+    $vm.Pages.Add($existingRecentPage)
+    $pickerNode = [LandingPage.Models.Layout.GridNode]::new(); $pickerModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($pickerNode); $pickerModel.EditModeEnabled = $true
+    Wait-Task ($pickerModel.InititalizeGrid())
+    $pickerHost = [LandingPage.Views.GridNodeView]::new(); $pickerHost.DataContext = $pickerModel
+    [void]$view.Content.Children.Add($pickerHost)
+    try {
+        $window.UpdateLayout(); $picker = $pickerHost.FindName('WidgetPicker')
+        $providerMenu = $picker.Items[0]
+        if ((@($providerMenu.Children | ForEach-Object Name) -join ',') -ne 'General,Achievements,Library,Game details') { throw 'StartPage widget folders are missing or out of order' }
+        $foreignMenu = $picker.Items[1]
+        if ($foreignMenu.Children.Count -ne 1 -or $foreignMenu.Children[0].Name -ne 'External entry' -or !$foreignMenu.Children[0].View) { throw 'External provider entries were unexpectedly regrouped' }
+        # Exercise the actual WPF leaf style without relying on native popup focus/capture.
+        $leafStyle = $pickerHost.Resources['WidgetMenuItemStyle']
+        $recentEntry = @($providerMenu.Children[1].Children | Where-Object { $_.View.ViewArgs.ViewId -eq 'RecentAchivements' })[0]
+        $recentMenu = [Windows.Controls.MenuItem]::new(); $recentMenu.Style = $leafStyle; $recentMenu.DataContext = $recentEntry
+        [void]$pickerHost.Content.Children.Add($recentMenu); $window.UpdateLayout()
+        if (!$recentMenu.Command -or $recentMenu.IsEnabled -or $recentMenu.CommandParameter.ViewArgs.ViewId -ne 'RecentAchivements') { throw 'Nested picker lost the recent-achievement single-instance restriction' }
+        $chartEntry = @($providerMenu.Children[2].Children | Where-Object { $_.View.ViewArgs.ViewId -eq 'LibraryChart' })[0]
+        $chartMenu = [Windows.Controls.MenuItem]::new(); $chartMenu.Style = $leafStyle; $chartMenu.DataContext = $chartEntry
+        [void]$pickerHost.Content.Children.Add($chartMenu); $window.UpdateLayout()
+        if (!$chartMenu.IsEnabled -or !$chartMenu.Command) { throw 'Nested Library chart entry is not addable' }
+        $chartMenu.Command.Execute($chartMenu.CommandParameter)
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+        if ($pickerNode.ViewProperties.ViewId -ne 'LibraryChart' -or $pickerNode.ViewProperties.PluginId -ne $plugin.Id) { throw 'Nested chart entry did not add the selected widget' }
+        $plugin.OnViewRemoved('LibraryChart',$pickerNode.ViewProperties.InstanceId)
+        'PASS: nested General/Achievements/Library/Game details menus, external-provider structure, disabled duplicate entries and working nested add commands.'
+    } finally { [void]$view.Content.Children.Remove($pickerHost); [void]$vm.Pages.Remove($existingRecentPage); $plugin.AllAvailableViews = $oldRegistry; Set-Field $plugin 'libraryStatisticsViews' $oldChartViews }
+    # Reorient aligned split groups without destroying widgets, including a fixed leading toolbar.
+    foreach ($axis in @([Windows.Controls.Orientation]::Horizontal,[Windows.Controls.Orientation]::Vertical)) {
+        $matrix = [LandingPage.Models.Layout.GridNode]::new(); $matrix.Orientation = $(if ($axis -eq [Windows.Controls.Orientation]::Horizontal) { [Windows.Controls.Orientation]::Vertical } else { [Windows.Controls.Orientation]::Horizontal })
+        $leading = [LandingPage.Models.Layout.GridNode]::new(); $leading.Size = [Windows.GridLength]::Auto
+        $leading.ViewProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $leading.ViewProperties.ViewId = 'Fixed toolbar'
+        $fixedControl = [DashboardTestWidget]::new(); $fixedControl.Width = 30; $fixedControl.Height = 30
+        [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($leading.ViewProperties,$fixedControl); $matrix.Children.Add($leading)
+        $cells = @(); $controls = @()
+        for ($r=0; $r -lt 2; $r++) {
+            $stripe = [LandingPage.Models.Layout.GridNode]::new(); $stripe.Orientation = $axis; $stripe.Size = [Windows.GridLength]::new(.5,[Windows.GridUnitType]::Star)
+            for ($c=0; $c -lt 2; $c++) {
+                $cell = [LandingPage.Models.Layout.GridNode]::new(); $cell.ViewProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $cell.ViewProperties.ViewId = ('Matrix '+$r+','+$c)
+                $control = [DashboardTestWidget]::new(); $controls += $control; [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($cell.ViewProperties,$control)
+                $stripe.Children.Add($cell); $cells += $cell
+            }
+            $matrix.Children.Add($stripe)
+        }
+        $matrixModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($matrix); $matrixModel.EditModeEnabled = $true
+        Wait-Task ($matrixModel.InititalizeGrid())
+        $matrixHost = [LandingPage.Views.GridNodeView]::new(); $matrixHost.DataContext = $matrixModel; $matrixHost.Width = 800; $matrixHost.Height = 600
+        [void]$layout.Children.Add($matrixHost); $window.UpdateLayout()
+        $oldModels = @($matrixModel.AllNodes)
+        $selectedModel = @($oldModels | Where-Object { [object]::ReferenceEquals($_.GridNode,$cells[1]) })[0]
+        $dimension = $(if ($axis -eq [Windows.Controls.Orientation]::Horizontal) { 'ActualHeight' } else { 'ActualWidth' })
+        $untouchedControl = $controls[0]; $oldDimension = $untouchedControl.$dimension
+        $command = $(if ($axis -eq [Windows.Controls.Orientation]::Horizontal) { $selectedModel.IndependentColumnHeightsCommand } else { $selectedModel.IndependentRowWidthsCommand })
+        if (!$command.CanExecute($null)) { throw 'Aligned matrix does not offer independent split conversion' }
+        $idsBefore = @($matrix.Enumerate() | Where-Object ViewProperties | ForEach-Object { $_.ViewProperties.InstanceId.ToString() }) | Sort-Object
+        if ($axis -eq [Windows.Controls.Orientation]::Horizontal) {
+            $view.GetType().GetMethod('ShowAppearance',$flags).Invoke($view,@($selectedModel.PSObject.BaseObject))
+            $editor = $view.FindName('AppearanceEditor'); $editor.FindName('PanelLayoutSection').IsExpanded = $true; $window.UpdateLayout()
+            $layoutButton = @([ToolbarTestVisuals]::Buttons($editor) | Where-Object Content -eq 'Make column heights independent')[0]
+            if (!$layoutButton.IsEnabled) { throw 'Independent column layout button is unavailable in widget settings' }
+            [void]$layoutButton.GetType().GetMethod('OnClick',$flags).Invoke($layoutButton,@())
+            $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+            if ($view.FindName('AppearanceOverlay').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Independent layout action did not return to dashboard editing' }
+        } else { $command.Execute($null) }
+        $window.UpdateLayout()
+        if ($matrix.Children.Count -ne 2 -or ![object]::ReferenceEquals($matrix.Children[0],$leading) -or $matrix.Children[1].Orientation -ne $axis) { throw 'Split conversion changed the fixed toolbar or failed to group the matrix' }
+        $region = $matrix.Children[1]
+        if (![object]::ReferenceEquals($region.Children[0].Children[0],$cells[0]) -or ![object]::ReferenceEquals($region.Children[1].Children[0],$cells[1]) -or ![object]::ReferenceEquals($region.Children[0].Children[1],$cells[2])) { throw 'Split conversion changed widget positions/instances' }
+        if ([Math]::Abs($untouchedControl.$dimension-$oldDimension) -gt 1) { throw 'Converting aligned splits shifted the initial geometry' }
+        $region.Children[1].Children[0].Size = [Windows.GridLength]::new(3,[Windows.GridUnitType]::Star)
+        $region.Children[1].Children[1].Size = [Windows.GridLength]::new(1,[Windows.GridUnitType]::Star); $window.UpdateLayout()
+        if ([Math]::Abs($untouchedControl.$dimension-$oldDimension) -gt 1 -or $controls[1].$dimension -lt $oldDimension*1.3) { throw 'Resizing one column/row still changes its neighbor' }
+        $idsAfter = @($matrix.Enumerate() | Where-Object ViewProperties | ForEach-Object { $_.ViewProperties.InstanceId.ToString() }) | Sort-Object
+        if (($idsBefore -join ',') -ne ($idsAfter -join ',')) { throw 'Independent sizing lost widget identities' }
+        foreach ($control in $controls) { if (!$control.Parent -or $control.CloseCount -ne 0) { throw 'Independent sizing closed or detached a retained widget' } }
+        $restoredMatrix = [LandingPage.Models.DashboardProfiles]::Clone($matrix)
+        if ($restoredMatrix.Children[1].Children[1].Children[0].Size.Value -ne 3 -or $restoredMatrix.ViewCount -ne 5) { throw 'Independent split sizes did not survive serialization' }
+        # Obsolete view models must not steal a retained widget when its settings/model change later.
+        $newProps = [LandingPage.Models.Layout.ViewProperties]::new(); $newProps.ViewId = 'Changed retained widget'; $newControl = [DashboardTestWidget]::new()
+        [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($newProps,$newControl); $cells[0].ViewProperties = $newProps; $window.UpdateLayout()
+        $newModel = @($matrixModel.AllNodes | Where-Object { [object]::ReferenceEquals($_.GridNode,$cells[0]) })[0]
+        if (![object]::ReferenceEquals($newControl.Parent,$newModel.View)) { throw 'An obsolete layout model stole a reused widget after conversion' }
+        [void]$layout.Children.Remove($matrixHost)
+    }
+    'PASS: independent column heights/row widths, fixed toolbar, unchanged neighbor geometry, retained widgets, serialization and detached obsolete observers.'
+    # One top-right gear opens appearance plus any existing provider settings.
+    foreach ($widgetId in @('MostPlayed','GameShelves','LibraryChart','FeaturedGame')) {
+        $properties = [LandingPage.Models.Layout.ViewProperties]::new(); $properties.ViewId = $widgetId; $properties.PluginId = $plugin.Id
+        $properties.StartPageViewArgs = @($plugin.GetAvailableStartPageViews().Views | Where-Object ViewId -eq $widgetId)[0]
+        [LandingPage.Models.Layout.ViewProperties].GetField('view',$flags).SetValue($properties,[DashboardTestWidget]::new())
+        if ($widgetId -eq 'GameShelves') {
+            $shelves = Get-Setting $settingsModel.Settings 'ShelveInstanceSettings'
+            if (!$shelves) { $shelves = [Collections.Generic.Dictionary[guid,LandingPage.Settings.ShelvesSettings]]::new(); Set-Setting $settingsModel.Settings 'ShelveInstanceSettings' $shelves }
+            $shelves[$properties.InstanceId] = [LandingPage.Settings.ShelvesSettings]::new($settingsModel.Settings)
+        }
+        if ($widgetId -eq 'FeaturedGame') { $properties.FeaturedGameSettings.UseCustomSectionLayout = $true }
+        $node = [LandingPage.Models.Layout.GridNode]::new(); $node.ViewProperties = $properties
+        $nodeModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($node); $nodeModel.IsLeaf = $true; $nodeModel.HasView = $true; $nodeModel.EditModeEnabled = $true
+        $nodeHost = [LandingPage.Views.GridNodeView]::new(); $nodeHost.DataContext = $nodeModel; $nodeHost.Width = 700; $nodeHost.Height = 220
+        [void]$view.Content.Children.Add($nodeHost); $window.UpdateLayout()
+        $gear = $nodeHost.FindName('SettingsButton')
+        if ($gear -isnot [Windows.Controls.Button] -or $gear.HorizontalAlignment -ne [Windows.HorizontalAlignment]::Right -or $nodeHost.FindName('SettingsPopup') -or @([ToolbarTestVisuals]::Buttons($nodeHost) | Where-Object Content -eq 'Appearance').Count) { throw 'Duplicate Appearance/legacy settings entry remains on the panel' }
+        if ($widgetId -eq 'LibraryChart' -or $widgetId -eq 'FeaturedGame') {
+            $edit = $nodeHost.FindName($(if ($widgetId -eq 'LibraryChart') { 'ChartEditingButton' } else { 'FeaturedSectionsButton' }))
+            $left = $gear.TranslatePoint([Windows.Point]::new(0,0),$nodeHost).X
+            $editRight = $edit.TranslatePoint([Windows.Point]::new($edit.ActualWidth,0),$nodeHost).X
+            if ($edit.Visibility -ne [Windows.Visibility]::Visible -or $editRight -gt $left) { throw 'Gear overlaps the chart/section editor button' }
+        }
+        $gear.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Button]::ClickEvent)); $window.UpdateLayout()
+        $editor = $view.FindName('AppearanceEditor'); $provider = $editor.FindName('ProviderSettingsHost'); $section = $editor.FindName('ProviderSettingsSection')
+        if ($view.FindName('AppearanceOverlay').Visibility -ne [Windows.Visibility]::Visible -or ![object]::ReferenceEquals($editor.DataContext,$nodeModel)) { throw 'Gear did not open the unified widget window' }
+        if ($widgetId -eq 'MostPlayed' -and $provider.Content -isnot [LandingPage.Views.Settings.MostPlayedSettingsView]) { throw 'Most Played settings were lost from the unified window' }
+        if ($widgetId -eq 'GameShelves' -and $provider.Content -isnot [LandingPage.Views.Settings.ShelvesSettingsView]) { throw 'Shelf settings were lost from the unified window' }
+        $view.GetType().GetMethod('CloseAppearance',$flags).Invoke($view,@())
+        if ($provider.Content) { throw 'Closing the unified window retained provider settings in a parent' }
+        [void]$view.Content.Children.Remove($nodeHost)
+    }
+    'PASS: single top-right gear, unified appearance/provider controls, Most Played/shelf editors, close cleanup and chart/section button spacing.'
+    $externalSettingsProvider = [WidgetSettingsTestProvider]::new(); [DashboardTestProxy]::ExtraPlugins.Add($externalSettingsProvider)
+    try {
+        $externalProps = [LandingPage.Models.Layout.ViewProperties]::new(); $externalProps.ViewId = 'ExternalFixture'; $externalProps.PluginId = $externalSettingsProvider.Id
+        $externalProps.StartPageViewArgs = [StartPage.SDK.StartPageViewArgsBase]::new(); $externalProps.StartPageViewArgs.HasSettings = $true
+        $externalNode = [LandingPage.Models.Layout.GridNode]::new(); $externalNode.ViewProperties = $externalProps
+        $externalModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($externalNode)
+        $showEditor = $view.GetType().GetMethod('ShowAppearance',$flags)
+        [void]$showEditor.Invoke($view,@($externalModel)); $window.UpdateLayout()
+        $editor = $view.FindName('AppearanceEditor'); $providerHost = $editor.FindName('ProviderSettingsHost')
+        if (![object]::ReferenceEquals($providerHost.Content,$externalSettingsProvider.Editor) -or $externalSettingsProvider.Requests -ne 1) { throw 'External settings were dropped or created repeatedly while opening' }
+        $view.GetType().GetMethod('CloseAppearance',$flags).Invoke($view,@())
+        [void]$showEditor.Invoke($view,@($externalModel)); $window.UpdateLayout()
+        if (![object]::ReferenceEquals($providerHost.Content,$externalSettingsProvider.Editor) -or $externalSettingsProvider.Requests -ne 2) { throw 'Cached external settings could not be reopened after detaching' }
+        $view.GetType().GetMethod('CloseAppearance',$flags).Invoke($view,@())
+    } finally { [void][DashboardTestProxy]::ExtraPlugins.Remove($externalSettingsProvider) }
+    'PASS: SDK external settings reuse their own control, open once per session and detach/reopen without a second-parent error.'
+
+    # StartPage-owned achievement widgets retain real ancestor bindings and stop hidden timers.
+    foreach ($achievementId in @('AchievementProgress','AchievementFinishNext','AchievementGoals','GameAchievementList','RecentAchivements')) {
+        if (!@($plugin.GetAvailableStartPageViews().Views | Where-Object { $_.ViewId -eq $achievementId -and ($_.AllowMultipleInstances -or $achievementId -eq 'RecentAchivements') })) { throw 'New achievement widget missing from Add view' }
+        $instanceId = [guid]::NewGuid(); $achievementWidget = $plugin.GetStartPageView($achievementId,$instanceId)
+        $achievementProps = [LandingPage.Models.Layout.ViewProperties]::new(); $achievementProps.ViewId = $achievementId; $achievementProps.InstanceId = $instanceId
+        $achievementProps.AchievementSettings.TitleSize = 37
+        $achievementNode = [LandingPage.Models.Layout.GridNode]::new(); $achievementNode.ViewProperties = $achievementProps
+        $achievementModel = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($achievementNode); $achievementModel.IsLeaf = $true; $achievementModel.HasView = $true
+        [void]$achievementModel.View.Children.Add($achievementWidget)
+        $achievementHost = [LandingPage.Views.GridNodeView]::new(); $achievementHost.DataContext = $achievementModel
+        [void]$layout.Children.Add($achievementHost); $window.UpdateLayout()
+        Wait-Task ($achievementWidget.OnViewShownAsync())
+        if (![object]::ReferenceEquals($achievementWidget.Settings,$achievementProps.AchievementSettings) -or $achievementWidget.Settings.TitleSize -ne 37) { throw 'Achievement widget lost its real panel settings binding' }
+        $replacement = [LandingPage.Settings.AchievementWidgetSettings]::Create($achievementId); $replacement.TitleSize = 24
+        $achievementProps.AchievementSettings = $replacement; $window.UpdateLayout()
+        if (![object]::ReferenceEquals($achievementWidget.Settings,$replacement)) { throw 'Achievement settings reset did not update the actual widget' }
+        if ($achievementId -eq 'RecentAchivements') {
+            if ($achievementWidget.Content -isnot [LandingPage.Views.RecentAchievementsView]) { throw 'Recent Achievements no longer uses its original renderer' }
+            $legacyView = $achievementWidget.Content
+            $entryType = $plugin.GetType().Assembly.GetType('LandingPage.Models.GameAchievementEntry')
+            $entry = [Activator]::CreateInstance($entryType); $entry.Name = 'Original achievement'; $entry.Description = 'Original description'; $entry.Unlocked = 1; $entry.UnlockedOn = [datetime]::UtcNow
+            $entryList = [Activator]::CreateInstance([Collections.Generic.List`1].MakeGenericType($entryType)); $entryList.Add($entry)
+            $results = [Array]::CreateInstance([Collections.Generic.IList`1].MakeGenericType($entryType),1); $results.SetValue($entryList,0)
+            $game = [Playnite.SDK.Models.Game]::new(); $game.Id = [guid]::NewGuid(); $game.Name = 'Original game'
+            $gameList = [Collections.Generic.List[Playnite.SDK.Models.Game]]::new(); $gameList.Add($game)
+            $progressType = $plugin.GetType().Assembly.GetType('LandingPage.Models.ShelfAchievementProgress')
+            $summary = [Activator]::CreateInstance([Collections.Generic.Dictionary`2].MakeGenericType([guid],$progressType))
+            $progress = [Activator]::CreateInstance($progressType); $progress.Total = 10; $progress.Unlocked = 8; $summary.Add($game.Id,$progress)
+            $options = [LandingPage.Settings.AchievementWidgetSettings]::Create('RecentAchivements')
+            $feedArgs = [object[]]::new(4); $feedArgs[0] = $gameList; $feedArgs[1] = $results; $feedArgs[2] = $summary; $feedArgs[3] = $options
+            $setFeed = $legacyView.GetType().GetMethod('SetFeed',$flags); [void]$setFeed.Invoke($legacyView,$feedArgs)
+            $window.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $window.UpdateLayout()
+            $title = [ToolbarTestVisuals]::Named($legacyView,'AchievementTitle'); $description = [ToolbarTestVisuals]::Named($legacyView,'Description')
+            $icon = [ToolbarTestVisuals]::Named($legacyView,'AchievementIcon'); $bar = [ToolbarTestVisuals]::Named($legacyView,'AchievementsProgress')
+            if (!$title -or $title.Text -ne 'Original achievement' -or !$description -or $icon.Width -ne 35 -or !$bar -or ![ToolbarTestVisuals]::Named($legacyView,'Toggle')) { throw 'Original compact row/icon/description/progress/toggle template was not preserved' }
+            if ($legacyView.DataContext.Inner.LatestAchievementsView.Groups[0].Name.GameName -ne 'Original game' -or $legacyView.DataContext.Inner.LatestAchievementsView.Groups[0].Name.Progress -ne .8) { throw 'Original game grouping/progress was not preserved' }
+            $options.ShowDescription = $false; $options.ShowArtwork = $false; $window.UpdateLayout()
+            if ($description.Visibility -ne [Windows.Visibility]::Collapsed -or $icon.Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Optional visibility settings did not update the original row' }
+            $options.ShowDescription = $true; $options.ShowArtwork = $true; $options.CustomizeRecentTypography = $true; $options.TitleSize = 29; $window.UpdateLayout()
+            if ($title.FontSize -ne 29) { throw 'Opt-in typography did not affect the original achievement title' }
+            $descriptionStyle = $options.TextStyles['Description']; $descriptionStyle.UseDefaults = $false; $descriptionStyle.Size = 21; $descriptionStyle.Italic = $true
+            $groupStyle = $options.TextStyles['GroupTitle']; $groupStyle.UseDefaults = $false; $groupStyle.Size = 26; $groupStyle.Bold = $true
+            $window.UpdateLayout()
+            if ($description.FontSize -ne 21 -or $description.FontStyle -ne [Windows.FontStyles]::Italic) { throw 'Recent description style did not override the shared detail typography' }
+            $groupTitle = [ToolbarTestVisuals]::Named($legacyView,'RecentGroupTitle')
+            if ($groupTitle.FontSize -ne 26 -or $groupTitle.FontWeight -ne [Windows.FontWeights]::Bold) { throw 'Recent group header typography is not independently configurable' }
+            $options.RecentGrouping = [LandingPage.Settings.RecentAchievementGrouping]::Source; [void]$setFeed.Invoke($legacyView,$feedArgs)
+            $window.UpdateLayout()
+            if ($legacyView.DataContext.Inner.LatestAchievementsView.Groups[0].Name.GameName -ne 'Playnite') { throw 'Source grouping did not use the original group template' }
+            $options.RecentGrouping = [LandingPage.Settings.RecentAchievementGrouping]::None; [void]$setFeed.Invoke($legacyView,$feedArgs)
+            if ($legacyView.DataContext.Inner.LatestAchievementsView.Groups.Count) { throw 'Ungrouped mode retained game headers' }
+            'PASS: original Recent Achievements compact template, icons, descriptions, expansion toggle, game headers/progress and optional source/none grouping.'
+        }
+        Wait-Task ($achievementWidget.OnViewHiddenAsync())
+        if ($achievementWidget.GetType().GetField('timer',$flags).GetValue($achievementWidget).IsEnabled -or $achievementWidget.GetType().GetField('observed',$flags).GetValue($achievementWidget)) { throw 'Hidden achievement widget retained refresh work/listeners' }
+        $plugin.OnViewRemoved($achievementId,$instanceId)
+        if (!$achievementWidget.GetType().GetField('closed',$flags).GetValue($achievementWidget)) { throw 'Removed achievement widget was not closed' }
+        [void]$layout.Children.Remove($achievementHost)
+    }
+    'PASS: five achievement registrations, actual ancestor settings/reset binding, hidden refresh cleanup and removal lifecycle.'
+    $retainedWidget = [LandingPage.Views.AchievementWidgetView]::new('GameAchievementList')
+    $retainedWidget.Settings.GameSource = [LandingPage.Settings.AchievementGoalSource]::HoveredOrSelectedGame
+    $hoverFixture = [Playnite.SDK.Models.Game]::new(); $hoverFixture.Id = [guid]::NewGuid()
+    $selectionFixture = [Playnite.SDK.Models.Game]::new(); $selectionFixture.Id = [guid]::NewGuid()
+    $plugin.GetType().GetField('<FeaturedHoveredGame>k__BackingField',$flags).SetValue($plugin,$null)
+    $plugin.GetType().GetField('<LastFeaturedHoveredGame>k__BackingField',$flags).SetValue($plugin,$hoverFixture)
+    $plugin.GetType().GetField('<FeaturedSelectedGame>k__BackingField',$flags).SetValue($plugin,$selectionFixture)
+    $resolve = $retainedWidget.GetType().GetMethod('ResolveContextGame',$flags)
+    if ($resolve.Invoke($retainedWidget,@($plugin)) -ne $hoverFixture.Id) { throw 'Leaving the shelf lost the last hovered achievements' }
+    $retainedWidget.Settings.KeepLastHoveredGame = $false
+    if ($resolve.Invoke($retainedWidget,@($plugin)) -ne $selectionFixture.Id) { throw 'Disabling hover retention did not restore selected-game fallback' }
+    $retainedWidget.OnViewClosed()
+    $plugin.GetType().GetField('<LastFeaturedHoveredGame>k__BackingField',$flags).SetValue($plugin,$null)
+    $plugin.GetType().GetField('<FeaturedSelectedGame>k__BackingField',$flags).SetValue($plugin,$null)
+    'PASS: hover retention preserves the last game on shelf exit, with an opt-out for selected-game fallback.'
+
     $hoverSettings = [LandingPage.Models.ShelveProperties]::new()
     $hoverSettings.HoverEffect = [LandingPage.Models.ShelfHoverEffect]::Dock; $hoverSettings.HoverScale = 1.4; $hoverSettings.HoverRadius = 2
     $hoverSettings.HoverGlow = $true; $hoverSettings.HoverDimOthers = $true

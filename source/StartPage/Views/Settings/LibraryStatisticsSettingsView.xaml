@@ -1,15 +1,14 @@
-﻿<UserControl x:Class="LandingPage.Views.Settings.LibraryStatisticsSettingsView"
+<UserControl x:Class="LandingPage.Views.Settings.LibraryStatisticsSettingsView"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:numeric="http://gu.se/NumericInput" xmlns:local="clr-namespace:LandingPage.Views.Settings" xmlns:settings="clr-namespace:LandingPage.Settings" xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:sys="clr-namespace:System;assembly=mscorlib">
  <StackPanel Margin="0,8">
   <StackPanel.Resources>
+   <local:InverseGlobalColorConverter x:Key="InverseGlobalColor"/>
    <local:StatisticColorLookup x:Key="StatisticColorLookup"/>
    <DataTemplate x:Key="EmptyStatisticColors"><Border/></DataTemplate>
-   <DataTemplate x:Key="StatisticColorFields"><StackPanel Margin="8,4">
-    <CheckBox Content="Use global value color" IsChecked="{Binding UseGlobalValueColor}"/>
-    <controls:ColorPicker x:Name="StatisticValueColorPicker" SelectedColor="{Binding ValueColor,Mode=TwoWay}"><controls:ColorPicker.Style><Style TargetType="controls:ColorPicker"><Setter Property="IsEnabled" Value="False"/><Style.Triggers><DataTrigger Binding="{Binding UseGlobalValueColor}" Value="False"><Setter Property="IsEnabled" Value="True"/></DataTrigger></Style.Triggers></Style></controls:ColorPicker.Style></controls:ColorPicker>
-    <CheckBox Content="Use global label color" IsChecked="{Binding UseGlobalLabelColor}"/>
-    <controls:ColorPicker SelectedColor="{Binding LabelColor,Mode=TwoWay}"><controls:ColorPicker.Style><Style TargetType="controls:ColorPicker"><Setter Property="IsEnabled" Value="False"/><Style.Triggers><DataTrigger Binding="{Binding UseGlobalLabelColor}" Value="False"><Setter Property="IsEnabled" Value="True"/></DataTrigger></Style.Triggers></Style></controls:ColorPicker.Style></controls:ColorPicker>
-   </StackPanel></DataTemplate>
+   <DataTemplate x:Key="StatisticColorFields"><UniformGrid Columns="3" Margin="8,4">
+    <controls:PopupColorPicker x:Name="StatisticValueColorPicker" Label="Value" Margin="0,4,8,4" SelectedColor="{Binding ValueColor,Mode=TwoWay}" UseCustomColor="{Binding UseGlobalValueColor,Mode=TwoWay,Converter={StaticResource InverseGlobalColor}}"/>
+    <controls:PopupColorPicker Label="Label" Margin="0,4,8,4" SelectedColor="{Binding LabelColor,Mode=TwoWay}" UseCustomColor="{Binding UseGlobalLabelColor,Mode=TwoWay,Converter={StaticResource InverseGlobalColor}}"/>
+   </UniformGrid></DataTemplate>
    <DataTemplate x:Key="StatisticColorTemplate"><Expander x:Name="StatisticColorsExpander" Header="Colors" Foreground="{DynamicResource TextBrush}" Content="{Binding}" ContentTemplate="{StaticResource EmptyStatisticColors}" Expanded="StatisticColors_Expanded"/></DataTemplate>
    <Style x:Key="StatisticColorEditor" TargetType="ContentControl"><Setter Property="ContentTemplate" Value="{StaticResource StatisticColorTemplate}"/><Setter Property="Content"><Setter.Value><MultiBinding Converter="{StaticResource StatisticColorLookup}"><Binding Path="Tag" RelativeSource="{RelativeSource Self}"/><Binding Path="DataContext.CounterPlacements" RelativeSource="{RelativeSource AncestorType={x:Type local:LibraryStatisticsSettingsView}}"/></MultiBinding></Setter.Value></Setter></Style>
 
@@ -106,26 +105,29 @@
   </StackPanel></Expander>
   <Expander x:Name="ChartColors" Header="Colors" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,4">
 
-   <CheckBox x:Name="GlobalTextColorToggle" Content="Use custom global text color" IsChecked="{Binding CustomLabelColor}" Click="GlobalTextColor_Editing"/><controls:ColorPicker x:Name="GlobalTextColorPicker" SelectedColor="{Binding LabelColor,Mode=TwoWay}" PreviewMouseDown="GlobalTextColor_Mouse" PreviewKeyDown="GlobalTextColor_Key"/>
+   <UniformGrid Columns="3"><controls:PopupColorPicker x:Name="GlobalTextColorToggle" Label="Text" Margin="0,4,8,4" UseCustomColor="{Binding CustomLabelColor,Mode=TwoWay}" SelectedColor="{Binding LabelColor,Mode=TwoWay}" CustomColorChanged="GlobalTextColor_Editing"/></UniformGrid>
    <StackPanel x:Name="ChartPaletteOptions">
-   <CheckBox Content="Use custom segment border color" IsChecked="{Binding CustomSegmentBorderColor}"/><controls:ColorPicker SelectedColor="{Binding SegmentBorderColor,Mode=TwoWay}"/>
+
    <CheckBox Content="Glossy series colors" IsChecked="{Binding GlossySeries}"/>
-   <CheckBox Content="Use custom connector color" IsChecked="{Binding CustomConnectorColor}"/><controls:ColorPicker SelectedColor="{Binding ConnectorColor,Mode=TwoWay}"/>
+
    <CheckBox Content="Use custom chart colors" IsChecked="{Binding CustomChartColors}"/>
    <TextBlock Text="Series colors cycle in descending value order. Turn this off to use the default colorful palette." TextWrapping="Wrap"/>
-   <TextBlock Text="Series 1"/><controls:ColorPicker SelectedColor="{Binding ChartColor1,Mode=TwoWay}"/><TextBlock Text="Series 2"/><controls:ColorPicker SelectedColor="{Binding ChartColor2,Mode=TwoWay}"/><TextBlock Text="Series 3"/><controls:ColorPicker SelectedColor="{Binding ChartColor3,Mode=TwoWay}"/><TextBlock Text="Series 4"/><controls:ColorPicker SelectedColor="{Binding ChartColor4,Mode=TwoWay}"/><TextBlock Text="Series 5"/><controls:ColorPicker SelectedColor="{Binding ChartColor5,Mode=TwoWay}"/><TextBlock Text="Series 6"/><controls:ColorPicker SelectedColor="{Binding ChartColor6,Mode=TwoWay}"/>
+
+
+   <UniformGrid Columns="3"><controls:PopupColorPicker Label="segment border color" UseCustomColor="{Binding CustomSegmentBorderColor}" Margin="0,4,8,4" SelectedColor="{Binding SegmentBorderColor,Mode=TwoWay}"/><controls:PopupColorPicker Label="connector color" UseCustomColor="{Binding CustomConnectorColor}" Margin="0,4,8,4" SelectedColor="{Binding ConnectorColor,Mode=TwoWay}"/><controls:PopupColorPicker Label="Series 1" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding ChartColor1,Mode=TwoWay}"/><controls:PopupColorPicker Label="Series 2" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding ChartColor2,Mode=TwoWay}"/><controls:PopupColorPicker Label="Series 3" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding ChartColor3,Mode=TwoWay}"/><controls:PopupColorPicker Label="Series 4" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding ChartColor4,Mode=TwoWay}"/><controls:PopupColorPicker Label="Series 5" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding ChartColor5,Mode=TwoWay}"/><controls:PopupColorPicker Label="Series 6" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding ChartColor6,Mode=TwoWay}"/></UniformGrid>
      </StackPanel>
   </StackPanel></Expander>
   <Expander x:Name="LayoutTextOptions" Header="Layout and text" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,4">
    <CheckBox x:Name="RowsOption" Content="Show as rows instead of wrapping tiles" IsChecked="{Binding Rows}"/>
-   <Expander x:Name="ValueTextOptions" Header="Statistic values" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,4">
+<controls:TextSettingsSelector x:Name="TextEditor">
+<controls:TextSettingsEntry Header="Statistic values">   <StackPanel x:Name="ValueTextOptions" Margin="8,4">
    <TextBlock Text="Value font"/><ComboBox ItemsSource="{x:Static Fonts.SystemFontFamilies}" SelectedValue="{Binding ValueFontFamily}" SelectedValuePath="Source"/><Button Content="Use theme value font" Click="ThemeValueFont_Click"/>
    <WrapPanel><ToggleButton IsChecked="{Binding ValueBold}" ToolTip="Bold values" AutomationProperties.Name="Bold values" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="B" FontWeight="Bold" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton><ToggleButton IsChecked="{Binding ValueItalic}" ToolTip="Italic values" AutomationProperties.Name="Italic values" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="I" FontStyle="Italic" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton><ToggleButton IsChecked="{Binding ValueUnderline}" ToolTip="Underline values" AutomationProperties.Name="Underline values" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="U" TextDecorations="Underline" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton><ToggleButton IsChecked="{Binding ValueStrikeThrough}" ToolTip="Strike through values" AutomationProperties.Name="Strike through values" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="S" TextDecorations="Strikethrough" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
    </WrapPanel><TextBlock Text="Value size preset"/><ComboBox SelectedValue="{Binding ValueSizePreset}" SelectedValuePath="Tag"><ComboBoxItem Content="Custom size" Tag="{x:Static settings:StatisticsTextSize.Custom}"/><ComboBoxItem Content="Theme small" Tag="{x:Static settings:StatisticsTextSize.ThemeSmall}"/><ComboBoxItem Content="Theme normal" Tag="{x:Static settings:StatisticsTextSize.ThemeNormal}"/><ComboBoxItem Content="Theme large" Tag="{x:Static settings:StatisticsTextSize.ThemeLarge}"/><ComboBoxItem Content="Theme larger" Tag="{x:Static settings:StatisticsTextSize.ThemeLarger}"/><ComboBoxItem Content="Theme largest" Tag="{x:Static settings:StatisticsTextSize.ThemeLargest}"/></ComboBox>
    <TextBlock x:Name="ValueSizeLabel" Text="Value size"/><numeric:DoubleBox x:Name="ValueSizeInput" Value="{Binding ValueSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="200" Style="{StaticResource CustomValueSizeStyle}"/>
    <TextBlock Text="Value opacity"/><Slider Value="{Binding ValueOpacity}" Minimum="0" Maximum="1" SmallChange="0.05"/>
-   </StackPanel></Expander>
-   <Expander Header="Labels" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,4">
+   </StackPanel></controls:TextSettingsEntry>
+<controls:TextSettingsEntry Header="Labels">   <StackPanel Margin="8,4">
    <TextBlock Text="Label font"/><ComboBox ItemsSource="{x:Static Fonts.SystemFontFamilies}" SelectedValue="{Binding LabelFontFamily}" SelectedValuePath="Source"/><Button Content="Use theme label font" Click="ThemeFont_Click"/>
    <WrapPanel><ToggleButton IsChecked="{Binding LabelBold}" ToolTip="Bold labels" AutomationProperties.Name="Bold labels" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="B" FontWeight="Bold" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton><ToggleButton IsChecked="{Binding LabelItalic}" ToolTip="Italic labels" AutomationProperties.Name="Italic labels" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="I" FontStyle="Italic" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton><ToggleButton IsChecked="{Binding LabelUnderline}" ToolTip="Underline labels" AutomationProperties.Name="Underline labels" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="U" TextDecorations="Underline" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
    <ToggleButton x:Name="CounterLabelStrikeToggle" IsChecked="{Binding LabelStrikeThrough}" ToolTip="Strike through labels" AutomationProperties.Name="Strike through labels" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="S" TextDecorations="Strikethrough" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton></WrapPanel><TextBlock Text="Label size"/><numeric:DoubleBox Value="{Binding LabelSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="100" Style="{StaticResource CustomLabelSizeStyle}"/>
@@ -134,7 +136,10 @@
    <TextBlock Text="Label opacity"/><Slider Value="{Binding LabelOpacity}" Minimum="0" Maximum="1" SmallChange="0.05"/>
    <TextBlock Text="Label line height (0 = automatic)"/><numeric:DoubleBox Value="{Binding LabelLineHeight,UpdateSourceTrigger=PropertyChanged}" MinValue="0" MaxValue="300" Style="{StaticResource {x:Type TextBox}}"/>
    </StackPanel>
-   </StackPanel></Expander>
+   </StackPanel></controls:TextSettingsEntry>
+</controls:TextSettingsSelector>
+
+
    <Expander x:Name="CounterRenderingOptions" Header="Wrapping and text rendering" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,4">
    <CheckBox Content="Wrap counter text" IsChecked="{Binding WrapCounterText}"/>
    <TextBlock Text="Text trimming"/><ComboBox SelectedValue="{Binding CounterTextTrimming}" SelectedValuePath="Tag"><ComboBoxItem Content="None" Tag="{x:Static TextTrimming.None}"/><ComboBoxItem Content="Character ellipsis" Tag="{x:Static TextTrimming.CharacterEllipsis}"/><ComboBoxItem Content="Word ellipsis" Tag="{x:Static TextTrimming.WordEllipsis}"/></ComboBox>

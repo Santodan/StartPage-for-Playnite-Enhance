@@ -64,6 +64,8 @@ Right-click the dashboard background, choose **Dashboard profiles...**, then exp
 | Library | Overview counters and recent/favorite shelves, plus a separate Backlog page. |
 | Game spotlight | A featured game follows hover/selection, with a dock-style shelf below it. |
 | Game inspector | Separate artwork, title, full description with images, activity and actions follow the same game. |
+| Achievement dashboard | Customizable StartPage achievement progress cards and finish-next games. |
+| PlayniteAchievements dashboard (when available) | PlayniteAchievements game summaries, recent unlocks, statistics and activity calendar. |
 | Library insights | Library and period playtime counters beside source and installation charts. |
 
 Each profile includes navigation and can be customized afterward. **Add profile** saves a copy without changing the current dashboard. The add-pages option lets you try a profile alongside existing pages. Refreshing the starter gallery does not overwrite your saved profiles.
@@ -88,6 +90,7 @@ Priorities may change based on experimental-release feedback. There are no relea
 
 - [Dashboard pages and toolbar](docs/DASHBOARD-PAGES.md)
 - [Dashboard profiles and starter templates](docs/DASHBOARD-PROFILES.md)
+- [Achievement dashboard and existing provider features](docs/ACHIEVEMENT-DASHBOARD.md)
 - [Shelf patterns and typed filter selection](docs/SHELF-PATTERNS.md)
 - [Shelf hover effects](docs/SHELF-HOVER-EFFECTS.md)
 - [Featured game](docs/FEATURED-GAME.md)

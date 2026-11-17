@@ -19,6 +19,21 @@ $previousSerializer = $serializerField.GetValue($null)
 try {
     $serializerField.SetValue($null, [Playnite.Common.DataSerializer]::new())
     $pageCloneMethod = [Playnite.SDK.Data.Serialization].GetMethods() | Where-Object { $_.Name -eq 'GetClone' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 } | Select-Object -First 1
+    $achievementProps = [LandingPage.Models.Layout.ViewProperties]::new(); $achievementProps.ViewId = 'AchievementGoals'
+    $achievementProps.AchievementSettings.TitleSize = 33; $achievementProps.AchievementSettings.ProgressColor = '#22CC88'
+    $goal = [LandingPage.Settings.AchievementGoal]::new(); $goal.GameId = [guid]::NewGuid(); $goal.GameName = 'Goal fixture'; $goal.TargetPercent = 85
+    $achievementProps.AchievementSettings.Goals.Add($goal)
+    $achievementClone = $pageCloneMethod.MakeGenericMethod([LandingPage.Models.Layout.ViewProperties]).Invoke($null,@($achievementProps))
+    if ($achievementClone.AchievementSettings.Goals.Count -ne 1 -or $achievementClone.AchievementSettings.Goals[0].TargetPercent -ne 85 -or $achievementClone.AchievementSettings.TitleSize -ne 33 -or $achievementClone.AchievementSettings.ProgressColor -ne '#FF22CC88') { throw 'Actual Playnite serializer lost achievement settings/goals' }
+    'PASS: actual Playnite serializer preserves achievement card styling and individual percentage goals.'
+    $recentProps = [LandingPage.Models.Layout.ViewProperties]::new(); $recentProps.ViewId = 'RecentAchivements'
+    $recentProps.AchievementSettings.Limit = 37; $recentProps.AchievementSettings.PerGameLimit = 7; $recentProps.AchievementSettings.RecentDays = 14; $recentProps.AchievementSettings.GroupByGame = $false
+    $recentProps.AchievementSettings.TextStyles['Description'].UseDefaults = $false; $recentProps.AchievementSettings.TextStyles['Description'].Size = 24; $recentProps.AchievementSettings.TextStyles['Description'].Bold = $true
+    $recentClone = $pageCloneMethod.MakeGenericMethod([LandingPage.Models.Layout.ViewProperties]).Invoke($null,@($recentProps))
+    if ($recentClone.AchievementSettings.Limit -ne 37 -or $recentClone.AchievementSettings.PerGameLimit -ne 7 -or $recentClone.AchievementSettings.RecentDays -ne 14 -or $recentClone.AchievementSettings.GroupByGame) { throw 'Recent achievement appearance settings did not persist' }
+    if ($recentClone.AchievementSettings.TextStyles['Description'].UseDefaults -or $recentClone.AchievementSettings.TextStyles['Description'].Size -ne 24 -or !$recentClone.AchievementSettings.TextStyles['Description'].Bold) { throw 'Independent achievement text formatting was not serialized' }
+    'PASS: actual Playnite serializer retains recent achievement widget counts, date range and grouping.'
+
     $defaultPage = [LandingPage.Models.DashboardPage]::new()
     $defaultCopy = $pageCloneMethod.MakeGenericMethod([LandingPage.Models.DashboardPage]).Invoke($null,@($defaultPage))
     if ($defaultCopy.Layout.Children.Count -ne 2) { throw 'Playnite serializer appended default panels to a saved page' }

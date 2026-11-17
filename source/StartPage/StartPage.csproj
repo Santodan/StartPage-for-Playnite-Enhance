@@ -50,6 +50,8 @@
     <Compile Include="Views\PanelAppearanceView.xaml.cs">
       <DependentUpon>PanelAppearanceView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\TextSettingsSelector.cs" />
+    <Compile Include="Controls\PopupColorPicker.cs" />
     <Compile Include="Controls\ColorPicker.xaml.cs">
       <DependentUpon>ColorPicker.xaml</DependentUpon>
     </Compile>
@@ -77,6 +79,10 @@
     <Compile Include="Models\DashboardTransitionPreset.cs" />
     <Compile Include="Settings\ClockSettings.cs" />
     <Compile Include="Views\Settings\ClockSettingsView.xaml.cs"><DependentUpon>ClockSettingsView.xaml</DependentUpon></Compile>
+    <Compile Include="Models\GameAchievementList.cs" />
+    <Compile Include="Settings\AchievementWidgetSettings.cs" />
+    <Compile Include="Views\AchievementWidgetView.cs" />
+    <Compile Include="Views\Settings\AchievementWidgetSettingsView.cs" />
     <Compile Include="Settings\LibraryStatisticsSettings.cs" />
     <Compile Include="Models\LibraryStatistics.cs" />
     <Compile Include="Models\PeriodPlaytime.cs" />

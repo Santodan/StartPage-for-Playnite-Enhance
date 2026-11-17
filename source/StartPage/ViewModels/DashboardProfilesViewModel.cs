@@ -94,7 +94,8 @@ namespace LandingPage.ViewModels
         }
         public void RefreshStarterProfiles()
         {
-            StarterProfiles = DashboardStarterTemplates.Create(Settings.Settings, plugin.Id);
+            StarterProfiles = DashboardStarterTemplates.Create(Settings.Settings, plugin.Id,
+                plugin.AllAvailableViews.Values.SelectMany(views => views));
             OnPropertyChanged(nameof(StarterProfiles));
         }
         public DashboardProfile AddStarterProfile(DashboardStarterTemplate template)

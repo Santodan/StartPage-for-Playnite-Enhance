@@ -55,6 +55,7 @@ namespace LandingPage.Models
 
         public static DashboardProfile Capture(LandingPageSettings settings, string name)
         {
+            AchievementWidgetSettings.MigrateLegacy(settings);
             var pages = settings.DashboardPages;
             if (pages == null || pages.Count == 0) { DashboardPages.Ensure(settings); pages = settings.DashboardPages; }
             var snapshot = new DashboardSnapshot { Pages = pages, ActivePageId = settings.ActiveDashboardPageId };
@@ -172,6 +173,7 @@ namespace LandingPage.Models
         {
             Validate(profile);
             var copy = Clone(profile.Snapshot);
+            AchievementWidgetSettings.MigrateLegacySnapshot(copy);
             var ids = new Dictionary<Guid, Guid>();
             var referenced = new HashSet<Guid>(copy.Pages.SelectMany(page => page.Layout.Enumerate()).Where(node => node.ViewProperties != null).Select(node => node.ViewProperties.InstanceId));
             foreach (var page in copy.Pages)

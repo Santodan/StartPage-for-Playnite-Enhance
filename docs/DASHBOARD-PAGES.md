@@ -1,4 +1,4 @@
-﻿# Dashboard pages and the toolbar widget
+# Dashboard pages and the toolbar widget
 
 ## Add and configure a toolbar
 
@@ -116,3 +116,27 @@ In **Toolbar settings > Toolbar items**, select a group to show only its items. 
 ## Reorder pages without opening them
 
 Open **Manage dashboard pages > Page order**, select a page in the list, and choose **Move up**, **Move down**, **Move to first** or **Move to last**. Selecting this list does not open the page. The order controls the toolbar page selector and previous/next navigation. Press **Done** to save; dismissing the manager restores the previous order. Moving a page to first does not rename it or change the existing behavior of reopening the last active dashboard.
+
+## Unified widget settings
+
+In Edit Mode, use the gear in the top-right corner of a populated panel. It replaces the Appearance text button and the separate widget settings popup. The same movable/resizable in-app window contains specialized controls, panel appearance, and any settings advertised by the widget provider.
+
+Game Shelves and Most Played keep their existing editors in this window. External provider controls are included through the StartPage SDK rather than recreated. Recent Achievements already uses its appearance settings; its shared provider choice remains in Common settings. Individual shelf filter/appearance menus still configure each shelf separately.
+
+The chart/section editing buttons sit beside the gear. Right-click > Widget settings opens the same window. Empty panels have no settings gear.
+
+## Independent panel resizing
+
+For a layout with aligned top/bottom rows, enter Edit Mode and open a widget's **gear > Panel layout > Make column heights independent**. The editor closes and each column gets its own horizontal divider. Drag the divider in the right column to extend its upper widget downward while retaining the left column's heights. The lower-right widget uses the remaining height in that column.
+
+**Make row widths independent** provides the corresponding arrangement for aligned columns: each row gets its own vertical divider. Both actions are also in the panel's right-click menu.
+
+These actions regroup existing panels rather than recreate widgets. They preserve widget identities, settings, cached controls and initial proportions, including a fixed/auto-height toolbar above the content. Resized proportions persist in the dashboard and profiles. The options appear in Panel layout only when the selected widget belongs to a compatible aligned group with matching subdivisions; other flexible siblings outside the group prevent conversion. This uses nested splits; it does not create overlapping/free-positioned panels.
+
+## Widget picker folders
+
+In Edit Mode, **Add view > StartPage** groups widgets into **General**, **Achievements**, **Library**, and **Game details**. The game-detail entries (artwork, title, description, activity, details, library information, scores, links, actions and Featured game) are together below Library. Existing extension-provider menus keep their own entries. Disabled items still indicate single-instance widgets that are already placed on a page.
+
+## Compact text editors
+
+Where a widget has multiple text elements, its formatting editor uses a **Text element** dropdown and shows only that element's controls. This applies to achievement widgets, clock time/date, featured-game title/description/metadata, statistic values/labels, shelf title/metadata and applicable standalone game text. Widgets with just one applicable text element keep a direct editor. Selection changes only which controls are visible; formatting values, inheritance, theme defaults and the rendered widget are preserved.

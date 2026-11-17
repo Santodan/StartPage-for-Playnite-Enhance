@@ -1,4 +1,4 @@
-﻿# StartPage Enhanced customization roadmap
+# StartPage Enhanced customization roadmap
 
 Development roadmap toward the first stable release. Checked items are implemented and remain open to bug reports and feedback; unchecked items are planned, without promised release dates. See the [README](README.md) for installation, compatibility and reporting guidance.
 
@@ -20,11 +20,15 @@ Suggestions and bug reports are welcome through [GitHub Issues](https://github.c
 14. [x] **Selected/hovered game detail widgets.** Separate placeable widgets for a game's title/artwork, description, activity, game details, library information, scores, links, and actions. Each widget can follow Playnite's selected game or the game under the mouse, with a shared selected-or-hovered mode for synchronized layouts. Reuse Featured Game section fields/appearance controls, allow independent placement and resizing through dashboard panels, and persist choices in profiles. See scope below.
 15. [x] **Library statistics widget.** Choose counters for total, installed, unplayed, completed games, and total playtime. Implemented.
 16. [x] **Library charts widget.** Independent multiple-instance graphs for game counts and recorded playtime, bar/doughnut/pie styles, configurable breakdowns, label placement, legends and colorful palettes. Implemented.
-17. [ ] **Achievement dashboard.** Per-game completion, recently completed games, closest-to-completion games, and pinned goals, using available achievement-provider data.
+17. [x] **Customizable achievement widgets and dashboard.** Independent StartPage progress cards, finish-next games and pinned game percentage goals, with card/ring/bar layouts, filters, typography, colors and borders. Read existing provider data and keep the optional PlayniteAchievements dashboard integration. Implemented; awaiting user testing.
 18. [ ] **Shortcut widget.** Configurable game, application, folder, and website buttons with labels and icons.
 19. [ ] **Divider/spacer widget.** Configurable separator lines and empty space for composing sections.
 20. [ ] **More achievements settings.** Remove the Achievement limits and add more settings to the achievements.
 21. [ ] **Background options** Add more options to control the background image.
+22. [ ] **Consistent, compact widget settings (ongoing until the first stable release).** Review every built-in widget and its appearance/settings editor, then apply the same formatting throughout: labeled color swatches opening themed popup pickers with custom-color toggles; text-element dropdowns showing only the selected text editor; compact size and formatting controls; two-column layouts for related fields and full-width sliders where appropriate. Standardize section grouping, labels, spacing and theme colors while preserving each widget's existing options, saved settings and default appearance. Verify the editors at different window sizes and check settings persistence. Keep this step open throughout development and review new or changed editors as features are added. External providers retain their own settings UI.
+23. [ ] **Startup animations.** Optional, customizable animations when StartPage first opens, with effect, duration and timing controls; coordinate with dashboard loading and respect reduced-motion preferences.
+24. [ ] **Animated GIF and video support.** Support animated GIFs and videos in media widgets and dashboard backgrounds, with playback, looping, fit/fill and video mute/volume controls. Pause playback when hidden and release media resources when no longer needed.
+25. [ ] **Extension settings menu review.** Review the extension-wide settings menu, reorganize related options into clear sections, improve labels and help text, and remove redundant controls while preserving saved preferences and access to widget-specific settings.
 
 ## First change: testing in Playnite
 
@@ -341,3 +345,45 @@ Counter placement editor follow-up: only enabled base/additional/period/breakdow
 Statistic colors follow-up: every base/additional/period statistic and breakdown has collapsed Colors controls with independent global/custom value and label colors. Shared controls are labeled Global colors. Overrides persist with profiles and survive grid-position resets; explicit text colors take precedence over panel styling. Picker controls load lazily on opening Colors. Implemented.
 
 November 14 follow-up: retain chart controls during host/widget resizing; move placement fields into each statistic/breakdown with a top-level grid switch; unify the global statistic text color control; replace formatting descriptions with styled B/I/U/S toggles across statistics/text/shelf settings. Added a startup-only safeguard for the logged automatic normal-window expansion to monitor bounds, with manual/maximized/DPI/display exclusions and an opt-out in Common settings. Implemented.
+
+## Step 17: Achievement dashboard integration (awaiting user testing)
+
+Compared the local PlayniteAchievements fork catalog, showcase options and projection code. Game summaries already cover per-game progress, completed games, recent unlock sorting, Finish next suggestions and game collections; achievement grids support achievement collections. Statistics, charts, scores, timelines and calendars are also provided. StartPage does not add parallel achievement widgets or a second cache/pinning system.
+
+A new **Achievement dashboard** starter is offered in Manage dashboard profiles when one enabled provider advertises all four required, multiple-instance views. It places Game summaries beside Recent unlocks, Achievement statistics and Activity calendar, below an auto-height toolbar. The existing portable Achievements starter remains available. Configure provider-specific filters, sources, collections and styling through each widget's Settings menu; the starter does not write private provider settings. See [the integration guide](docs/ACHIEVEMENT-DASHBOARD.md). No commit or release update without approval.
+
+Step 17 verification: Release build/package 0.17.0, starter discovery/profile round-trip tests, actual Playnite settings serialization and full WPF dashboard regression passed. Published installer manifest and GitHub release remain unchanged until release authorization.
+
+Step 17 scope correction: the user requested additional StartPage-owned widgets with independent customization, not only an external-provider layout. Added Achievement progress cards, Achievement finish next and Achievement goals, plus a built-in Achievement dashboard starter. The optional external starter is now named PlayniteAchievements dashboard. Each new instance saves its own content/layout/text/color/card style and per-game percentage goals; uses shared read-only achievement snapshots; and pauses polling while hidden. See the integration guide for controls and limitations. No commit or release update authorized.
+
+Step 17 native-widget verification: card/ring/bar rendering, progress/remaining filters, goals and target changes, independent profile cloning, shared SuccessStory snapshots, real ancestor settings/reset binding, hidden/removal cleanup and actual Playnite serializer passed. Full existing dashboard regression also passed. Build 0.17.0 is ready for user testing.
+
+Achievement goals source follow-up: selected library game, hovered StartPage game, hovered-or-selected and existing pinned goals; immediate cached-context updates, shared shelf/random fallback and a default target percentage with per-game overrides. Source/default-target profile persistence and selection precedence checks passed; Release package rebuilt.
+
+Step 17 achievement-list follow-up: independent Game achievements list widget with selected/hovered/combined/pinned sources, full locked/unlocked provider definitions, filtering/sorting, optional icons/descriptions/state/unlock dates, shared card typography/colors/borders, asynchronous cached reads and stale-result protection. No commit authorized.
+
+Achievement list responsiveness follow-up: retain the last hovered game by default with an opt-out, cache database discovery, select game IDs before achievement joins, virtualize row-mode text/icons and report read/build timings to Debug. Read-only provider tests, a 1,000-row virtualization/scroll test and real-context hover-retention/lifecycle checks passed.
+
+Recent Achievements customization: preserve its original widget ID, migrate legacy total/per-game limits into panel settings, move display controls to Appearance, add unlimited counts/date range/grouping/content toggles and shared row/card/text/icon/color/border controls. Provider selection is available under Common; old number fields and provider-only widget popup are replaced. Both provider feeds filter scope and apply per-game caps before filling the total. Migration, refill/unlimited/date-range, WPF binding/lifecycle and actual serializer checks passed.
+
+Startup configuration fix: achievement-settings model getters no longer access the plugin singleton/settings while deserialization is in progress. Legacy recent counts migrate explicitly after loading, including saved profiles/presets; existing per-widget choices remain intact. The supplied nine-page/nine-profile configuration reproduces the original failure and now loads/round-trips using Playnite's actual serializer without an initialized settings view model. The supplied and installed configuration files were not modified.
+
+Recent Achievements UI scope correction: restore its original XAML list, group headers/progress bars, compact rounded-icon rows, hover effect and expandable descriptions. Keep new settings in Appearance, add grouping by game/day/source/platform/none and group order, plus game/source/platform text filters. Typography/icon/color/detail additions are optional; card/row replacement controls are hidden for this existing widget. Other new achievement widgets retain their own UI.
+
+Recent UI correction verification: actual original XAML renders compact 35-pixel icon rows, title/description, expansion toggles and game progress headers. Optional row visibility/typography and source/none grouping passed. Both provider feeds, serialization and the supplied nine-page/nine-profile startup configuration passed; package rebuilt for visual testing.
+
+Unified widget settings: replace the Appearance text button and provider-only popup with one top-right gear opening the in-app movable/resizable editor. Audit retained built-in Game Shelves/Most Played settings and SDK-advertised external settings in a dedicated section; Recent Achievements controls remain integrated. Shift chart/section editing buttons beside the gear. WPF checks cover opening, provider controls, detachment and non-overlapping buttons.
+
+Unified settings verification: full dashboard regression passed; a separate SDK-provider fixture confirms existing external settings controls are reused, instantiated once per opening and detached for reopening. Release package rebuilt; no commit made.
+
+Independent panel resizing: regroup compatible aligned rows into columns with separate height dividers, or aligned columns into rows with separate width dividers. Available from gear > Panel layout and the panel context menu; fixed toolbars remain outside the converted group. Reuse existing widgets/settings and detach obsolete layout observers rather than call provider removal. WPF geometry checks cover unchanged neighboring sizes, changed target dimensions, serialization and the actual settings button/return to edit mode.
+
+Widget picker organization: group StartPage Add view entries into General, Achievements, Library and Game details submenus, retaining external provider menus and all original widget IDs/availability rules. WPF leaf-style checks cover nested commands, unavailable duplicate instances and adding a library chart; Release package rebuilt.
+
+Achievement typography follow-up: compact size inputs with inline B/I controls for titles and shared detail text, plus per-text overrides for descriptions, game names, counts, percentages, remaining counts, status, dates, goals and Recent group headers. Relevant controls are shown per widget, inherit existing settings by default and persist in profiles. Render checks cover progress/finish-next/goals, game-list metadata and the original Recent template.
+
+Compact text editors: reusable text-element dropdown showing one set of fields at a time. Applied to all achievement text roles/shared styles, clock time/date, featured title/description/metadata, statistics values/labels, shelf title/metadata and applicable game-detail text. Existing controls and bindings are retained; selection does not alter settings. UI checks cover visibility and unchanged values across selections.
+
+Compact editor polish: use stable label/data choices rather than UI controls as dropdown items so the selected text remains visible when closed; opacity spans both columns; text color pickers are inline beside size/style without an extra Colors wrapper. Closed-selection labels, unchanged formatting values, opacity geometry and inline-picker placement are covered by WPF checks.
+
+Widget editor consistency follow-up: all remaining built-in color expanders now use labeled popup swatches, including lazy per-statistic overrides, global chart/statistic text colors, chart series/separators/connectors and toolbar group appearance. Preserve global/custom inheritance inside the popups; single-text editors stay direct while multi-text editors use the shared selector. Remove the duplicate game-detail color switch and compact the Text widget font/style/color row. Three-column palette layout retains wrapped labels and accessible swatches.

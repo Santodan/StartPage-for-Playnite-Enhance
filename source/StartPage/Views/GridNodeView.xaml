@@ -18,6 +18,14 @@
              Background="Transparent"
              SizeChanged="UserControl_SizeChanged">
     <UserControl.Resources>
+        <Style x:Key="WidgetMenuItemStyle" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="Header" Value="{Binding Name}"/>
+            <Setter Property="ItemsSource" Value="{Binding Children}"/>
+            <Setter Property="CommandParameter" Value="{Binding View}"/>
+            <Setter Property="Command" Value="{Binding Command}"/>
+            <Setter Property="ToolTip" Value="{Binding Description}"/>
+            <Setter Property="ItemContainerStyle" Value="{DynamicResource WidgetMenuItemStyle}"/>
+        </Style>
         <Style x:Key="GlyphTextBoxStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}" x:Shared="True">
             <Setter Property="Margin" Value="-2,-2,-2,-2"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
@@ -247,7 +255,9 @@
                 </Style.Triggers></Style></Border.Style>
                 <Border.ContextMenu>
                     <ContextMenu UseLayoutRounding="True">
-                        <MenuItem Header="Panel appearance..." IsEnabled="{Binding HasView}" Click="OpenAppearance_Click"/>
+                        <MenuItem Header="Widget settings..." IsEnabled="{Binding HasView}" Click="OpenAppearance_Click"/>
+                        <MenuItem Header="Make column heights independent" Command="{Binding IndependentColumnHeightsCommand}"/>
+                        <MenuItem Header="Make row widths independent" Command="{Binding IndependentRowWidthsCommand}"/>
 
                         <MenuItem>
                             <MenuItem.Header>
@@ -374,14 +384,14 @@
                                 </Setter>
                             </Style>
                         </Menu.Style>
-                        <MenuItem>
+                        <MenuItem x:Name="WidgetPicker">
                             <MenuItem.Style>
                                 <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                                     <Setter Property="Header" Value="{DynamicResource LOC_SPG_AddView}"/>
-                                    <Setter Property="ItemsSource" Value="{Binding AvailableViews}"/>
+                                    <Setter Property="ItemsSource" Value="{Binding WidgetMenuEntries}"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsSubmenuOpen" Value="True">
-                                            <Setter Property="ItemsSource" Value="{Binding AvailableViews}"/>
+                                            <Setter Property="ItemsSource" Value="{Binding WidgetMenuEntries}"/>
                                         </Trigger>
                                         <DataTrigger Binding="{Binding GridNode.ViewProperties.StartPageViewArgs.Name, Converter={StaticResource StringNullOrEmptyToBoolConverter}}" Value="{StaticResource True}">
                                             <Setter Property="Header" Value="{Binding GridNode.ViewProperties.StartPageViewArgs.Name}"/>
@@ -389,83 +399,27 @@
                                     </Style.Triggers>
                                 </Style>
                             </MenuItem.Style>
-                            <MenuItem.ItemContainerStyle>
-                                <Style TargetType="MenuItem">
-                                    <Setter Property="Header" Value="{Binding Key}"/>
-                                    <Setter Property="ItemsSource" Value="{Binding Value}"/>
-                                    <Setter Property="ItemContainerStyle">
-                                        <Setter.Value>
-                                            <Style TargetType="MenuItem">
-                                                <Setter Property="Header" Value="{Binding ViewArgs.Name}"/>
-                                                <Setter Property="CommandParameter" Value="{Binding .}"/>
-                                                <Setter Property="Command" Value="{Binding AddCommand}"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ViewArgs.Description, Converter={StaticResource StringNullOrEmptyToBoolConverter}}" Value="{StaticResource True}">
-                                                        <Setter Property="ToolTip">
-                                                            <Setter.Value>
-                                                                <TextBlock Text="{Binding ViewArgs.Description}"/>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </MenuItem.ItemContainerStyle>
+                            <MenuItem.ItemContainerStyle><StaticResource ResourceKey="WidgetMenuItemStyle"/></MenuItem.ItemContainerStyle>
                         </MenuItem>
                     </Menu>
-                    <Button Content="Appearance" HorizontalAlignment="Left" VerticalAlignment="Top"
-                            Grid.RowSpan="2" Margin="8" Padding="8,4" Cursor="Hand"
+                    <Button x:Name="SettingsButton" HorizontalAlignment="Right" VerticalAlignment="Top"
+                            Grid.RowSpan="2" Margin="8" Padding="4" BorderBrush="Transparent" BorderThickness="0"
+                            Background="Transparent" Cursor="Hand" ToolTip="Widget settings"
+                            AutomationProperties.Name="Widget settings" shell:WindowChrome.IsHitTestVisibleInChrome="True"
                             Visibility="{Binding HasView, Converter={StaticResource BooleanToVisibilityConverter}}"
-                            Click="OpenAppearance_Click"/>
-                    <Grid HorizontalAlignment="Right" VerticalAlignment="Top"
-                          Visibility="Visible"
-                          Grid.RowSpan="2">
-                        <ToggleButton x:Name="SettingsButton"
-                                      BorderBrush="Transparent"
-                                      BorderThickness="0"
-                                      Background="Transparent"
-                                      Padding="1"
-                                      Cursor="Hand"
-                                      Margin="5"
-                                      Visibility="{Binding GridNode.ViewProperties.StartPageViewArgs.HasSettings, FallbackValue={x:Static Visibility.Hidden}, TargetNullValue={x:Static Visibility.Hidden}, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <ToggleButton.Content>
-                                <TextBlock Text="&#xefb0;" FontFamily="{StaticResource FontIcoFont}" FontSize="22"/>
-                            </ToggleButton.Content>
-                        </ToggleButton>
-                        <Popup x:Name="SettingsPopup" PlacementTarget="{Binding ElementName=SettingsButton}" Placement="Left"
-                           StaysOpen="False" IsOpen="{Binding ElementName=SettingsButton, Path=IsChecked, Delay=100}">
-                            <Popup.Style>
-                                <Style TargetType="Popup" BasedOn="{StaticResource {x:Type Popup}}">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsOpen" Value="True">
-                                            <Setter Property="Child">
-                                                <Setter.Value>
-                                                    <Border controls:FloatingPanel.Enabled="True" Background="{DynamicResource PopupBackgroundBrush}" Padding="10" CornerRadius="10" Width="420" Height="560">
-                                                        <DockPanel>
-                                                            <TextBlock DockPanel.Dock="Top" Text="Widget settings" Foreground="{DynamicResource TextBrush}" FontSize="18" Margin="0,0,0,12"/>
-                                                            <ScrollViewer Content="{Binding ViewSettings}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"/>
-                                                        </DockPanel>
-                                                    </Border>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Popup.Style>
-                        </Popup>
-                    </Grid>
+                            Click="OpenAppearance_Click">
+                        <TextBlock Text="&#xefb0;" FontFamily="{StaticResource FontIcoFont}" FontSize="22" Foreground="{DynamicResource TextBrush}"/>
+                    </Button>
                 </Grid>
             </Border>
-            <ToggleButton x:Name="ChartEditingButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="8,4" Panel.ZIndex="1000"
+            <ToggleButton x:Name="ChartEditingButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8,8,48,8" Padding="8,4" Panel.ZIndex="1000"
                           IsChecked="{Binding GridNode.ViewProperties.LibraryStatisticsSettings.EditCharts,Mode=TwoWay}" Click="EditCharts_Click">
                 <ToggleButton.Style><Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}"><Setter Property="Visibility" Value="Collapsed"/><Setter Property="Content" Value="Edit charts"/><Style.Triggers>
                     <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding EditModeEnabled}" Value="True"/><Condition Binding="{Binding GridNode.ViewProperties.ViewId}" Value="LibraryChart"/></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible"/></MultiDataTrigger>
                     <Trigger Property="IsChecked" Value="True"><Setter Property="Content" Value="Done charts"/></Trigger>
                 </Style.Triggers></Style></ToggleButton.Style>
             </ToggleButton>
-            <ToggleButton x:Name="FeaturedSectionsButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="8,4" Panel.ZIndex="1000"
+            <ToggleButton x:Name="FeaturedSectionsButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8,8,48,8" Padding="8,4" Panel.ZIndex="1000"
                           IsChecked="{Binding GridNode.ViewProperties.FeaturedGameSettings.EditSectionLayout, Mode=TwoWay}" Click="EditFeaturedSections_Click">
                 <ToggleButton.Style><Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
                     <Setter Property="Visibility" Value="Collapsed"/><Setter Property="Content" Value="Edit sections"/>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using LandingPage.Models.Layout;
@@ -21,7 +22,46 @@ namespace LandingPage.Models
     {
         public static IReadOnlyList<DashboardStarterTemplate> Create(LandingPageSettings context, Guid builtinPluginId)
             => new[] { Build("minimal", context, builtinPluginId), Build("achievements", context, builtinPluginId), Build("library", context, builtinPluginId),
-                Build("spotlight", context, builtinPluginId), Build("inspector", context, builtinPluginId), Build("insights", context, builtinPluginId) };
+                Build("spotlight", context, builtinPluginId), Build("inspector", context, builtinPluginId), Build("insights", context, builtinPluginId), Build("achievement-cards", context, builtinPluginId) };
+
+        // Use only views advertised by one enabled provider; no dependency on its assemblies or private settings.
+        public static IReadOnlyList<DashboardStarterTemplate> Create(LandingPageSettings context, Guid builtinPluginId,
+            IEnumerable<StartPageViewArgs> availableViews)
+        {
+            var templates = Create(context, builtinPluginId).ToList();
+            var required = new[] { "PlayniteAchievements_GameSummariesGrid", "PlayniteAchievements_RecentUnlocksGrid",
+                "PlayniteAchievements_Showcase_Statistics", "PlayniteAchievements_Showcase_ActivityCalendar" };
+            var provider = (availableViews ?? Enumerable.Empty<StartPageViewArgs>())
+                .Where(view => view != null && view.PluginId != Guid.Empty && view.PluginId != builtinPluginId)
+                .GroupBy(view => view.PluginId)
+                .FirstOrDefault(group => required.All(id => group.Any(view => view.ViewId == id && view.AllowMultipleInstances)));
+            if (provider == null) return templates;
+
+            var template = Build("minimal", context, builtinPluginId);
+            template.Key = "provider-achievements";
+            template.Name = "PlayniteAchievements dashboard";
+            template.Description = "PlayniteAchievements game summaries, recent unlocks, statistics and activity calendar.";
+            template.Notes = "Requires the enabled PlayniteAchievements provider. Configure each external widget through its Settings menu. " +
+                "Choose Finish next or completed games in Game summaries; use game/achievement collections for pinned goals. " +
+                "Profiles save placement and panel appearance, not the provider's private widget settings.";
+            var snapshot = template.Profile.Snapshot;
+            snapshot.Shelves.Clear();
+            Func<string, string, GridNode> external = (id, title) =>
+            {
+                var node = Widget(id, provider.Key);
+                Decorate(node, title);
+                return node;
+            };
+            snapshot.Pages[0].Name = "Achievements";
+            snapshot.Pages[0].Layout = Stack(Orientation.Vertical, Toolbar(builtinPluginId),
+                Split(Orientation.Horizontal, 1,
+                    Weight(external(required[0], "Game progress"), 1.6),
+                    Weight(Stack(Orientation.Vertical, external(required[1], "Recent unlocks"),
+                        external(required[2], "Achievement statistics"), external(required[3], "Activity calendar")), 1)));
+            template.Profile.Name = template.Name;
+            templates.Add(template);
+            return templates;
+        }
 
         private static DashboardStarterTemplate Build(string key, LandingPageSettings context, Guid pluginId)
         {
@@ -62,6 +102,16 @@ namespace LandingPage.Models
                 var shelf = Shelves(settings, pluginId, "Achievement progress", games);
                 AddPage(settings, "Achievements", Stack(Orientation.Vertical, Toolbar(pluginId), Height(Heading("Achievements", "Your recent unlocks and games to return to.", pluginId), 76),
                     Split(Orientation.Horizontal, 4, Weight(recent, 1.2), Weight(shelf, 2.8))));
+            }
+            else if (key == "achievement-cards")
+            {
+                result.Name = "Achievement dashboard";
+                result.Description = "StartPage progress cards and finish-next games with customizable rings, bars, text and card styling.";
+                result.Notes = "Reads your selected achievement provider. Add the separate Achievement goals widget to track pinned games and percentage targets. Customize every instance in Appearance > Achievement widget settings.";
+                var progress = widget("AchievementProgress"); Decorate(progress,"Achievement progress");
+                var next = widget("AchievementFinishNext"); Decorate(next,"Finish next");
+                AddPage(settings,"Achievement dashboard",Stack(Orientation.Vertical,Toolbar(pluginId),
+                    Split(Orientation.Horizontal,1,Weight(progress,1.7),Weight(next,1))));
             }
             else if (key == "library")
             {

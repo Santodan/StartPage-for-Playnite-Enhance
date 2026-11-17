@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -18,6 +18,8 @@ namespace LandingPage.Views.Settings
         {
             if (TitleOptions == null) return;
             var item = GameDetailWidgets.Find(WidgetId);
+            GameTitleTextEntry.IsAvailable = item?.Section == FeaturedGameSection.Title;
+            GameBodyTextEntry.IsAvailable = item?.Section != FeaturedGameSection.Title;
             TitleOptions.Visibility = item?.Section == FeaturedGameSection.Title ? Visibility.Visible : Visibility.Collapsed;
             DescriptionOptions.Visibility = item?.Section == FeaturedGameSection.Description ? Visibility.Visible : Visibility.Collapsed;
             ArtworkOptions.Visibility = item?.IsArtwork == true ? Visibility.Visible : Visibility.Collapsed;

@@ -5,22 +5,9 @@
  xmlns:controls="clr-namespace:LandingPage.Controls"
  xmlns:numeric="http://gu.se/NumericInput">
  <StackPanel Margin="0,8">
-  <TextBlock Text="Time size"/>
-  <numeric:DoubleBox Value="{Binding TimeSize, UpdateSourceTrigger=PropertyChanged}" MinValue="20" MaxValue="300" Style="{StaticResource {x:Type TextBox}}"/>
-  <TextBlock Text="Date size" Margin="0,6,0,0"/>
-  <numeric:DoubleBox Value="{Binding DateSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="72" Style="{StaticResource {x:Type TextBox}}"/>
-  <TextBlock Text="Horizontal alignment" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding HorizontalAlignment}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/>
-   <ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/>
-   <ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/>
-  </ComboBox>
-  <TextBlock Text="Vertical alignment" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/>
-   <ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/>
-   <ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
-  </ComboBox>
+<controls:TextSettingsSelector x:Name="TextEditor">
+<controls:TextSettingsEntry Header="Time"><StackPanel>  <TextBlock Text="Time size"/>
+  <WrapPanel><numeric:DoubleBox Width="64" VerticalAlignment="Center" Value="{Binding TimeSize, UpdateSourceTrigger=PropertyChanged}" MinValue="20" MaxValue="300" Style="{StaticResource {x:Type TextBox}}"/><controls:PopupColorPicker Margin="8,0,0,0" VerticalAlignment="Center" SelectedColor="{Binding TimeColor, Mode=TwoWay}" UseCustomColor="{Binding UseCustomColors, Mode=TwoWay}"/></WrapPanel>
   <TextBlock Text="Time format" Margin="0,6,0,0"/>
   <ComboBox SelectedValue="{Binding TimeFormat}" SelectedValuePath="Tag">
    <ComboBoxItem Content="System default" Tag="{x:Static settings:ClockTimeFormat.System}"/>
@@ -28,6 +15,9 @@
    <ComboBoxItem Content="24-hour" Tag="{x:Static settings:ClockTimeFormat.TwentyFourHour}"/>
   </ComboBox>
   <CheckBox Content="Show seconds" IsChecked="{Binding ShowSeconds}" Margin="0,8,0,0"/>
+</StackPanel></controls:TextSettingsEntry>
+<controls:TextSettingsEntry Header="Date"><StackPanel>  <TextBlock Text="Date size" Margin="0,6,0,0"/>
+  <WrapPanel><numeric:DoubleBox Width="64" VerticalAlignment="Center" Value="{Binding DateSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="72" Style="{StaticResource {x:Type TextBox}}"/><controls:PopupColorPicker Margin="8,0,0,0" VerticalAlignment="Center" SelectedColor="{Binding DateColor, Mode=TwoWay}" UseCustomColor="{Binding UseCustomColors, Mode=TwoWay}"/></WrapPanel>
   <CheckBox Content="Show date" IsChecked="{Binding ShowDate}" Margin="0,6,0,0"/>
   <TextBlock Text="Date format" Margin="0,6,0,0"/>
   <ComboBox SelectedValue="{Binding DateFormat}" SelectedValuePath="Tag">
@@ -45,15 +35,22 @@
    <ComboBoxItem Content="Uppercase month" Tag="{x:Static settings:ClockDateCapitalization.UppercaseMonth}"/>
    <ComboBoxItem Content="Uppercase entire date" Tag="{x:Static settings:ClockDateCapitalization.UppercaseDate}"/>
   </ComboBox>
-<Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><StackPanel Margin="8,6,0,8">
-  <CheckBox Content="Use separate time and date colors" IsChecked="{Binding UseCustomColors}" Margin="0,8,0,0"/>
-  <TextBlock Text="Time color" Margin="0,6,0,0"/>
-  <controls:ColorPicker SelectedColor="{Binding TimeColor, Mode=TwoWay}"/>
-  <TextBlock Text="Date color" Margin="0,6,0,0"/>
-  <controls:ColorPicker SelectedColor="{Binding DateColor, Mode=TwoWay}"/>
-  <TextBlock Text="These colors take priority over the widget text color." TextWrapping="Wrap" Margin="0,4,0,0"/>
+</StackPanel></controls:TextSettingsEntry>
+</controls:TextSettingsSelector>
 
-</StackPanel></Expander>
+  <TextBlock Text="Horizontal alignment" Margin="0,6,0,0"/>
+  <ComboBox SelectedValue="{Binding HorizontalAlignment}" SelectedValuePath="Tag">
+   <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/>
+   <ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/>
+   <ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/>
+  </ComboBox>
+  <TextBlock Text="Vertical alignment" Margin="0,6,0,0"/>
+  <ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
+   <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/>
+   <ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/>
+   <ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
+  </ComboBox>
+
   <CheckBox Content="Animate at 13:37" IsChecked="{Binding EnableAnimation}" Margin="0,8,0,0"/>
  </StackPanel>
 </UserControl>

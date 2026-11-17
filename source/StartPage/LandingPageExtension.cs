@@ -758,7 +758,7 @@ namespace LandingPage
                 ViewId = "RecentAchivements",
                 Name = ResourceProvider.GetString("LOC_SPG_RecentAchievementsView"),
                 Description = ResourceProvider.GetString("LOC_SPG_RecentAchievementsDescription"),
-                HasSettings = true,
+                HasSettings = false,
             });
 
             string gameActivityPath = null;
@@ -819,6 +819,8 @@ namespace LandingPage
                 Description = "Local images, banners, and logos with an optional website link. Configure in Appearance.",
                 AllowMultipleInstances = true
             });
+            foreach (var entry in new[] { new[] { "AchievementProgress", "Achievement progress cards" }, new[] { "AchievementFinishNext", "Achievement finish next" }, new[] { "AchievementGoals", "Achievement goals" }, new[] { "GameAchievementList", "Game achievements list" } })
+                views.Add(new StartPageViewArgsBase { ViewId = entry[0], Name = entry[1], Description = entry[0] == "GameAchievementList" ? "Individual achievements for the selected, hovered or pinned game. Configure in Appearance." : "Customizable achievement cards, rings, bars and game targets. Configure in Appearance.", AllowMultipleInstances = true });
             views.Add(new StartPageViewArgsBase { ViewId = "LibraryChart", Name = "Library chart", Description = "An independent library graph for game counts or playtime. Add multiple charts and configure each in Appearance.", AllowMultipleInstances = true });
             views.Add(new StartPageViewArgsBase { ViewId = "LibraryStatistics", Name = "Library statistics", Description = "Configurable game counters and total playtime. Configure in Appearance.", AllowMultipleInstances = true });
             foreach (var definition in Models.GameDetailWidgets.Definitions)
@@ -829,6 +831,7 @@ namespace LandingPage
             return args;
         }
 
+        private Dictionary<Guid, AchievementWidgetView> achievementWidgetViews = new Dictionary<Guid, AchievementWidgetView>();
         private Task gameActivityTask = Task.CompletedTask;
         private BackgroundView globalBackground;
         internal BackgroundView GlobalBackgroundView => globalBackground as BackgroundView;
@@ -836,6 +839,7 @@ namespace LandingPage
 
         public object GetStartPageView(string id, Guid instanceId)
         {
+            if (LandingPage.Settings.AchievementWidgetSettings.IsWidget(id)) { if (achievementWidgetViews == null) achievementWidgetViews = new Dictionary<Guid, AchievementWidgetView>(); var achievement = new AchievementWidgetView(id); achievementWidgetViews[instanceId] = achievement; return achievement; }
             if(id == "LibraryStatistics" || id == "LibraryChart") { var stats = new LibraryStatisticsView(id == "LibraryChart"); libraryStatisticsViews[instanceId] = stats; return stats; }
             var detail = Models.GameDetailWidgets.Find(id);
             if (id == "FeaturedGame" || detail != null)
@@ -843,14 +847,6 @@ namespace LandingPage
                 if (featuredGameViews == null) featuredGameViews = new Dictionary<Guid, FeaturedGameView>();
                 var featured = new FeaturedGameView(detail); featuredGameViews[instanceId] = featured;
                 return featured;
-            }
-            if (id == "RecentAchivements")
-            {
-                var view = new RecentAchievementsView()
-                {
-                    DataContext = new RecentAchievementsViewModel(SettingsViewModel)
-                };
-                return view;
             }
             if (id == "GameShelves")
             {
@@ -924,6 +920,7 @@ namespace LandingPage
 
         public void OnViewRemoved(string viewId, Guid instanceId)
         {
+            if (achievementWidgetViews?.TryGetValue(instanceId,out var achievement) == true) { achievement.OnViewClosed(); achievementWidgetViews.Remove(instanceId); }
             if((viewId == "LibraryStatistics" || viewId == "LibraryChart") && libraryStatisticsViews.TryGetValue(instanceId,out var stats)) { stats.OnViewClosed(); libraryStatisticsViews.Remove(instanceId); }
             if ((viewId == "FeaturedGame" || Models.GameDetailWidgets.Find(viewId) != null) && featuredGameViews?.TryGetValue(instanceId, out var featured) == true)
             { featured.OnViewClosed(); featuredGameViews.Remove(instanceId); }

@@ -20,6 +20,11 @@ namespace LandingPage.Views.Settings
         }
         public object[] ConvertBack(object value,Type[] targetTypes,object parameter,System.Globalization.CultureInfo culture) => throw new NotSupportedException();
     }
+    public sealed class InverseGlobalColorConverter : IValueConverter
+    {
+        public object Convert(object value,Type type,object parameter,System.Globalization.CultureInfo culture) => !(value is bool flag && flag);
+        public object ConvertBack(object value,Type type,object parameter,System.Globalization.CultureInfo culture) => !(value is bool flag && flag);
+    }
     public partial class LibraryStatisticsSettingsView : UserControl
     {
         public static readonly DependencyProperty ChartOnlyProperty = DependencyProperty.Register(nameof(ChartOnly),typeof(bool),typeof(LibraryStatisticsSettingsView),new PropertyMetadata(false,(sender,args) => ((LibraryStatisticsSettingsView)sender).UpdateMode()));
@@ -35,7 +40,7 @@ namespace LandingPage.Views.Settings
             foreach(var element in new FrameworkElement[] {CounterOptions,CounterGridOptions,PeriodOptions,AdditionalCounterOptions,StatisticGroupOptions,RowsOption,ValueTextOptions,CounterLabelStrikeToggle,CounterLabelTextOptions,CounterRenderingOptions,ValueSizeLabel,ValueSizeInput,TileWidthLabel,TileWidthInput}) element.Visibility = ChartOnly ? Visibility.Collapsed : Visibility.Visible;
             ChartOptions.Visibility = ChartPaletteOptions.Visibility = ChartOnly && ChildChart ? Visibility.Visible : Visibility.Collapsed;
             ChartColors.Header = ChartOnly ? "Colors" : "Global colors";
-            GlobalTextColorToggle.Content = ChartOnly ? "Use custom label color" : "Use custom global text color";
+            GlobalTextColorToggle.CustomColorLabel = ChartOnly ? "Use custom label color" : "Use custom global text color";
             ChartColors.Visibility = ScopeOptions.Visibility = LayoutTextOptions.Visibility = Manager ? Visibility.Collapsed : Visibility.Visible;
             MultiChartOptions.Visibility = Manager ? Visibility.Visible : Visibility.Collapsed;
             ShowChartOption.Visibility = Visibility.Collapsed;
@@ -97,11 +102,13 @@ namespace LandingPage.Views.Settings
         {
             if(ReferenceEquals(sender,args.OriginalSource) && sender is Expander expander) expander.ContentTemplate = (DataTemplate)expander.FindResource("StatisticPositionFields");
         }
-        private void GlobalTextColor_Mouse(object sender,System.Windows.Input.MouseButtonEventArgs args) => GlobalTextColor_Editing(sender,args);
-        private void GlobalTextColor_Key(object sender,System.Windows.Input.KeyEventArgs args) => GlobalTextColor_Editing(sender,args);
         private void GlobalTextColor_Editing(object sender,RoutedEventArgs args)
         {
-            if(!ChartOnly && DataContext is LibraryStatisticsSettings settings) settings.ValueColorMode = settings.CustomLabelColor ? StatisticsValueColor.MatchLabels : StatisticsValueColor.Theme;
+            if(DataContext is LibraryStatisticsSettings settings && sender is LandingPage.Controls.PopupColorPicker picker)
+            {
+                settings.CustomLabelColor = picker.UseCustomColor;
+                if(!ChartOnly) settings.ValueColorMode = settings.CustomLabelColor ? StatisticsValueColor.MatchLabels : StatisticsValueColor.Theme;
+            }
         }
         private void StatisticColors_Expanded(object sender,RoutedEventArgs args)
         {

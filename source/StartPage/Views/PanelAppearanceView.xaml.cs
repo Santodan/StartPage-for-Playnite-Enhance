@@ -11,8 +11,40 @@ namespace LandingPage.Views
         public PanelAppearanceView()
         {
             InitializeComponent();
-            Loaded += (sender,args) => SetDefaultExpansion();
-            DataContextChanged += (sender,args) => SetDefaultExpansion();
+            Loaded += (sender,args) => { LoadProviderSettings(); SetDefaultExpansion(); };
+            DataContextChanged += (sender,args) => { providerModel = null; ProviderSettingsHost.Content = null; LoadProviderSettings(); SetDefaultExpansion(); };
+        }
+
+        private GridNodeViewModel providerModel;
+        private void LoadProviderSettings()
+        {
+            var model = DataContext as GridNodeViewModel;
+            PanelLayoutSection.Visibility = model != null && (model.IndependentColumnHeightsCommand?.CanExecute(null) == true || model.IndependentRowWidthsCommand?.CanExecute(null) == true)
+                ? Visibility.Visible : Visibility.Collapsed;
+            if (model != null && ReferenceEquals(providerModel,model)) return;
+            ProviderSettingsHost.Content = null;
+            ProviderSettingsSection.Visibility = Visibility.Collapsed;
+            providerModel = model;
+            if (model?.GridNode.ViewProperties?.StartPageViewArgs?.HasSettings != true) return;
+            try {
+                var settings = model.ViewSettings;
+                if (settings == null) return;
+                ProviderSettingsHost.Content = settings;
+                var id = model.GridNode.ViewProperties.ViewId;
+                ProviderSettingsSection.Header = id == "GameShelves" ? "Shelf settings" : id == "MostPlayed" ? "Most Played settings" : "Widget-specific settings";
+                ProviderSettingsSection.Visibility = Visibility.Visible;
+            } catch (Exception ex) {
+                LandingPageExtension.logger?.Warn(ex,"Unable to open widget-specific settings in the unified editor.");
+                var message = new TextBlock { Text = "The widget provider could not open its settings. See the Playnite log for details.", TextWrapping = TextWrapping.Wrap };
+                message.SetResourceReference(TextBlock.ForegroundProperty,"TextBrush");
+                ProviderSettingsHost.Content = message; ProviderSettingsSection.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void IndependentLayout_Click(object sender,RoutedEventArgs e)
+        {
+            // Let the button command finish reparenting before dismissing the editor.
+            Dispatcher.BeginInvoke(new Action(() => Done?.Invoke(this,new RoutedEventArgs())),System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         private void SetDefaultExpansion()

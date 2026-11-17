@@ -14,12 +14,11 @@
    <TextBlock Text="Internal padding" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding Padding}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
    <TextBlock Text="Spacing (automatic layout)" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding Margin}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
    <CheckBox Content="Shadow" IsChecked="{Binding Shadow}" Margin="0,6,0,4"/>
-   <Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,4"><StackPanel Margin="8,6,0,8">
-    <TextBlock Text="Background color"/><controls:ColorPicker SelectedColor="{Binding Background, Mode=TwoWay, ValidatesOnExceptions=True}"/>
-    <TextBlock Text="Border color" Margin="0,5,0,2"/><controls:ColorPicker SelectedColor="{Binding BorderColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
-    <CheckBox Content="Override section text color" IsChecked="{Binding CustomizeText}" Margin="0,6,0,4"/>
-    <controls:ColorPicker SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
-   </StackPanel></Expander>
+   <Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,4"><UniformGrid Columns="3" Margin="8,6,0,8">
+    <controls:PopupColorPicker Label="Background color" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding Background, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+    <controls:PopupColorPicker Label="Border color" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding BorderColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+    <controls:PopupColorPicker Label="Override section text color" UseCustomColor="{Binding CustomizeText}" Margin="0,4,8,4" SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+   </UniformGrid></Expander>
   </StackPanel>
   <Button Content="Reset section appearance" Click="Reset_Click" Margin="0,6,0,0"/>
  </StackPanel>

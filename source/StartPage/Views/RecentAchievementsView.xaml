@@ -12,6 +12,7 @@
              d:DesignHeight="450" d:DesignWidth="800"
              d:DataContext="{d:DesignInstance IsDesignTimeCreatable=False, Type=m:SuccessStoryViewModel}">
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanVisibility"/>
         <conv:AchievementToImageConverter x:Key="AchievementToImageConverter"/>
         <system:Uri x:Key="DefaultAchievementUri">pack://application:,,,/StartPagePlugin;component/star.png</system:Uri>
         <conv:AchievementsToProgressConverter x:Key="AchievementsToProgressConverter"/>
@@ -51,11 +52,18 @@
                                                     </Setter>
                                                 </Style>
                                             </Button.Style>
-                                            <TextBlock Text="{Binding Name.GameName}"/>
+                                            <TextBlock x:Name="RecentGroupTitle" Text="{Binding Name.GameName}"/>
                                         </Button>
                                         <ProgressBar x:Name="AchievementsProgress" Height="2" Margin="0,3,0,1" HorizontalAlignment="Stretch"
                                                         Width="Auto" 
                                                         Minimum="0" Maximum="1">
+                                            <ProgressBar.Style><Style TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}"><Style.Triggers>
+                                                <DataTrigger Binding="{Binding Settings.ShowGroupProgress, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Settings.RecentGrouping, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="UnlockDay"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Settings.RecentGrouping, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="Source"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Settings.RecentGrouping, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="Platform"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding Settings.CustomizeRecentProgress, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"><Setter Property="Foreground" Value="{Binding Settings.ProgressColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></DataTrigger>
+                                            </Style.Triggers></Style></ProgressBar.Style>
                                             <ProgressBar.Triggers>
                                                 <EventTrigger RoutedEvent="Loaded">
                                                     <BeginStoryboard>
@@ -75,6 +83,22 @@
                                         </ProgressBar>
                                         <ItemsPresenter Margin="5"/>
                                     </StackPanel>
+                                    <ControlTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Settings.CustomizeRecentTypography, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"><Setter TargetName="RecentGroupTitle" Property="FontSize" Value="{Binding Settings.TitleSize, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></DataTrigger>
+                                        <DataTrigger Binding="{Binding Settings.CustomTextColors, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"><Setter TargetName="RecentGroupTitle" Property="Foreground" Value="{Binding Settings.TitleColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></DataTrigger>
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.CustomizeRecentTypography, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/><Condition Binding="{Binding Settings.Bold, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="RecentGroupTitle" Property="FontWeight" Value="Bold"/></MultiDataTrigger>
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.CustomizeRecentTypography, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/><Condition Binding="{Binding Settings.Italic, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="RecentGroupTitle" Property="FontStyle" Value="Italic"/></MultiDataTrigger>
+
+                                        <DataTrigger Binding="{Binding Settings.TextStyles[GroupTitle].UseDefaults, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False">
+                                            <Setter TargetName="RecentGroupTitle" Property="FontSize" Value="{Binding Settings.TextStyles[GroupTitle].Size, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/>
+                                            <Setter TargetName="RecentGroupTitle" Property="FontWeight" Value="{Binding Settings.TextStyles[GroupTitle].FontWeight, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/>
+                                            <Setter TargetName="RecentGroupTitle" Property="FontStyle" Value="{Binding Settings.TextStyles[GroupTitle].FontStyle, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/>
+                                        </DataTrigger>
+                                        <MultiDataTrigger><MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding Settings.TextStyles[GroupTitle].UseDefaults, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"/>
+                                            <Condition Binding="{Binding Settings.TextStyles[GroupTitle].UseCustomColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/>
+                                        </MultiDataTrigger.Conditions><Setter TargetName="RecentGroupTitle" Property="Foreground" Value="{Binding Settings.TextStyles[GroupTitle].Color, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></MultiDataTrigger>
+                                    </ControlTemplate.Triggers>
                                 </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
@@ -138,7 +162,7 @@
                                 <TextBlock Text="{Binding Achievement.Description}"/>
                             </StackPanel>
                         </Grid.ToolTip>-->
-                            <Border Width="35" Height="35" Margin="0,0,10,0" CornerRadius="5" Grid.Column="0">
+                            <Border x:Name="AchievementIcon" Width="35" Height="35" Margin="0,0,10,0" CornerRadius="5" Grid.Column="0">
                                 <Border.OpacityMask>
                                     <VisualBrush>
                                         <VisualBrush.Visual>
@@ -161,10 +185,12 @@
                             <!--<TextBlock Text="{Binding Game.Game.Name, TargetNullValue='Game Name'}" VerticalAlignment="Center"
                             Margin="0,0,10,0"/>-->
                             <StackPanel x:Name="AchievementTexts" Grid.Column="1" VerticalAlignment="Center" MaxHeight="35">
-                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                <TextBlock x:Name="AchievementTitle" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                                 />
                                 <TextBlock x:Name="Description" Text="{Binding Description}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" 
                                 FontSize="{DynamicResource FontSizeSmall}" Opacity="0.6"/>
+                                <TextBlock x:Name="RecentGameName" Text="{Binding GameInfo.GameName}" FontSize="{DynamicResource FontSizeSmall}" Visibility="Collapsed"/>
+                                <TextBlock x:Name="RecentUnlockDate" Text="{Binding UnlockedOn, StringFormat=g}" FontSize="{DynamicResource FontSizeSmall}" Visibility="Collapsed"/>
                             </StackPanel>
                             <ToggleButton x:Name="Toggle" IsChecked="False" Grid.ColumnSpan="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                           Padding="0" Margin="0">
@@ -177,6 +203,26 @@
                         </Grid>
                     </Border>
                     <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding Settings.CustomizeRecentIconSize, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"><Setter TargetName="AchievementIcon" Property="Width" Value="{Binding Settings.ArtworkSize, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="AchievementIcon" Property="Height" Value="{Binding Settings.ArtworkSize, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Settings.ShowArtwork, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"><Setter TargetName="AchievementIcon" Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Settings.ShowTitle, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"><Setter TargetName="AchievementTitle" Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Settings.ShowDescription, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"><Setter TargetName="Description" Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Settings.ShowRecentGameName, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"><Setter TargetName="RecentGameName" Property="Visibility" Value="Visible"/><Setter TargetName="AchievementTexts" Property="MaxHeight" Value="120"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Settings.ShowRecentExtraDetails, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"><Setter TargetName="RecentUnlockDate" Property="Visibility" Value="Visible"/><Setter TargetName="AchievementTexts" Property="MaxHeight" Value="120"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Settings.CustomTextColors, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"><Setter TargetName="AchievementTitle" Property="Foreground" Value="{Binding Settings.TitleColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="Description" Property="Foreground" Value="{Binding Settings.DetailColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="RecentGameName" Property="Foreground" Value="{Binding Settings.DetailColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="RecentUnlockDate" Property="Foreground" Value="{Binding Settings.DetailColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Settings.CustomizeRecentTypography, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"><Setter TargetName="AchievementTitle" Property="FontSize" Value="{Binding Settings.TitleSize, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="Description" Property="FontSize" Value="{Binding Settings.DetailSize, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="RecentGameName" Property="FontSize" Value="{Binding Settings.DetailSize, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="RecentUnlockDate" Property="FontSize" Value="{Binding Settings.DetailSize, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="AchievementTexts" Property="MaxHeight" Value="120"/></DataTrigger>
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.CustomizeRecentTypography, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/><Condition Binding="{Binding Settings.Bold, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="AchievementTitle" Property="FontWeight" Value="Bold"/></MultiDataTrigger>
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.CustomizeRecentTypography, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/><Condition Binding="{Binding Settings.Italic, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="AchievementTitle" Property="FontStyle" Value="Italic"/></MultiDataTrigger>
+
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.CustomizeRecentTypography, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/><Condition Binding="{Binding Settings.DetailBold, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="Description" Property="FontWeight" Value="Bold"/><Setter TargetName="RecentGameName" Property="FontWeight" Value="Bold"/><Setter TargetName="RecentUnlockDate" Property="FontWeight" Value="Bold"/></MultiDataTrigger>
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.CustomizeRecentTypography, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/><Condition Binding="{Binding Settings.DetailItalic, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="Description" Property="FontStyle" Value="Italic"/><Setter TargetName="RecentGameName" Property="FontStyle" Value="Italic"/><Setter TargetName="RecentUnlockDate" Property="FontStyle" Value="Italic"/></MultiDataTrigger>
+<DataTrigger Binding="{Binding Settings.TextStyles[Description].UseDefaults, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"><Setter TargetName="Description" Property="FontWeight" Value="{Binding Settings.TextStyles[Description].FontWeight, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="Description" Property="FontStyle" Value="{Binding Settings.TextStyles[Description].FontStyle, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="Description" Property="FontSize" Value="{Binding Settings.TextStyles[Description].Size, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="AchievementTexts" Property="MaxHeight" Value="120"/></DataTrigger>
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.TextStyles[Description].UseDefaults, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"/><Condition Binding="{Binding Settings.TextStyles[Description].UseCustomColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="Description" Property="Foreground" Value="{Binding Settings.TextStyles[Description].Color, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></MultiDataTrigger>
+<DataTrigger Binding="{Binding Settings.TextStyles[GameName].UseDefaults, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"><Setter TargetName="RecentGameName" Property="FontWeight" Value="{Binding Settings.TextStyles[GameName].FontWeight, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="RecentGameName" Property="FontStyle" Value="{Binding Settings.TextStyles[GameName].FontStyle, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="RecentGameName" Property="FontSize" Value="{Binding Settings.TextStyles[GameName].Size, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="AchievementTexts" Property="MaxHeight" Value="120"/></DataTrigger>
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.TextStyles[GameName].UseDefaults, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"/><Condition Binding="{Binding Settings.TextStyles[GameName].UseCustomColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="RecentGameName" Property="Foreground" Value="{Binding Settings.TextStyles[GameName].Color, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></MultiDataTrigger>
+<DataTrigger Binding="{Binding Settings.TextStyles[UnlockDate].UseDefaults, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"><Setter TargetName="RecentUnlockDate" Property="FontWeight" Value="{Binding Settings.TextStyles[UnlockDate].FontWeight, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="RecentUnlockDate" Property="FontStyle" Value="{Binding Settings.TextStyles[UnlockDate].FontStyle, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="RecentUnlockDate" Property="FontSize" Value="{Binding Settings.TextStyles[UnlockDate].Size, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/><Setter TargetName="AchievementTexts" Property="MaxHeight" Value="120"/></DataTrigger>
+<MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Settings.TextStyles[UnlockDate].UseDefaults, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="False"/><Condition Binding="{Binding Settings.TextStyles[UnlockDate].UseCustomColor, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="RecentUnlockDate" Property="Foreground" Value="{Binding Settings.TextStyles[UnlockDate].Color, RelativeSource={RelativeSource AncestorType=local:RecentAchievementsView}}"/></MultiDataTrigger>
+
                         <Trigger SourceName="Toggle" Property="IsChecked" Value="True">
                             <Trigger.EnterActions>
                                 <BeginStoryboard>

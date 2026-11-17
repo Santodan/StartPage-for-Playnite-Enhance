@@ -110,12 +110,10 @@
         <Expander Header="Group appearance" Margin="0,6,0,0">
          <StackPanel Margin="8,6,0,8">
           <CheckBox Content="Show background" IsChecked="{Binding ShowBackground}" Foreground="{DynamicResource TextBrush}"/>
-          <Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><StackPanel Margin="8,6,0,8">
-          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Background color" Margin="0,4,0,2"/>
-          <controls:ColorPicker SelectedColor="{Binding Background, Mode=TwoWay, ValidatesOnExceptions=True}"/>
-          <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Border color" Margin="0,4,0,2"/>
-          <controls:ColorPicker SelectedColor="{Binding BorderColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
-          </StackPanel></Expander>
+          <Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><UniformGrid Columns="3" Margin="8,6,0,8">
+          <controls:PopupColorPicker Label="Background color" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding Background, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+          <controls:PopupColorPicker Label="Border color" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding BorderColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
+          </UniformGrid></Expander>
           <TextBlock Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}" Text="Background opacity" Margin="0,4,0,2"/>
           <Slider Value="{Binding BackgroundOpacity}" Minimum="0" Maximum="1" SmallChange="0.01" TickFrequency="0.01"/>
           <numeric:DoubleBox Value="{Binding BackgroundOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>

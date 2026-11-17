@@ -9,6 +9,7 @@
              xmlns:conv="clr-namespace:LandingPage.Converters"
              xmlns:ext="clr-namespace:PlayniteCommon.Extensions;assembly=felixkmh.PlayniteCommon"
              xmlns:views="clr-namespace:LandingPage.Views"
+             xmlns:settings="clr-namespace:LandingPage.Settings"
              mc:Ignorable="d"
              d:DesignHeight="400" d:DesignWidth="600"
              d:DataContext="{d:DesignInstance IsDesignTimeCreatable=False, Type=local:LandingPageSettingsViewModel}"
@@ -166,28 +167,10 @@
                     <CheckBox IsChecked="{Binding Settings.KeepInMemory}" VerticalAlignment="Center" Margin="3"/>
                     <TextBlock Text="{DynamicResource LOC_SPG_KeepInMemory}" Margin="3" VerticalAlignment="Center"/>
                 </StackPanel>-->
-                        <DockPanel LastChildFill="False">
-                            <TextBlock Text="{DynamicResource LOC_SPG_MaxRecentAchievements}" VerticalAlignment="Center"/>
-                            <numeric:IntBox Value="{Binding Settings.MaxNumberRecentAchievements, UpdateSourceTrigger=PropertyChanged}" 
-                                    MinValue="0"
-                                    MaxValue="20"
-                                    MinWidth="30"
-                                    ValidationTrigger="PropertyChanged"
-                                    Style="{StaticResource {x:Type TextBox}}"
-                                    TextAlignment="Center">
-                            </numeric:IntBox>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False">
-                            <TextBlock Text="{DynamicResource LOC_SPG_MaxRecentAchievementsPerGame}" VerticalAlignment="Center"/>
-                            <numeric:IntBox Value="{Binding Settings.MaxNumberRecentAchievementsPerGame, UpdateSourceTrigger=PropertyChanged}" 
-                                    MinValue="0"
-                                    MaxValue="20"
-                                    MinWidth="30"
-                                    ValidationTrigger="PropertyChanged"
-                                    Style="{StaticResource {x:Type TextBox}}"
-                                    TextAlignment="Center">
-                            </numeric:IntBox>
-                        </DockPanel>
+                        <TextBlock Text="Achievement provider" Foreground="{DynamicResource TextBrush}" Margin="3,6,3,2"/>
+                        <ComboBox ItemsSource="{Binding Source={ext:EnumBindingSource {x:Type settings:AchievementsProvider}}}" SelectedValue="{Binding Settings.SelectedAchievementsProvider}" Margin="3"/>
+                        <TextBlock Text="Recent Achievements display and limits: open the widget's Appearance menu." TextWrapping="Wrap" Margin="3,6" Foreground="{DynamicResource TextBrush}"/>
+
                         <DockPanel LastChildFill="False">
                             <DockPanel.ToolTip>
                                 <TextBlock Text="{DynamicResource LOC_SPG_FixGridHeight_Tooltip}" TextWrapping="Wrap" MaxWidth="550"/>

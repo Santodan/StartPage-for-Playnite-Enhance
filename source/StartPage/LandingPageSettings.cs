@@ -397,6 +397,9 @@ namespace LandingPage
                 Settings.ShelveProperties = new ObservableCollection<ShelveProperties> { ShelveProperties.RecentlyPlayed, ShelveProperties.RecentlyAdded };
             }
 
+            // Serialized model getters must not access the plugin while LoadPluginSettings is running.
+            LandingPage.Settings.AchievementWidgetSettings.MigrateLegacy(Settings);
+
             if (Settings.ShelveProperties == null)
             {
                 Settings.ShelveProperties = new ObservableCollection<ShelveProperties> { ShelveProperties.RecentlyPlayed, ShelveProperties.RecentlyAdded };
