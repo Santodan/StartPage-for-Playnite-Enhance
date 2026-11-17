@@ -1,4 +1,4 @@
-﻿using LandingPage.ViewModels;
+using LandingPage.ViewModels;
 using LandingPage.Views;
 using Playnite.SDK;
 using Playnite.SDK.Events;
@@ -256,28 +256,25 @@ namespace LandingPage
             {
                 if (globalBackground is BackgroundView)
                 {
-                    globalBackground.Opacity = 1;
+                    UpdateGlobalBackgroundVisibility();
                 }
             });
 
             isViewOpen = true;
+            UpdateGlobalBackgroundVisibility();
 
             return startPageView;
         }
 
         private async void ViewClosed()
         {
+            isViewOpen = false;
+            UpdateGlobalBackgroundVisibility();
             if (startPageView?.DataContext is StartPageViewModel model)
             {
                 await model.Closed();
             }
 
-            if (globalBackground is BackgroundView)
-            {
-                globalBackground.SetBinding(UIElement.OpacityProperty, new Binding("Settings.GlobalBackgroundOpacity") { Source = SettingsViewModel });
-            }
-
-            isViewOpen = false;
 
             GC.Collect();
         }
@@ -605,6 +602,15 @@ namespace LandingPage
             if (startPageView is StartPageView view) BindDashboardProgress(view);
         }
 
+        private void UpdateGlobalBackgroundVisibility()
+        {
+            if (globalBackground == null) return;
+            globalBackground.Visibility = Settings.EnableGlobalBackground
+                && (isViewOpen || Settings.ShowBackgroundOutsideStartPage) ? Visibility.Visible : Visibility.Collapsed;
+            if (isViewOpen) globalBackground.Opacity = 1;
+            else globalBackground.SetBinding(UIElement.OpacityProperty,
+                new Binding("Settings.GlobalBackgroundOpacity") { Source = SettingsViewModel });
+        }
         private void SetGlobalBackground()
         {
             logger.Debug("Trying to execute unsupported actions...");
@@ -626,13 +632,10 @@ namespace LandingPage
                                 {
                                     globalBackground.SetBinding(UIElement.OpacityProperty, new Binding("Settings.GlobalBackgroundOpacity") { Source = SettingsViewModel });
                                 }
-                                globalBackground.SetBinding(UIElement.VisibilityProperty, new Binding("Settings.EnableGlobalBackground")
-                                {
-                                    Source = SettingsViewModel,
-                                    Converter = ResourceProvider.GetResource<IValueConverter>("BooleanToVisibilityConverter")
-                                });
+
                                 grid.Children.Insert(0, globalBackground);
                             }
+                            UpdateGlobalBackgroundVisibility();
                         }
                     }
                     catch (Exception ex)

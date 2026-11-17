@@ -264,6 +264,9 @@ namespace LandingPage
         private bool enableGlobalBackground = false;
         public bool EnableGlobalBackground { get => enableGlobalBackground; set => SetValue(ref enableGlobalBackground, value); }
 
+        private bool showBackgroundOutsideStartPage;
+        public bool ShowBackgroundOutsideStartPage { get => showBackgroundOutsideStartPage; set => SetValue(ref showBackgroundOutsideStartPage, value); }
+
         private double globalBackgroundOpacity = 0.8;
         public double GlobalBackgroundOpacity { get => globalBackgroundOpacity; set => SetValue(ref globalBackgroundOpacity, value); }
 

@@ -204,6 +204,9 @@
                             <CheckBox IsChecked="{Binding Settings.EnableGlobalBackground}" VerticalAlignment="Center" Margin="3"/>
                             <TextBlock Text="{DynamicResource LOC_SPG_EnableGlobalBackground}" Margin="3" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </DockPanel>
+                        <CheckBox Content="Also show StartPage background in the library and other extensions"
+                                  IsChecked="{Binding Settings.ShowBackgroundOutsideStartPage}" IsEnabled="{Binding Settings.EnableGlobalBackground}"
+                                  Margin="3" ToolTip="Off by default. Other views keep their own backgrounds when you leave StartPage."/>
                         <DockPanel LastChildFill="False" IsEnabled="{Binding Settings.EnableGlobalBackground}">
                             <Grid VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>

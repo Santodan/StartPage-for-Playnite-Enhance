@@ -138,6 +138,23 @@ $body = @'
         if($viewportPanel.Margin -ne [Windows.Thickness]::new(0)) { throw 'Disabling sidebar exclusion does not restore the full-window background' }
     } finally { $nativeWindow.Close(); Flush-Background }
     if($globalView.GetType().GetField('hostContent',$flags).GetValue($globalView)) { throw 'Background retains native theme controls after unload' }
+    $scopeSettings = $plugin.GetType().GetProperty('Settings',$flags).GetValue($plugin)
+    [LandingPage.LandingPageSettings].GetProperty('EnableGlobalBackground').SetValue($scopeSettings,$true)
+    if([LandingPage.LandingPageSettings].GetProperty('ShowBackgroundOutsideStartPage').GetValue($scopeSettings)) { throw 'Background must stay in StartPage by default' }
+    Set-Field $plugin 'globalBackground' $globalView
+    $updateScope = $plugin.GetType().GetMethod('UpdateGlobalBackgroundVisibility',$flags)
+    foreach($case in @(@($true,$false,'Visible'),@($false,$false,'Collapsed'),@($false,$true,'Visible'),@($true,$true,'Visible'))) {
+        Set-Field $plugin 'isViewOpen' $case[0]
+        [LandingPage.LandingPageSettings].GetProperty('ShowBackgroundOutsideStartPage').SetValue($scopeSettings,$case[1])
+        [void]$updateScope.Invoke($plugin,@())
+        if($globalView.Visibility.ToString() -ne $case[2]) { throw 'Background scope did not follow navigation and opt-in' }
+    }
+    [LandingPage.LandingPageSettings].GetProperty('EnableGlobalBackground').SetValue($scopeSettings,$false)
+    [void]$updateScope.Invoke($plugin,@())
+    if($globalView.Visibility -ne 'Collapsed') { throw 'Disabled global background is visible' }
+    Set-Field $plugin 'globalBackground' $null
+    [LandingPage.LandingPageSettings].GetProperty('ShowBackgroundOutsideStartPage').SetValue($scopeSettings,$false)
+    'PASS: background navigation isolation, explicit global opt-in and disabled state.'
     'PASS: optional sidebar exclusion, local/global isolation, resizing, all four sidebar placements, hidden-sidebar recovery and unload cleanup.'
     [void]$view.Content.Children.Remove($backgroundView); [void]$view.Content.Children.Remove($art); [void]$view.Content.Children.Remove($effects); Flush-Background
     if($art.GetType().GetField('observed',$flags).GetValue($art)) { throw 'Unloaded background retains its settings listener' }
