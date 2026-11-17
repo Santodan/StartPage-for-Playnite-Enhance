@@ -10,7 +10,7 @@
   <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/v/release/Santodan/StartPage-for-Playnite-Enhance?include_prereleases&amp;sort=date&amp;style=for-the-badge&amp;logo=github&amp;label=Release&amp;color=00A8E8" alt="Latest release, including experimental releases" /></a>
   <a href="https://github.com/JosefNemec/PlayniteSDK"><img src="https://img.shields.io/badge/Playnite%20SDK-6.1.0-6C63FF?style=for-the-badge" alt="Playnite SDK 6.1.0" /></a>
   <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/downloads/Santodan/StartPage-for-Playnite-Enhance/total?style=for-the-badge&amp;label=Total%20downloads&amp;color=00BE8E" alt="Total release downloads" /></a>
-  <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/downloads/Santodan/StartPage-for-Playnite-Enhance/v0.16.0/total?style=for-the-badge&amp;label=Latest%20release%20downloads&amp;color=8B5CF6" alt="Latest release downloads" /></a>
+  <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/downloads/Santodan/StartPage-for-Playnite-Enhance/v0.21.0/total?style=for-the-badge&amp;label=Latest%20release%20downloads&amp;color=8B5CF6" alt="Latest release downloads" /></a>
     <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/stargazers"><img src="https://img.shields.io/github/stars/Santodan/StartPage-for-Playnite-Enhance?style=for-the-badge&amp;logo=github&amp;label=Stars&amp;color=F5A000" alt="GitHub stars" /></a>
 </p>
 

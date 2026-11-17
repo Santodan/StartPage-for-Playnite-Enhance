@@ -1,5 +1,17 @@
 AddonId: santodan_StartPage_Enhanced_Plugin
 Packages:
+  - Version: 0.21.0
+    RequiredApiVersion: 6.1.0
+    ReleaseDate: 2026-11-17
+    PackageUrl: https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases/download/v0.21.0/santodan_StartPage_Enhanced_Plugin_0_21_0.pext
+    Changelog:
+      - Added customizable achievement widgets and expanded Recent Achievements settings.
+      - Added compact text and color editors, grouped widget selection and unified settings gears.
+      - Added GitHub update notifications with prerelease support during experimental development.
+      - Added shortcuts for games, applications, folders and websites with automatic icons.
+      - Added decorative dividers, connected lines, appearance matching and safe adjacent panel merges.
+      - Added customizable backgrounds with improved image sizing, animated GIF and video support.
+      - Added per-page background effects, playback controls and optional sidebar exclusion.
   - Version: 0.16.0
     RequiredApiVersion: 6.1.0
     ReleaseDate: 2026-11-16
