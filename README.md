@@ -20,6 +20,10 @@ Build your own Playnite desktop dashboard with configurable pages, game shelves,
 
 [Roadmap](CUSTOMIZATION-ROADMAP.md) - [Report a bug](https://github.com/Santodan/StartPage-for-Playnite-Enhance/issues/new) - [Suggest a feature](https://github.com/Santodan/StartPage-for-Playnite-Enhance/issues) - [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases)
 
+## Shortcut widget
+
+In dashboard Edit Mode, choose **Add view > StartPage > General > Shortcuts**. Its gear opens **Shortcut settings**, where you can add games, applications, folders and websites, set labels/icons, reorder entries and adjust layout, typography and button colors. Application arguments and working directory have separate fields. Shortcuts activate outside Edit Mode; unavailable targets show a disabled button with an explanatory tooltip. Each widget keeps its own list, saved with dashboard profiles. Blank custom-icon fields use native game/application/Windows folder icons, or fetch the website favicon asynchronously. Website icons are cached locally for seven days; sites without a usable favicon keep a Windows web icon.
+
 ## Update notifications
 
 Open **Add-ons > Extension settings > StartPage-for-Playnite-Enhance > Updates** to enable or disable automatic GitHub checks, or press **Check now**. Checks run 30 seconds after startup and every six hours without blocking dashboard loading. Available updates appear in Playnite notifications; clicking one opens the release page to review the notes and download the `.pext`. Installation remains manual, alongside Playnite's existing add-on update mechanism.
@@ -28,7 +32,7 @@ Experimental **0.x** builds include published prereleases. From **1.0.0**, the c
 
 ## Install or move from the original StartPage
 
-1. Download the experimental `.pext` package from [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases). For a local build, use `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_16_0.pext`.
+1. Download the experimental `.pext` package from [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases). For a local build, use `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_18_0.pext`.
 2. Disable the original StartPage before enabling this fork. **They must not run together:** the shared runtime identity preserves settings and external widget compatibility.
 3. Open the `.pext` with Playnite and restart when prompted.
 4. Open StartPage from Playnite's sidebar. Enter Edit Mode from the dashboard's background menu to split panels and add widgets.

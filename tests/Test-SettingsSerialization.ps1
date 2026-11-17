@@ -19,6 +19,15 @@ $previousSerializer = $serializerField.GetValue($null)
 try {
     $serializerField.SetValue($null, [Playnite.Common.DataSerializer]::new())
     $pageCloneMethod = [Playnite.SDK.Data.Serialization].GetMethods() | Where-Object { $_.Name -eq 'GetClone' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 } | Select-Object -First 1
+    $shortcutProps = [LandingPage.Models.Layout.ViewProperties]::new(); $shortcutProps.ViewId = 'ShortcutWidget'
+    $shortcutProps.ShortcutSettings.FontSize = 19; $shortcutProps.ShortcutSettings.CustomBackground = $true
+    $shortcutEntry = [LandingPage.Settings.ShortcutEntry]::new(); $shortcutEntry.Kind = 'Application'; $shortcutEntry.Target = 'C:\Example\app.exe'; $shortcutEntry.Arguments = '--flag "a b"'; $shortcutEntry.WorkingDirectory = 'C:\Example'; $shortcutEntry.Label = 'App'
+    $shortcutProps.ShortcutSettings.Items.Add($shortcutEntry)
+    $shortcutRoundTrip = $pageCloneMethod.MakeGenericMethod([LandingPage.Models.Layout.ViewProperties]).Invoke($null,@($shortcutProps))
+    if($shortcutRoundTrip.ShortcutSettings.Items.Count -ne 1 -or $shortcutRoundTrip.ShortcutSettings.Items[0].Arguments -ne '--flag "a b"' -or $shortcutRoundTrip.ShortcutSettings.FontSize -ne 19 -or !$shortcutRoundTrip.ShortcutSettings.CustomBackground) { throw 'Playnite serializer lost shortcut configuration' }
+    $shortcutRoundTrip.ShortcutSettings.Items[0].Label = 'Changed clone'
+    if($shortcutProps.ShortcutSettings.Items[0].Label -ne 'App') { throw 'Shortcut clone shares original entries' }
+    'PASS: actual Playnite serializer preserves independent shortcut entries, launch fields and appearance.'
     $achievementProps = [LandingPage.Models.Layout.ViewProperties]::new(); $achievementProps.ViewId = 'AchievementGoals'
     $achievementProps.AchievementSettings.TitleSize = 33; $achievementProps.AchievementSettings.ProgressColor = '#22CC88'
     $goal = [LandingPage.Settings.AchievementGoal]::new(); $goal.GameId = [guid]::NewGuid(); $goal.GameName = 'Goal fixture'; $goal.TargetPercent = 85

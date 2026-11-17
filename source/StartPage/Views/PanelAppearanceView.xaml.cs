@@ -79,6 +79,12 @@ namespace LandingPage.Views
                 model.GridNode.ViewProperties.ToolbarSettings = new LandingPage.Settings.ToolbarWidgetSettings();
         }
 
+        private void ResetShortcuts_Click(object sender,RoutedEventArgs e)
+        {
+            if(DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)
+                model.GridNode.ViewProperties.ShortcutSettings = new LandingPage.Settings.ShortcutWidgetSettings();
+        }
+
         private void ResetImage_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is GridNodeViewModel model && model.GridNode.ViewProperties != null)
