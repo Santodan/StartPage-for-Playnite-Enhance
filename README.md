@@ -20,6 +20,12 @@ Build your own Playnite desktop dashboard with configurable pages, game shelves,
 
 [Roadmap](CUSTOMIZATION-ROADMAP.md) - [Report a bug](https://github.com/Santodan/StartPage-for-Playnite-Enhance/issues/new) - [Suggest a feature](https://github.com/Santodan/StartPage-for-Playnite-Enhance/issues) - [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases)
 
+## Update notifications
+
+Open **Add-ons > Extension settings > StartPage-for-Playnite-Enhance > Updates** to enable or disable automatic GitHub checks, or press **Check now**. Checks run 30 seconds after startup and every six hours without blocking dashboard loading. Available updates appear in Playnite notifications; clicking one opens the release page to review the notes and download the `.pext`. Installation remains manual, alongside Playnite's existing add-on update mechanism.
+
+Experimental **0.x** builds include published prereleases. From **1.0.0**, the checker accepts stable releases only. Only newer version tags with a finished extension package are offered; drafts, source-only releases and older versions are ignored. No GitHub account or token is required. Network/API failures leave the extension usable and are recorded in its logs; a manual check also shows a status message.
+
 ## Install or move from the original StartPage
 
 1. Download the experimental `.pext` package from [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases). For a local build, use `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_16_0.pext`.

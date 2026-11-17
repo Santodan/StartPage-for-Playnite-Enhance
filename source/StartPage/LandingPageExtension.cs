@@ -25,7 +25,7 @@ using LandingPage.ViewModels.PlayniteAchievements;
 
 namespace LandingPage
 {
-    public class LandingPageExtension : GenericPlugin, IStartPageExtension
+    public partial class LandingPageExtension : GenericPlugin, IStartPageExtension
     {
 #pragma warning disable IDE0052 // Ungelesene private Member entfernen
         internal static readonly ILogger logger = new ExtensionDebugLogger(LogManager.GetLogger());
@@ -435,6 +435,7 @@ namespace LandingPage
         public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
         {
             ExtensionDiagnostics.Record(this, "Lifecycle: OnApplicationStarted");
+            StartUpdateChecks();
             Application.Current.Deactivated += OnApplicattionDeactivated;
             // set cover path
             var extensionPath = typeof(LandingPageExtension).Assembly.Location;
@@ -680,6 +681,7 @@ namespace LandingPage
         public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
         {
             ExtensionDiagnostics.Record(this, "Lifecycle: OnApplicationStopped");
+            StopUpdateChecks();
             hostWindowDiagnostics?.Dispose(); hostWindowDiagnostics = null;
             foreach(var stats in libraryStatisticsViews.Values) stats.OnViewClosed();
             libraryStatistics?.Dispose();

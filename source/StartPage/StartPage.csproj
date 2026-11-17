@@ -52,6 +52,8 @@
     </Compile>
     <Compile Include="Controls\TextSettingsSelector.cs" />
     <Compile Include="Controls\PopupColorPicker.cs" />
+    <Compile Include="Utils\GitHubUpdateChecker.cs" />
+    <Compile Include="LandingPageExtension.Updates.cs" />
     <Compile Include="Controls\ColorPicker.xaml.cs">
       <DependentUpon>ColorPicker.xaml</DependentUpon>
     </Compile>

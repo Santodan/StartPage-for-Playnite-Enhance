@@ -22,6 +22,14 @@ namespace LandingPage
             (DataContext as LandingPageSettingsViewModel)?.ImportOriginalSettings();
         }
 
+        private async void CheckUpdates_Click(object sender,RoutedEventArgs e)
+        {
+            CheckUpdatesButton.IsEnabled = false;
+            UpdateCheckStatus.Text = "Checking GitHub...";
+            try { UpdateCheckStatus.Text = await LandingPageExtension.Instance.CheckForUpdatesAsync(true); }
+            finally { CheckUpdatesButton.IsEnabled = true; }
+        }
+
         private void DebugLogging_Click(object sender, RoutedEventArgs e)
         {
             LandingPageExtension.logger.Info("StartPage debug logging preference changed.");

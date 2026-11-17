@@ -50,6 +50,9 @@ namespace LandingPage
 
     public class LandingPageSettings : ObservableObject
     {
+        private bool checkForUpdatesAutomatically = true;
+        public bool CheckForUpdatesAutomatically { get => checkForUpdatesAutomatically; set => SetValue(ref checkForUpdatesAutomatically,value); }
+
         // workaround to get this module to be loaded by Playnite
         private Gu.Wpf.NumericInput.DoubleBox _ = new Gu.Wpf.NumericInput.DoubleBox();
 
