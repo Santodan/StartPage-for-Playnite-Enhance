@@ -50,6 +50,8 @@ namespace LandingPage
 
     public class LandingPageSettings : ObservableObject
     {
+        private BackgroundAppearanceSettings backgroundAppearance = new BackgroundAppearanceSettings();
+        public BackgroundAppearanceSettings BackgroundAppearance { get => backgroundAppearance; set => SetValue(ref backgroundAppearance,value ?? new BackgroundAppearanceSettings()); }
         private bool checkForUpdatesAutomatically = true;
         public bool CheckForUpdatesAutomatically { get => checkForUpdatesAutomatically; set => SetValue(ref checkForUpdatesAutomatically,value); }
 
@@ -426,7 +428,7 @@ namespace LandingPage
 
             SelectImagePathCommand = new RelayCommand(() =>
             {
-                if (plugin.PlayniteApi.Dialogs.SelectImagefile() is string path)
+                if (plugin.PlayniteApi.Dialogs.SelectFile(Utils.BackgroundMediaFiles.Filter) is string path)
                 {
                     if (System.IO.File.Exists(path))
                     {

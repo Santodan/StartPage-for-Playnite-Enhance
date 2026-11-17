@@ -621,7 +621,7 @@ namespace LandingPage
                         {
                             if (!grid.Children.OfType<BackgroundView>().Any())
                             {
-                                globalBackground = new BackgroundView() { DataContext = BackgroundViewModel };
+                                globalBackground = new BackgroundView() { IsGlobalBackground = true, DataContext = BackgroundViewModel };
                                 if (!isViewOpen)
                                 {
                                     globalBackground.SetBinding(UIElement.OpacityProperty, new Binding("Settings.GlobalBackgroundOpacity") { Source = SettingsViewModel });

@@ -20,6 +20,8 @@ namespace LandingPage.Models
     // settings dialogs, background integrations, and legacy saves keep working.
     public class DashboardBackground
     {
+        private Settings.BackgroundAppearanceSettings appearance = new Settings.BackgroundAppearanceSettings();
+        public Settings.BackgroundAppearanceSettings Appearance { get => appearance; set => appearance = value ?? new Settings.BackgroundAppearanceSettings(); }
         public string ImagePath { get; set; }
         public Uri ImageUri { get; set; }
         public BackgroundImageSource Source { get; set; }
@@ -36,6 +38,7 @@ namespace LandingPage.Models
 
         public static DashboardBackground Capture(LandingPageSettings settings) => new DashboardBackground
         {
+            Appearance = settings.BackgroundAppearance.Copy(),
             ImagePath = settings.BackgroundImagePath,
             ImageUri = settings.BackgroundImageUri,
             Source = settings.BackgroundImageSource,
@@ -51,10 +54,11 @@ namespace LandingPage.Models
             DisableRunningGameBlur = settings.DisableBlurForCurrentlyPlayed,
         };
 
-        public DashboardBackground Copy() => (DashboardBackground)MemberwiseClone();
+        public DashboardBackground Copy() { var copy = (DashboardBackground)MemberwiseClone(); copy.Appearance = Appearance.Copy(); return copy; }
 
         public void Apply(LandingPageSettings settings)
         {
+            settings.BackgroundAppearance = Appearance.Copy();
             settings.BackgroundImagePath = ImagePath;
             settings.BackgroundImageUri = ImageUri;
             settings.BackgroundImageSource = Source;

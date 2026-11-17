@@ -19,6 +19,18 @@ $previousSerializer = $serializerField.GetValue($null)
 try {
     $serializerField.SetValue($null, [Playnite.Common.DataSerializer]::new())
     $pageCloneMethod = [Playnite.SDK.Data.Serialization].GetMethods() | Where-Object { $_.Name -eq 'GetClone' -and $_.IsGenericMethodDefinition -and $_.GetParameters().Count -eq 1 } | Select-Object -First 1
+    $backgroundSettings = [LandingPage.LandingPageSettings]::new()
+    $appearance = [LandingPage.Settings.BackgroundAppearanceSettings]::new(); $appearance.Fit = 'Fit'; $appearance.Zoom = 2.25; $appearance.PositionX = .2; $appearance.FlipVertical = $true; $appearance.TintEnabled = $true; $appearance.TintColor = '#12ABEF'; $appearance.Fade = 'Bottom'; $appearance.Vignette = .7
+    $appearance.ExcludeSidebar = $true; $appearance.GifFrameRate = 12; $appearance.GifMaxDimension = 1280; $appearance.VideoMuted = $false; $appearance.VideoVolume = .3; $appearance.PlaybackSpeed = 1.5; $appearance.LoopMedia = $false
+    [LandingPage.LandingPageSettings].GetProperty('BackgroundAppearance').SetValue($backgroundSettings,$appearance)
+    $backgroundPage = [LandingPage.Models.DashboardPages]::Ensure($backgroundSettings)
+    $backgroundClone = $pageCloneMethod.MakeGenericMethod([LandingPage.LandingPageSettings]).Invoke($null,@($backgroundSettings))
+    $restoredAppearance = [LandingPage.LandingPageSettings].GetProperty('BackgroundAppearance').GetValue($backgroundClone)
+    $restoredBackgroundPages = [LandingPage.LandingPageSettings].GetProperty('DashboardPages').GetValue($backgroundClone)
+    if($restoredAppearance.Zoom -ne 2.25 -or $restoredAppearance.Fit -ne 'Fit' -or !$restoredAppearance.FlipVertical -or $restoredAppearance.TintColor -ne '#12ABEF' -or $restoredAppearance.Vignette -ne .7 -or $restoredBackgroundPages[0].Background.Appearance.Fade -ne 'Bottom' -or $restoredAppearance.GifFrameRate -ne 12 -or $restoredAppearance.GifMaxDimension -ne 1280 -or $restoredAppearance.VideoMuted -or $restoredAppearance.PlaybackSpeed -ne 1.5 -or $restoredAppearance.LoopMedia -or !$restoredAppearance.ExcludeSidebar -or !$restoredBackgroundPages[0].Background.Appearance.ExcludeSidebar) { throw 'Playnite serializer lost background appearance or page capture data' }
+    $restoredAppearance.Zoom = 1
+    if($appearance.Zoom -ne 2.25 -or $backgroundPage.Background.Appearance.Zoom -ne 2.25) { throw 'Background appearance clones/captured pages share objects' }
+    'PASS: actual Playnite serializer preserves independent background framing, colors/effects and page snapshots.'
     $dividerProps = [LandingPage.Models.Layout.ViewProperties]::new(); $dividerProps.ViewId = 'DividerWidget'
     $dividerProps.DividerSettings.Mode = 'Spacer'; $dividerProps.DividerSettings.Orientation = 'Vertical'; $dividerProps.DividerSettings.SpaceSize = 57
     $dividerProps.DividerSettings.ConnectEnds = $true; $dividerProps.DividerSettings.ConnectStart = $false; $dividerProps.DividerSettings.ConnectionRange = 175

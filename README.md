@@ -28,6 +28,10 @@ In dashboard Edit Mode, choose **Add view > StartPage > General > Shortcuts**. I
 
 Choose **Add view > StartPage > General > Divider / spacer** to add a horizontal/vertical separator or leave an area blank. Its gear offers lines, double/triple lines, waves, zigzags, chevrons and repeating circles/squares/diamonds. Configure stroke patterns, thickness with a slider/numeric input, pattern height/spacing, shape fill, length, insets, positioning, opacity and color. Drag dashboard dividers to allocate space; preferred spacing applies to auto-sized panels. Each instance saves independently with dashboard profiles. Under **Connections**, enable **Connect ends to nearby dividers** to bridge widget spacing and form continuous lines or T-junctions; select the start/end and maximum distance. **Match connected divider's appearance** copies a connected divider's styling once while preserving orientation and placement; choose nearest/start/end if needed.
 
+## Background customization
+
+Open **Dashboard pages > Page background**, or the extension's **Background** tab. Enable **Keep background out of Playnite sidebar** to confine global backgrounds to the theme's content area. Use **Image framing** for sizing, zoom, positioning, flips and opacity; **Background effects** for tint, edge fades and vignette; and **Colors** for their popup color pickers. All sizing modes use full-resolution rendering and high-quality image scaling. Settings are independent per dashboard page and included in profiles. Resetting these controls keeps the chosen image and existing blur/noise settings. GIF and video backgrounds are supported. Choose **Image / GIF / video...**, then open **GIF / video playback** for loop, speed, sound and performance controls. See [animated backgrounds](docs/ANIMATED-BACKGROUNDS.md) for formats, defaults and troubleshooting.
+
 ## Update notifications
 
 Open **Add-ons > Extension settings > StartPage-for-Playnite-Enhance > Updates** to enable or disable automatic GitHub checks, or press **Check now**. Checks run 30 seconds after startup and every six hours without blocking dashboard loading. Available updates appear in Playnite notifications; clicking one opens the release page to review the notes and download the `.pext`. Installation remains manual, alongside Playnite's existing add-on update mechanism.
@@ -36,7 +40,7 @@ Experimental **0.x** builds include published prereleases. From **1.0.0**, the c
 
 ## Install or move from the original StartPage
 
-1. Download the experimental `.pext` package from [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases). For a local build, use `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_19_0.pext`.
+1. Download the experimental `.pext` package from [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases). For a local build, use `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_21_0.pext`.
 2. Disable the original StartPage before enabling this fork. **They must not run together:** the shared runtime identity preserves settings and external widget compatibility.
 3. Open the `.pext` with Playnite and restart when prompted.
 4. Open StartPage from Playnite's sidebar. Enter Edit Mode from the dashboard's background menu to split panels and add widgets.

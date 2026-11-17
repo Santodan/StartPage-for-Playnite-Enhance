@@ -139,24 +139,13 @@ namespace LandingPage.ViewModels
             {
                 if (System.IO.Directory.Exists(Settings.Settings.BackgroundImagePath))
                 {
-                    var imagePaths = System.IO.Directory.EnumerateFiles(Settings.Settings.BackgroundImagePath)
-                        .Where(file => file.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
-                        || file.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
-                        || file.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                        .Where(file => BackgroundImagePath?.LocalPath != file);
-                    if (BackgroundImagePath?.LocalPath != null
+                    var mediaPaths = System.IO.Directory.EnumerateFiles(Settings.Settings.BackgroundImagePath).Where(Utils.BackgroundMediaFiles.IsSupportedFile).ToList();
+                    var current = BackgroundImagePath?.IsAbsoluteUri == true && BackgroundImagePath.IsFile ? BackgroundImagePath.LocalPath : null;
+                    var candidates = mediaPaths.Where(file => !string.Equals(file,current,StringComparison.OrdinalIgnoreCase)).ToList();
+                    var selected = !updateRandomBackground && mediaPaths.Any(file => string.Equals(file,current,StringComparison.OrdinalIgnoreCase)) ? current
+                        : candidates.Count>0 ? candidates[rng.Next(candidates.Count)] : mediaPaths.FirstOrDefault();
+                    if(selected != null) path = new Uri(System.IO.Path.GetFullPath(selected));
 
-                        && !updateRandomBackground)
-                    {
-                        path = BackgroundImagePath;
-                    }
-                    else if (imagePaths.ElementAtOrDefault(rng.Next(imagePaths.Count())) is string imagePath)
-                    {
-                        if (Uri.TryCreate(imagePath, UriKind.RelativeOrAbsolute, out var uri))
-                        {
-                            path = uri;
-                        }
-                    }
                 }
             }
             if (path == null)

@@ -175,6 +175,7 @@ namespace LandingPage.Converters
         private static long bytes;
         public static object Load(Uri uri)
         {
+            if (Utils.BackgroundMediaFiles.IsAnimated(uri)) return null;
             if (uri == null || !uri.IsAbsoluteUri || !uri.IsFile) return uri;
             try
             {

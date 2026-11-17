@@ -54,6 +54,12 @@
     <Compile Include="Controls\PopupColorPicker.cs" />
     <Compile Include="Settings\ShortcutWidgetSettings.cs" />
     <Compile Include="Settings\DividerWidgetSettings.cs" />
+    <Compile Include="Settings\BackgroundAppearanceSettings.cs" />
+    <Compile Include="Controls\BackgroundArtwork.cs" />
+    <Compile Include="Controls\BackgroundMediaArtwork.cs" />
+    <Compile Include="Utils\BackgroundMediaFiles.cs" />
+    <Compile Include="Utils\BackgroundGifDecoder.cs" />
+    <Compile Include="Views\Settings\BackgroundAppearanceSettingsView.xaml.cs"><DependentUpon>BackgroundAppearanceSettingsView.xaml</DependentUpon></Compile>
     <Compile Include="Controls\DividerConnectionLayer.cs" />
     <Compile Include="Controls\DividerRenderer.cs" />
     <Compile Include="Models\Layout\AdjacentPanelMerge.cs" />
@@ -86,6 +92,7 @@
     <Compile Include="Views\FeaturedGameView.cs" />
     <Compile Include="Views\Settings\FeaturedGameSettingsView.xaml.cs"><DependentUpon>FeaturedGameSettingsView.xaml</DependentUpon></Compile>
     <Compile Include="Views\Settings\SectionAppearanceSettingsView.xaml.cs"><DependentUpon>SectionAppearanceSettingsView.xaml</DependentUpon></Compile>
+    <Page Include="Views\Settings\BackgroundAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\DividerWidgetSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\ShortcutWidgetSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\SectionAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>

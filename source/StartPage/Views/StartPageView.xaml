@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:LandingPage.Views"
+             xmlns:settingsViews="clr-namespace:LandingPage.Views.Settings" xmlns:local="clr-namespace:LandingPage.Views"
              xmlns:lp="clr-namespace:LandingPage"
              xmlns:models="clr-namespace:LandingPage.Models"
              xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -599,7 +599,7 @@
                             <Expander Header="Page background" Margin="0,6,0,0">
                                 <StackPanel Margin="8,6,0,8">
                                     <TextBlock Text="These background settings belong to the current page." TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Game artwork source (when no image/folder is set)" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Game artwork source (when no media file/folder is set)" TextWrapping="Wrap"/>
                                     <ComboBox SelectedValue="{Binding Settings.Settings.BackgroundImageSource}" SelectedValuePath="Tag" Margin="0,4,0,8">
                                         <ComboBoxItem Content="Last played" Tag="{x:Static lp:BackgroundImageSource.LastPlayed}"/>
                                         <ComboBoxItem Content="Last added" Tag="{x:Static lp:BackgroundImageSource.LastAdded}"/>
@@ -611,9 +611,9 @@
                                     <TextBlock Text="Local image or image folder"/>
                                     <TextBox Text="{Binding Settings.Settings.BackgroundImagePath, UpdateSourceTrigger=LostFocus}" GotKeyboardFocus="PageBackgroundPath_GotKeyboardFocus" LostFocus="PageBackgroundPath_LostFocus" Margin="0,4,0,6"/>
                                     <WrapPanel>
-                                        <Button Content="Image..." Command="{Binding BrowsePageImageCommand}" Margin="0,0,6,6"/>
+                                        <Button Content="Image / GIF / video..." Command="{Binding BrowsePageImageCommand}" Margin="0,0,6,6"/>
                                         <Button Content="Folder..." Command="{Binding BrowsePageFolderCommand}" Margin="0,0,6,6"/>
-                                        <Button Content="Clear image/folder" Command="{Binding ClearPageImageCommand}" Margin="0,0,0,6"/>
+                                        <Button Content="Clear media/folder" Command="{Binding ClearPageImageCommand}" Margin="0,0,0,6"/>
                                     </WrapPanel>
                                     <TextBlock Text="Blur"/>
                                     <Slider Value="{Binding Settings.Settings.BlurAmount}" Minimum="0" Maximum="100"/>
@@ -623,6 +623,7 @@
                                     <Slider Value="{Binding Settings.Settings.NoiseOpacity}" Minimum="0" Maximum="1" TickFrequency="0.01" SmallChange="0.01"/>
                                     <TextBlock Text="Refresh interval in minutes (0 = disabled)" TextWrapping="Wrap" Margin="0,6,0,0"/>
                                     <numeric:IntBox Value="{Binding Settings.Settings.BackgroundRefreshInterval}" MinValue="0" Style="{StaticResource {x:Type TextBox}}"/>
+                                    <settingsViews:BackgroundAppearanceSettingsView x:Name="PageBackgroundAppearance" DataContext="{Binding Settings.Settings.BackgroundAppearance}"/>
                                 </StackPanel>
                             </Expander>
                             <Expander x:Name="DeletePagesSection" Header="Delete pages" Margin="0,6,0,0">

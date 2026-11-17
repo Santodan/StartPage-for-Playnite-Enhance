@@ -296,7 +296,7 @@ namespace LandingPage.ViewModels
             }, () => CanDeleteSelectedPages && ConfirmPageDeletion);
             BrowsePageImageCommand = new RelayCommand(() =>
             {
-                var path = playniteAPI.Dialogs.SelectFile("Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tiff;*.webp|All files|*.*");
+                var path = playniteAPI.Dialogs.SelectFile(Utils.BackgroundMediaFiles.Filter);
                 if (!string.IsNullOrEmpty(path)) SetPageImage(path);
             }, () => CanChangePages);
             BrowsePageFolderCommand = new RelayCommand(() =>

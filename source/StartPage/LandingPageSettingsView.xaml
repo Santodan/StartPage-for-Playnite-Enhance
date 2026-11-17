@@ -8,7 +8,7 @@
              xmlns:system="clr-namespace:System;assembly=mscorlib"
              xmlns:conv="clr-namespace:LandingPage.Converters"
              xmlns:ext="clr-namespace:PlayniteCommon.Extensions;assembly=felixkmh.PlayniteCommon"
-             xmlns:views="clr-namespace:LandingPage.Views"
+             xmlns:settingsViews="clr-namespace:LandingPage.Views.Settings" xmlns:views="clr-namespace:LandingPage.Views"
              xmlns:settings="clr-namespace:LandingPage.Settings"
              mc:Ignorable="d"
              d:DesignHeight="400" d:DesignWidth="600"
@@ -195,6 +195,8 @@
                   HorizontalScrollBarVisibility="Disabled">
                 <Grid>
                     <StackPanel Grid.IsSharedSizeScope="True">
+                        <settingsViews:BackgroundAppearanceSettingsView DataContext="{Binding Settings.BackgroundAppearance}"/>
+
                         <DockPanel>
                             <DockPanel.ToolTip>
                                 <TextBlock Text="{DynamicResource LOC_SPG_UnsupportedToolTip}" TextWrapping="Wrap" MaxWidth="550"/>
@@ -221,16 +223,7 @@
                                 </numeric:DoubleBox>
                             </Grid>
                         </DockPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                            </Grid.RowDefinitions>
-                            <DockPanel LastChildFill="False" Grid.Column="0" Grid.Row="0">
+                            <DockPanel LastChildFill="False">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition SharedSizeGroup="Descriptions"/>
@@ -249,35 +242,6 @@
                                     </numeric:DoubleBox>
                                 </Grid>
                             </DockPanel>
-                            <DockPanel LastChildFill="False" Grid.Column="0" Grid.Row="1">
-                                <Grid VerticalAlignment="Center">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                        <ColumnDefinition SharedSizeGroup="Controls"/>
-                                        <ColumnDefinition SharedSizeGroup="Value"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_BackgroundScale}" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.RenderScale}" Minimum="0.01" Maximum="1" Width="180" IsSnapToTickEnabled="True" TickFrequency="0.01"/>
-                                    <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.RenderScale, UpdateSourceTrigger=PropertyChanged}" 
-                                            MinValue="0.01"
-                                            MaxValue="1"
-                                            MinWidth="30"
-                                            ValidationTrigger="PropertyChanged"
-                                            Style="{StaticResource {x:Type TextBox}}"
-                                            TextAlignment="Center">
-                                    </numeric:DoubleBox>
-                                </Grid>
-                            </DockPanel>
-                            <DockPanel LastChildFill="False" Grid.Column="1" Grid.RowSpan="2" Margin="5,0">
-                                <DockPanel.ToolTip>
-                                    <TextBlock Text="{DynamicResource LOC_SPG_EffectiveBlurToolTip}" TextWrapping="Wrap" MaxWidth="550"/>
-                                </DockPanel.ToolTip>
-                                <DockPanel VerticalAlignment="Center">
-                                    <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_EffectiveBlur}" VerticalAlignment="Center"/>
-                                    <TextBox IsReadOnly="True" Text="{Binding Settings.BlurAmountScaled, Mode=OneWay}" Margin="5,0"/>
-                                </DockPanel>
-                            </DockPanel>
-                        </Grid>
                         <DockPanel LastChildFill="False">
                             <Grid VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
