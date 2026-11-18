@@ -263,6 +263,7 @@ namespace LandingPage
 
         private bool enableGlobalBackground = false;
         public bool EnableGlobalBackground { get => enableGlobalBackground; set => SetValue(ref enableGlobalBackground, value); }
+        public Models.DashboardBackground GlobalDashboardBackground { get; set; }
 
         private bool showBackgroundOutsideStartPage;
         public bool ShowBackgroundOutsideStartPage { get => showBackgroundOutsideStartPage; set => SetValue(ref showBackgroundOutsideStartPage, value); }
@@ -491,6 +492,19 @@ namespace LandingPage
             // This method should save settings made to Option1 and Option2.
             if (!SettingsUnchanged())
             {
+                if (Models.DashboardPages.UsesGlobalBackground(Settings))
+                    Settings.GlobalDashboardBackground = Models.DashboardBackground.Capture(Settings);
+                else if (!Settings.EnableGlobalBackground && editingClone != null && Models.DashboardPages.UsesGlobalBackground(editingClone))
+                {
+                    var page = Settings.DashboardPages?.FirstOrDefault(item => item.Id == Settings.ActiveDashboardPageId);
+                    if (page?.Background != null)
+                    {
+                        plugin.BackgroundViewModel.IsApplyingPage = true;
+                        try { page.Background.Apply(Settings); }
+                        finally { plugin.BackgroundViewModel.IsApplyingPage = false; }
+                        plugin.BackgroundViewModel.RefreshPageBackground();
+                    }
+                }
                 plugin.SavePluginSettings(Settings);
                 SettingsChanged?.Invoke(this, Settings);
             }

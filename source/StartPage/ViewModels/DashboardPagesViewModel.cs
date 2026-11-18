@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -41,6 +41,19 @@ namespace LandingPage.ViewModels
             {
                 var page = Pages.FirstOrDefault(item => item.Id == value);
                 if (page != null && page != selectedPage) SelectedPage = page;
+            }
+        }
+        public bool UseGlobalBackgroundForPage
+        {
+            get => SelectedPage?.UseGlobalBackground ?? true;
+            set
+            {
+                if (SelectedPage == null || SelectedPage.UseGlobalBackground == value) return;
+                CaptureCurrentPage();
+                SelectedPage.UseGlobalBackground = value;
+                ApplyPageBackground(SelectedPage,true);
+                OnPropertyChanged(nameof(UseGlobalBackgroundForPage));
+                SaveCurrentPage();
             }
         }
         private bool isSwitchingPage;
@@ -124,11 +137,11 @@ namespace LandingPage.ViewModels
             var oldRoot = RootNodeViewModel;
             if(!pageRoots.TryGetValue(target.Id,out var restoredRoot)) pageRoots[target.Id] = restoredRoot = new GridNodeViewModel(target.Layout);
             if(oldRoot != restoredRoot) await HidePageAsync(false);
-            selectedPage = target; snapshot.ActiveDashboardPageId = target.Id; target.Background.Apply(snapshot); snapshot.GridLayout = restoredRoot.GridNode;
+            selectedPage = target; snapshot.ActiveDashboardPageId = target.Id; if (DashboardPages.UsesGlobalBackground(snapshot,target)) snapshot.GlobalDashboardBackground?.Apply(snapshot); else target.Background.Apply(snapshot); snapshot.GridLayout = restoredRoot.GridNode;
             RootNodeViewModel = restoredRoot;
             Settings.Settings = snapshot;
             ApplyPageBackground(SelectedPage);
-            OnPropertyChanged(nameof(Pages)); OnPropertyChanged(nameof(SelectedPage));
+            OnPropertyChanged(nameof(Pages)); OnPropertyChanged(nameof(SelectedPage)); OnPropertyChanged(nameof(UseGlobalBackgroundForPage));
             if(oldRoot != restoredRoot)
             {
                 if(!initializedPages.Contains(target.Id)) { await restoredRoot.InititalizeGrid(); await InitializeAndOpenViews(); initializedPages.Add(target.Id); }
@@ -366,8 +379,10 @@ namespace LandingPage.ViewModels
         {
             if (SelectedPage == null) return;
             SelectedPage.Layout = RootNodeViewModel.GridNode;
-            SelectedPage.Background = DashboardBackground.Capture(Settings.Settings);
-            if (plugin.lastBackgroundUri != null)
+            if (DashboardPages.UsesGlobalBackground(Settings.Settings,SelectedPage))
+                Settings.Settings.GlobalDashboardBackground = DashboardBackground.Capture(Settings.Settings);
+            else SelectedPage.Background = DashboardBackground.Capture(Settings.Settings);
+            if (!DashboardPages.UsesGlobalBackground(Settings.Settings,SelectedPage) && plugin.lastBackgroundUri != null)
             {
                 // The playing-game background is temporary, not a page customization.
                 SelectedPage.Background.Blur = plugin.lastBlur;
@@ -408,10 +423,12 @@ namespace LandingPage.ViewModels
             else ExtensionDiagnostics.Record(plugin, "Dashboard save deferred: page editor is waiting for Done or Cancel.");
         }
 
-        private void ApplyPageBackground(DashboardPage page)
+        private void ApplyPageBackground(DashboardPage page, bool force = false)
         {
+            var shared = DashboardPages.UsesGlobalBackground(Settings.Settings,page);
+            if (!force && shared && DashboardPages.UsesGlobalBackground(Settings.Settings,SelectedPage)) return;
             BackgroundViewModel.IsApplyingPage = true;
-            try { page.Background.Apply(Settings.Settings); }
+            try { (shared ? Settings.Settings.GlobalDashboardBackground ?? page.Background : page.Background).Apply(Settings.Settings); }
             finally { BackgroundViewModel.IsApplyingPage = false; }
             BackgroundViewModel.RefreshPageBackground();
             if (plugin.lastBackgroundUri != null)
@@ -426,7 +443,7 @@ namespace LandingPage.ViewModels
         public async Task SwitchPageAsync(DashboardPage page)
         {
             if (page == null || page == SelectedPage || !Pages.Contains(page) || !CanChangePages)
-            { OnPropertyChanged(nameof(SelectedPage)); return; }
+            { OnPropertyChanged(nameof(SelectedPage)); OnPropertyChanged(nameof(UseGlobalBackgroundForPage)); return; }
             navigationSaveTimer?.Stop();
             IsSwitchingPage = true;
             IsLoading = true;
@@ -456,7 +473,7 @@ namespace LandingPage.ViewModels
                 if (!pageRoots.TryGetValue(page.Id, out var root))
                     pageRoots[page.Id] = root = new GridNodeViewModel(page.Layout);
                 RootNodeViewModel = root;
-                OnPropertyChanged(nameof(SelectedPage));
+                OnPropertyChanged(nameof(SelectedPage)); OnPropertyChanged(nameof(UseGlobalBackgroundForPage));
                 ExtensionDiagnostics.Record(plugin, $"Destination layout attached: {switchWatch.ElapsedMilliseconds} ms.");
                 if (initializedPages.Contains(page.Id))
                 {
@@ -484,7 +501,7 @@ namespace LandingPage.ViewModels
                 RootNodeViewModel = previousRoot;
                 Settings.Settings.ActiveDashboardPageId = previous.Id;
                 Settings.Settings.GridLayout = previous.Layout;
-                OnPropertyChanged(nameof(SelectedPage));
+                OnPropertyChanged(nameof(SelectedPage)); OnPropertyChanged(nameof(UseGlobalBackgroundForPage));
                 ApplyPageBackground(previous);
                 if (isPageVisible) await OpenPageAsync();
                 if(playniteAPI.Dialogs != null) playniteAPI.Dialogs.ShowErrorMessage("Unable to switch dashboard page. Your previous page has been restored.", "Dashboard pages");
@@ -553,7 +570,7 @@ namespace LandingPage.ViewModels
             if (replacement != null) selectedPage = replacement;
             CaptureCurrentPage();
             OnPropertyChanged(nameof(Pages));
-            OnPropertyChanged(nameof(SelectedPage));
+            OnPropertyChanged(nameof(SelectedPage)); OnPropertyChanged(nameof(UseGlobalBackgroundForPage));
             SelectedProfile = Profiles.FirstOrDefault(profile => profile.Id == SelectedProfile?.Id) ?? Profiles.FirstOrDefault();
             OnPropertyChanged(nameof(Profiles));
         }

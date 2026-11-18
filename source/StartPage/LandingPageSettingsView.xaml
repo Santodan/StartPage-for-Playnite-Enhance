@@ -204,6 +204,8 @@
                             <CheckBox IsChecked="{Binding Settings.EnableGlobalBackground}" VerticalAlignment="Center" Margin="3"/>
                             <TextBlock Text="{DynamicResource LOC_SPG_EnableGlobalBackground}" Margin="3" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         </DockPanel>
+                        <TextBlock Text="Use one background image and appearance on every dashboard, including the sidebar and top bar. Disable to restore each page's individual background."
+                                   Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="3,0,3,8"/>
                         <CheckBox Content="Also show StartPage background in the library and other extensions"
                                   IsChecked="{Binding Settings.ShowBackgroundOutsideStartPage}" IsEnabled="{Binding Settings.EnableGlobalBackground}"
                                   Margin="3" ToolTip="Off by default. Other views keep their own backgrounds when you leave StartPage."/>

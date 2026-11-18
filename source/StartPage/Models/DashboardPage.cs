@@ -14,6 +14,7 @@ namespace LandingPage.Models
         [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
         public GridNode Layout { get; set; } = DashboardPages.CreateDefaultLayout();
         public DashboardBackground Background { get; set; } = new DashboardBackground();
+        public bool UseGlobalBackground { get; set; } = true;
     }
 
     // The existing settings remain the active-page projection, so existing controls,
@@ -77,6 +78,8 @@ namespace LandingPage.Models
 
     public static class DashboardPages
     {
+        public static bool UsesGlobalBackground(LandingPageSettings settings, DashboardPage page = null)
+            => settings.EnableGlobalBackground && (page ?? settings.DashboardPages?.FirstOrDefault(item => item.Id == settings.ActiveDashboardPageId))?.UseGlobalBackground != false;
         public static DashboardPage Ensure(LandingPageSettings settings)
         {
             if (settings.DashboardPages == null) settings.DashboardPages = new ObservableCollection<DashboardPage>();
@@ -97,9 +100,9 @@ namespace LandingPage.Models
                 // GridLayout/global background settings include edits saved by existing
                 // settings dialogs. They are authoritative for the active page on load.
                 active.Layout = settings.GridLayout ?? active.Layout;
-                active.Background = DashboardBackground.Capture(settings);
+                if (!UsesGlobalBackground(settings,active)) active.Background = DashboardBackground.Capture(settings);
             }
-            else { active = pages[0]; active.Background.Apply(settings); }
+            else { active = pages[0]; if (!UsesGlobalBackground(settings,active)) active.Background.Apply(settings); }
             settings.ActiveDashboardPageId = active.Id;
             settings.GridLayout = active.Layout;
             return active;

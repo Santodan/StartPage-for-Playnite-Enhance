@@ -47,7 +47,7 @@ namespace LandingPage.Models
         private static readonly string[] sharedNames =
         {
             "Padding", "FixGridSize", "FixedGridHeight", "LayoutSettings", "CoverAspectRatio", "MaxCoverWidth", "HideScrollbarInShelves",
-            "DownScaleCovers", "EnableNotifications", "EnableGlobalProgressBar", "EnableGlobalBackground", "GlobalBackgroundOpacity",
+            "DownScaleCovers", "EnableNotifications", "EnableGlobalProgressBar", "EnableGlobalBackground", "GlobalBackgroundOpacity", "GlobalDashboardBackground",
             "MostPlayedOptions", "SkipGamesInPreviousMostPlayed", "MaxNumberRecentAchievements", "MaxNumberRecentAchievementsPerGame",
             "SelectedAchievementsProvider", "ShowDetails", "ShowTitleOnCover", "NumberOfGames", "HorizontalShelveLabels",
             "SkipGamesInPreviousShelves", "IgnoreTagId", "IgnoreMostPlayedTagId"
@@ -205,7 +205,8 @@ namespace LandingPage.Models
             foreach (var pair in snapshot.Shelves) settings.ShelveInstanceSettings[pair.Key] = pair.Value;
             var active = snapshot.Pages.First(page => page.Id == snapshot.ActivePageId);
             settings.GridLayout = active.Layout;
-            active.Background.Apply(settings);
+            if (DashboardPages.UsesGlobalBackground(settings,active) && settings.GlobalDashboardBackground != null) settings.GlobalDashboardBackground.Apply(settings);
+            else active.Background.Apply(settings);
         }
     }
 }

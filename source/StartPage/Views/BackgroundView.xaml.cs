@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.ComponentModel;
+using LandingPage.Settings;
 
 namespace LandingPage.Views
 {
@@ -15,15 +17,62 @@ namespace LandingPage.Views
         private Window hostWindow;
         private FrameworkElement hostContent,hostSidebar;
         private bool lookedUp;
+        public static readonly DependencyProperty LineAppearanceProperty = DependencyProperty.Register("LineAppearance",typeof(BackgroundAppearanceSettings),typeof(BackgroundView),new PropertyMetadata(null,(s,e) => { var view = (BackgroundView)s; if(view.IsLoaded) view.ObserveLines(); }));
+        private BackgroundAppearanceSettings lineSettings;
+        private FrameworkElement lineToolbar;
+        private bool lineToolbarLookedUp;
+        private FrameworkElement[] captionButtons;
+        private Border nativeSidebarBorder;
+        private object savedBorderBrush;
+        private BindingBase savedBorderBinding;
+        private void RestoreSidebarBorder()
+        {
+            if(nativeSidebarBorder == null) return;
+            if(savedBorderBinding != null) BindingOperations.SetBinding(nativeSidebarBorder,Border.BorderBrushProperty,savedBorderBinding);
+            else if(savedBorderBrush == DependencyProperty.UnsetValue) nativeSidebarBorder.ClearValue(Border.BorderBrushProperty);
+            else nativeSidebarBorder.SetCurrentValue(Border.BorderBrushProperty,savedBorderBrush);
+            nativeSidebarBorder = null; savedBorderBinding = null; savedBorderBrush = null;
+        }
+        private void MountSeparatorOverlay()
+        {
+            if(!IsGlobalBackground || !(Parent is Grid host)) return;
+            if(SeparatorCanvas.Parent is Panel old && old != host) old.Children.Remove(SeparatorCanvas);
+            if(SeparatorCanvas.Parent == null) {
+                Panel.SetZIndex(SeparatorCanvas,int.MaxValue);
+                SeparatorCanvas.SetBinding(VisibilityProperty,new Binding("Visibility") { Source = this });
+                SeparatorCanvas.SetBinding(OpacityProperty,new Binding("Opacity") { Source = this });
+                host.Children.Add(SeparatorCanvas);
+            }
+        }
+        private readonly System.Windows.Shapes.Rectangle sidebarLine = new System.Windows.Shapes.Rectangle();
+        private readonly System.Windows.Shapes.Rectangle topLine = new System.Windows.Shapes.Rectangle();
+        private void ObserveLines()
+        {
+            if(lineSettings != null) PropertyChangedEventManager.RemoveHandler(lineSettings,LineSettingsChanged,string.Empty);
+            lineSettings = GetValue(LineAppearanceProperty) as BackgroundAppearanceSettings;
+            if(lineSettings != null) PropertyChangedEventManager.AddHandler(lineSettings,LineSettingsChanged,string.Empty);
+            UpdateBackgroundBounds();
+        }
+        private void LineSettingsChanged(object sender,PropertyChangedEventArgs e)
+        {
+            ObserveLines();
+            if(IsGlobalBackground) LandingPageExtension.Instance?.UpdateGlobalBackgroundVisibility();
+        }
         public BackgroundView()
         {
             InitializeComponent();
+            SeparatorCanvas.Children.Add(sidebarLine); SeparatorCanvas.Children.Add(topLine);
+            DataContextChanged += (s,e) => { if(IsLoaded) ObserveLines(); };
+            SetBinding(LineAppearanceProperty,new Binding("Settings.Settings.BackgroundAppearance"));
+            SetBinding(ArtworkEnabledProperty,new Binding("Settings.Settings.EnableGlobalBackground"));
             SetBinding(ExcludeSidebarProperty,new Binding("Settings.Settings.BackgroundAppearance.ExcludeSidebar"));
-            Loaded += (s,e) => { lookedUp = false; LayoutUpdated += LayoutChanged; UpdateBackgroundBounds(); };
-            Unloaded += (s,e) => { LayoutUpdated -= LayoutChanged; hostWindow = null; hostContent = hostSidebar = null; lookedUp = false; };
+            IsVisibleChanged += (s,e) => { if(!IsVisible) RestoreSidebarBorder(); else UpdateBackgroundBounds(); };
+            Loaded += (s,e) => { MountSeparatorOverlay(); lookedUp = false; lineToolbarLookedUp = false; captionButtons = null; LayoutUpdated += LayoutChanged; ObserveLines(); };
+            Unloaded += (s,e) => { RestoreSidebarBorder(); if(IsGlobalBackground && SeparatorCanvas.Parent is Panel parent) parent.Children.Remove(SeparatorCanvas); LayoutUpdated -= LayoutChanged; if(lineSettings != null) PropertyChangedEventManager.RemoveHandler(lineSettings,LineSettingsChanged,string.Empty); lineSettings = null; captionButtons = null; hostWindow = null; hostContent = hostSidebar = lineToolbar = null; lookedUp = false; };
         }
+        public static readonly DependencyProperty ArtworkEnabledProperty = DependencyProperty.Register("ArtworkEnabled",typeof(bool),typeof(BackgroundView),new PropertyMetadata(true,BoundsChanged));
         private static void BoundsChanged(DependencyObject sender,DependencyPropertyChangedEventArgs args) => ((BackgroundView)sender).UpdateBackgroundBounds();
-        private void LayoutChanged(object sender,EventArgs e) { if(IsGlobalBackground && ExcludeSidebar) UpdateBackgroundBounds(); }
+        private void LayoutChanged(object sender,EventArgs e) { if(IsGlobalBackground) UpdateBackgroundBounds(); }
         private static FrameworkElement Part(DependencyObject parent,string name)
         {
             for(var index=0;index<VisualTreeHelper.GetChildrenCount(parent);index++) {
@@ -36,6 +85,7 @@ namespace LandingPage.Views
         private void UpdateBackgroundBounds()
         {
             if(BackgroundViewport == null) return;
+            BackgroundViewport.Visibility = !IsGlobalBackground || (bool)GetValue(ArtworkEnabledProperty) ? Visibility.Visible : Visibility.Collapsed;
             var margin = new Thickness();
             if(IsLoaded && IsGlobalBackground && ExcludeSidebar && ActualWidth>0 && ActualHeight>0) {
                 var window = Window.GetWindow(this);
@@ -61,6 +111,65 @@ namespace LandingPage.Views
             }
             var old = BackgroundViewport.Margin;
             if(Math.Abs(old.Left-margin.Left)>.1 || Math.Abs(old.Top-margin.Top)>.1 || Math.Abs(old.Right-margin.Right)>.1 || Math.Abs(old.Bottom-margin.Bottom)>.1) BackgroundViewport.Margin = margin;
+            UpdateLines();
+        }
+        private void UpdateLines()
+        {
+            if(SeparatorCanvas == null) return;
+            if(!IsLoaded || !IsVisible || !IsGlobalBackground || lineSettings == null || (!lineSettings.ShowSidebarLine && !lineSettings.ShowTopBarLine)) { RestoreSidebarBorder(); sidebarLine.Visibility = topLine.Visibility = Visibility.Collapsed; return; }
+            var window = Window.GetWindow(this); if(window == null) return;
+            if(hostSidebar == null || !hostSidebar.IsLoaded) hostSidebar = Part(window,"PART_Sidebar");
+            var sidebar = hostSidebar;
+            var border = sidebar == null ? null : Part(sidebar,"BorderContentHolder") as Border;
+            if(!lineSettings.ShowSidebarLine || sidebar?.IsVisible != true || border != nativeSidebarBorder) RestoreSidebarBorder();
+            if(lineSettings.ShowSidebarLine && sidebar?.IsVisible == true && border != null && nativeSidebarBorder == null) {
+                nativeSidebarBorder = border;
+                savedBorderBrush = border.ReadLocalValue(Border.BorderBrushProperty) == DependencyProperty.UnsetValue ? DependencyProperty.UnsetValue : border.GetValue(Border.BorderBrushProperty);
+                savedBorderBinding = BindingOperations.GetBindingBase(border,Border.BorderBrushProperty);
+                border.SetCurrentValue(Border.BorderBrushProperty,Brushes.Transparent);
+            }
+            sidebarLine.Visibility = lineSettings.ShowSidebarLine && sidebar?.IsVisible == true && sidebar.ActualWidth>0 && sidebar.ActualHeight>0 ? Visibility.Visible : Visibility.Collapsed;
+            if(!lineSettings.ShowTopBarLine) topLine.Visibility = Visibility.Collapsed;
+            var left = 0d; var right = ActualWidth;
+            try {
+                if(sidebar?.IsVisible == true && sidebar.ActualWidth>0 && sidebar.ActualHeight>0) {
+                    var rect = sidebar.TransformToVisual(this).TransformBounds(new Rect(sidebar.RenderSize));
+                    var thickness = lineSettings.SidebarLineThickness;
+                    var dock = DockPanel.GetDock(sidebar);
+                    if(dock == Dock.Left) { left = rect.Right + (lineSettings.ShowSidebarLine ? thickness/2 : 0); rect = new Rect(rect.Right-thickness/2,rect.Top,thickness,rect.Height); }
+                    else if(dock == Dock.Right) { right = rect.Left - (lineSettings.ShowSidebarLine ? thickness/2 : 0); rect = new Rect(rect.Left-thickness/2,rect.Top,thickness,rect.Height); }
+                    else rect = new Rect(rect.Left,(dock == Dock.Top ? rect.Bottom : rect.Top)-thickness/2,rect.Width,thickness);
+                    if(lineSettings.ShowSidebarLine) DrawLine(sidebarLine,rect,lineSettings.SidebarLineColor);
+                }
+                if(lineSettings.ShowTopBarLine) {
+                    if(!lineToolbarLookedUp || (lineToolbar != null && !lineToolbar.IsLoaded)) { lineToolbar = Controls.NativeToolbarCatalog.FindNativeTopPanel(window); lineToolbarLookedUp = true; }
+                    var toolbar = lineToolbar;
+                    var chrome = System.Windows.Shell.WindowChrome.GetWindowChrome(window);
+                    var y = chrome == null ? 0 : Math.Max(32,chrome.CaptionHeight);
+                    if(captionButtons == null) captionButtons = new[] { Part(window,"PART_ButtonClose"),Part(window,"PART_ButtonMaximize"),Part(window,"PART_ButtonMinimize") };
+                    // CaptionHeight describes the drag area, not the painted theme buttons.
+                    // Use the visible buttons' actual bounds so the separator cannot cross them.
+                    foreach(var button in captionButtons) {
+                        if(button?.IsVisible == true && button.ActualWidth>0 && button.ActualHeight>0)
+                            y = Math.Max(y,button.TransformToVisual(this).TransformBounds(new Rect(button.RenderSize)).Bottom);
+                    }
+                    if(toolbar?.IsVisible == true && Window.GetWindow(toolbar) == window && toolbar.ActualHeight>0 && toolbar.ActualHeight<=160)
+                        y = Math.Max(y,toolbar.TransformToVisual(this).TransformBounds(new Rect(toolbar.RenderSize)).Bottom);
+                    if(y<=0 || y>=ActualHeight || right<=left) topLine.Visibility = Visibility.Collapsed;
+                    else DrawLine(topLine,new Rect(left,y,right-left,lineSettings.TopBarLineThickness),lineSettings.TopBarLineColor);
+                }
+            } catch(InvalidOperationException) { }
+        }
+        private void DrawLine(System.Windows.Shapes.Rectangle line,Rect bounds,string color)
+        {
+            line.Visibility = Visibility.Visible;
+            if(line.Width != bounds.Width) line.Width = bounds.Width;
+            if(line.Height != bounds.Height) line.Height = bounds.Height;
+            if(Canvas.GetLeft(line) != bounds.Left) Canvas.SetLeft(line,bounds.Left);
+            if(Canvas.GetTop(line) != bounds.Top) Canvas.SetTop(line,bounds.Top);
+            var value = (Color)ColorConverter.ConvertFromString(color);
+            if(!(line.Fill is SolidColorBrush brush) || brush.Color != value) { var fill = new SolidColorBrush(value); fill.Freeze(); line.Fill = fill; }
+            line.Opacity = lineSettings.LineOpacity;
         }
     }
 }

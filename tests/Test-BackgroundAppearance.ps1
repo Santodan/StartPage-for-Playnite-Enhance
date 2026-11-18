@@ -103,6 +103,48 @@ $body = @'
     $vm.BeginPageEditing(); (Get-Setting $settingsModel.Settings 'BackgroundAppearance').Vignette = .9; Wait-Task ($vm.EndPageEditingAsync($false))
     if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Vignette -ne 0) { throw 'Cancelling page editing retained background appearance edits' }
     'PASS: actual image template, cached-source reuse, independent page snapshots/switching and cancel rollback.'
+    Set-Field $settingsModel 'plugin' $plugin
+    $privateFirst = $vm.SelectedPage; $privateSecond = $vm.Pages | Where-Object Name -eq 'Background appearance test'
+    Set-Field $settingsModel '<editingClone>k__BackingField' ([LandingPage.Models.DashboardProfiles]::Clone($settingsModel.Settings)); Set-Setting $settingsModel.Settings 'EnableGlobalBackground' $true
+    (Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom = 3.25
+    $settingsModel.EndEdit(); $vm.CaptureCurrentPage()
+    Wait-Task ($vm.SwitchPageAsync($privateSecond))
+    if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 3.25 -or $privateFirst.Background.Appearance.Zoom -ne 1.5 -or $privateSecond.Background.Appearance.Zoom -ne 2.5) { throw 'Global background does not remain shared or overwrites private page backgrounds' }
+    $sharedAppearance = Get-Setting $settingsModel.Settings 'BackgroundAppearance'
+    Wait-Task ($vm.SwitchPageAsync($privateFirst))
+    if(![object]::ReferenceEquals($sharedAppearance,(Get-Setting $settingsModel.Settings 'BackgroundAppearance'))) { throw 'Global background reloaded on dashboard navigation' }
+    [void][LandingPage.Models.DashboardPages]::Ensure($settingsModel.Settings)
+    if($privateFirst.Background.Appearance.Zoom -ne 1.5) { throw 'Startup migration overwrites private background in global mode' }
+    $vm.UseGlobalBackgroundForPage = $false
+    if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 1.5 -or $vm.SelectedPage.UseGlobalBackground) { throw 'Page opt-out does not restore the private background' }
+    (Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom = 1.75; $vm.CaptureCurrentPage()
+    Wait-Task ($vm.SwitchPageAsync($privateSecond))
+    if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 3.25 -or !$vm.UseGlobalBackgroundForPage) { throw 'Opt-out changes the shared background on other pages' }
+    Wait-Task ($vm.SwitchPageAsync($privateFirst))
+    if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 1.75 -or $vm.UseGlobalBackgroundForPage) { throw 'Private override does not survive switching pages' }
+    $privateProfile = [LandingPage.Models.DashboardProfiles]::Capture($settingsModel.Settings,'Private background override')
+    $privateTarget = [LandingPage.LandingPageSettings]::new()
+    [LandingPage.Models.DashboardProfiles]::ApplyData($privateTarget,$privateProfile.Snapshot)
+    if((Get-Setting $privateTarget 'BackgroundAppearance').Zoom -ne 1.75) { throw 'Profile ignores page opt-out' }
+    $vm.BeginPageEditing(); $vm.UseGlobalBackgroundForPage = $true; Wait-Task ($vm.EndPageEditingAsync($false))
+    if($vm.UseGlobalBackgroundForPage -or (Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 1.75) { throw 'Cancelling page edits does not restore the override' }
+    $privateFirst = $vm.SelectedPage; $privateSecond = $vm.Pages | Where-Object Name -eq 'Background appearance test'
+    $vm.UseGlobalBackgroundForPage = $true
+    if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 3.25) { throw 'Re-enabling global background fails to restore the shared image/appearance' }
+    $vm.UseGlobalBackgroundForPage = $false
+    (Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom = 1.5
+    $vm.UseGlobalBackgroundForPage = $true
+    'PASS: per-dashboard global background opt-out, independent edits, navigation, profile persistence, cancellation and rejoining shared background.'
+    $globalProfile = [LandingPage.Models.DashboardProfiles]::Capture($settingsModel.Settings,'Global background test')
+    $profileTarget = [LandingPage.LandingPageSettings]::new()
+    [LandingPage.Models.DashboardProfiles]::ApplyData($profileTarget,$globalProfile.Snapshot)
+    if((Get-Setting $profileTarget 'BackgroundAppearance').Zoom -ne 3.25 -or !(Get-Setting $profileTarget 'EnableGlobalBackground')) { throw 'Profile loses shared global background' }
+    Set-Field $settingsModel '<editingClone>k__BackingField' ([LandingPage.Models.DashboardProfiles]::Clone($settingsModel.Settings)); Set-Setting $settingsModel.Settings 'EnableGlobalBackground' $false; $settingsModel.EndEdit()
+    if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 1.5) { throw 'Disabling global background does not restore active private background' }
+    Wait-Task ($vm.SwitchPageAsync($privateSecond))
+    if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 2.5) { throw 'Disabling global background loses inactive private background' }
+    Wait-Task ($vm.SwitchPageAsync($privateFirst))
+    'PASS: shared global backgrounds across pages, no reload, private background preservation, startup/profile restoration and disabling global mode.'
     $editor = [LandingPage.Views.Settings.BackgroundAppearanceSettingsView]::new(); $editor.DataContext = (Get-Setting $settingsModel.Settings 'BackgroundAppearance')
     [void]$view.Content.Children.Add($editor); Flush-Background
     $editor.FindName('ExcludeSidebarToggle').IsChecked = $true; if(!$editor.DataContext.ExcludeSidebar) { throw 'Sidebar exclusion checkbox does not update settings' }
@@ -112,18 +154,49 @@ $body = @'
     if($editor.DataContext.Zoom -ne 1 -or $editor.DataContext.Fit -ne 'Fill' -or (Get-Setting $settingsModel.Settings 'BlurAmount') -ne 0 -or (Get-Setting $settingsModel.Settings 'BackgroundImagePath') -ne $sourcePath) { throw 'Appearance reset does not restore defaults independently from the selected image/legacy blur controls' }
     [void]$view.Content.Children.Remove($editor)
     'PASS: real framing editor controls and appearance-only reset preserve the source image and existing background controls.'
+    Set-Setting $settingsModel.Settings 'EnableGlobalBackground' $true
     $nativeWindow = [Windows.Window]::new(); $nativeWindow.Width = 600; $nativeWindow.Height = 360; $nativeWindow.Opacity = 0; $nativeWindow.ShowActivated = $false; $nativeWindow.ShowInTaskbar = $false
     $nativeRoot = [Windows.Controls.Grid]::new(); $nativeWindow.Content = $nativeRoot
     $globalView = [LandingPage.Views.BackgroundView]::new(); $globalView.IsGlobalBackground = $true; $globalView.DataContext = $background; [void]$nativeRoot.Children.Add($globalView)
     $dock = [Windows.Controls.DockPanel]::new(); $dock.Margin = [Windows.Thickness]::new(0,20,0,0); [void]$nativeRoot.Children.Add($dock)
     $sidebar = [Windows.Controls.Border]::new(); $sidebar.Name = 'PART_Sidebar'; $sidebar.Width = 60; [Windows.Controls.DockPanel]::SetDock($sidebar,[Windows.Controls.Dock]::Left)
-    $content = [Windows.Controls.Border]::new(); $content.Name = 'PART_ContentView'; [void]$dock.Children.Add($sidebar); [void]$dock.Children.Add($content)
+    $themeBorder = [Windows.Controls.Border]::new(); $themeBorder.Name = 'BorderContentHolder'; $themeBorder.BorderThickness = [Windows.Thickness]::new(0,0,1,0); $themeBorder.Resources['TestSidebarBrush'] = [Windows.Media.Brushes]::Blue; $themeBorder.SetResourceReference([Windows.Controls.Border]::BorderBrushProperty,'TestSidebarBrush'); $sidebar.Child = $themeBorder
+    $content = [Windows.Controls.Border]::new(); $content.Background = [Windows.Media.Brushes]::Black; $content.Name = 'PART_ContentView'; [void]$dock.Children.Add($sidebar); [void]$dock.Children.Add($content)
     function Flush-NativeBackground { $nativeWindow.UpdateLayout(); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); $nativeWindow.UpdateLayout() }
     try {
         $nativeWindow.Show(); (Get-Setting $settingsModel.Settings 'BackgroundAppearance').ExcludeSidebar = $true; Flush-NativeBackground
         $viewportPanel = $globalView.FindName('BackgroundViewport')
         if($viewportPanel.Margin.Left -ne 60 -or $viewportPanel.Margin.Top -ne 20 -or [Math]::Abs($viewportPanel.ActualWidth-($globalView.ActualWidth-60)) -gt 1) { throw 'Global background still extends behind the left sidebar' }
         if($backgroundView.FindName('BackgroundViewport').Margin.Left -ne 0) { throw 'Sidebar exclusion also offsets the dashboard-local background' }
+        $lines = Get-Setting $settingsModel.Settings 'BackgroundAppearance'
+        $lines.ShowSidebarLine = $true; $lines.ShowTopBarLine = $true; $lines.SidebarLineThickness = 3; $lines.TopBarLineThickness = 2
+        $lines.SidebarLineColor = '#FF00FF'; $lines.TopBarLineColor = '#00FF00'; $lines.LineOpacity = .6
+        $chrome = [Windows.Shell.WindowChrome]::new(); $chrome.CaptionHeight = 40
+        [Windows.Shell.WindowChrome]::SetWindowChrome($nativeWindow,$chrome); Flush-NativeBackground
+        $separator = $globalView.FindName('SeparatorCanvas'); $side = $separator.Children[0]; $top = $separator.Children[1]
+        if($separator.Parent -ne $nativeRoot -or [Windows.Controls.Panel]::GetZIndex($separator) -ne [int]::MaxValue) { throw 'Separators are obscured behind native content' }
+        if($themeBorder.BorderBrush -ne [Windows.Media.Brushes]::Transparent) { throw 'Native sidebar border still doubles the custom separator' }
+        if($side.Visibility -ne 'Visible' -or $side.Width -ne 3 -or [Windows.Controls.Canvas]::GetLeft($side) -ne 58.5 -or $side.Fill.Color.ToString() -ne '#FFFF00FF' -or $side.Opacity -ne .6) { throw 'Sidebar separator appearance/position is incorrect' }
+        if($top.Visibility -ne 'Visible' -or $top.Height -ne 2 -or [Windows.Controls.Canvas]::GetTop($top) -ne 40 -or [Windows.Controls.Canvas]::GetLeft($top) -ne 61.5) { throw 'Top bar separator is not aligned with the caption and sidebar' }
+        $caption = [Windows.Controls.Button]::new(); $caption.Name = 'PART_ButtonClose'; $caption.Width = 40; $caption.Height = 60
+        $caption.VerticalAlignment = 'Top'; $caption.HorizontalAlignment = 'Right'; [void]$nativeRoot.Children.Add($caption)
+        $globalView.GetType().GetField('captionButtons',$flags).SetValue($globalView,$null); Flush-NativeBackground
+        if([Windows.Controls.Canvas]::GetTop($top) -ne 60) { throw 'Top separator cuts through tall native caption buttons' }
+        $sideBounds = [Windows.Rect]::new([Windows.Controls.Canvas]::GetLeft($side),[Windows.Controls.Canvas]::GetTop($side),$side.Width,$side.Height)
+        $topBounds = [Windows.Rect]::new([Windows.Controls.Canvas]::GetLeft($top),[Windows.Controls.Canvas]::GetTop($top),$top.Width,$top.Height)
+        $intersection = [Windows.Rect]::Intersect($sideBounds,$topBounds)
+        if(!$intersection.IsEmpty -and $intersection.Width*$intersection.Height -gt 0) { throw 'Separators overlap and double opacity at their junction' }
+        $renderedLines = Pixels $nativeRoot; $linePixel = (60*100+90)*4
+        if($renderedLines[$linePixel+1] -lt 140 -or $renderedLines[$linePixel+2] -gt 10) { throw 'Top separator is not painted above opaque Playnite content' }
+        $caption.Height = 48; Flush-NativeBackground
+        if([Windows.Controls.Canvas]::GetTop($top) -ne 48) { throw 'Top separator does not follow caption button resizing' }
+        if($globalView.IsHitTestVisible -and $separator.IsHitTestVisible) { throw 'Separator intercepts clicks' }
+        $copyLines = $lines.Copy(); $lines.ShowSidebarLine = $false; $lines.ShowTopBarLine = $false; Flush-NativeBackground
+        if($themeBorder.BorderBrush -ne [Windows.Media.Brushes]::Blue) { throw 'Native sidebar border not restored after disabling custom line' }
+        $themeBorder.Resources['TestSidebarBrush'] = [Windows.Media.Brushes]::Green; Flush-NativeBackground
+        if($themeBorder.BorderBrush -ne [Windows.Media.Brushes]::Green) { throw 'Sidebar restoration lost the theme resource expression' }
+        if(!$copyLines.ShowSidebarLine -or $copyLines.SidebarLineThickness -ne 3 -or $side.Visibility -ne 'Collapsed' -or $top.Visibility -ne 'Collapsed') { throw 'Separator copy or toggle is incorrect' }
+        'PASS: sidebar/top bar separators, colors, thickness, opacity, placement, copy isolation and hit testing.'
         $sidebar.Width = 85; Flush-NativeBackground
         if($viewportPanel.Margin.Left -ne 85) { throw 'Background does not follow sidebar resizing' }
         [Windows.Controls.DockPanel]::SetDock($sidebar,[Windows.Controls.Dock]::Right); Flush-NativeBackground
@@ -137,6 +210,7 @@ $body = @'
         (Get-Setting $settingsModel.Settings 'BackgroundAppearance').ExcludeSidebar = $false; Flush-NativeBackground
         if($viewportPanel.Margin -ne [Windows.Thickness]::new(0)) { throw 'Disabling sidebar exclusion does not restore the full-window background' }
     } finally { $nativeWindow.Close(); Flush-Background }
+    if($nativeRoot.Children.Contains($separator)) { throw 'Separator overlay remains after unload' }
     if($globalView.GetType().GetField('hostContent',$flags).GetValue($globalView)) { throw 'Background retains native theme controls after unload' }
     $scopeSettings = $plugin.GetType().GetProperty('Settings',$flags).GetValue($plugin)
     [LandingPage.LandingPageSettings].GetProperty('EnableGlobalBackground').SetValue($scopeSettings,$true)

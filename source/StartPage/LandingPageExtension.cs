@@ -554,10 +554,7 @@ namespace LandingPage
                 }
             }
 
-            if (Settings.EnableGlobalBackground)
-            {
-                SetGlobalBackground();
-            }
+            SetGlobalBackground();
 
             SettingsViewModel.SettingsChanged += SettingsViewModel_SettingsChanged;
         }
@@ -565,14 +562,7 @@ namespace LandingPage
         private void SettingsViewModel_SettingsChanged(object sender, LandingPageSettings e)
         {
             ExtensionDiagnostics.Record(this, "Settings saved.");
-            if (e.EnableGlobalBackground)
-            {
-                SetGlobalBackground();
-            }
-            else
-            {
-                UnsetGlobalBackground();
-            }
+            SetGlobalBackground();
         }
 
         private void BindDashboardProgress(StartPageView view)
@@ -597,15 +587,15 @@ namespace LandingPage
         {
             if (Application.Current.Windows.OfType<Window>().Any(window => window.Name == "WindowMain"))
             {
-                if (Settings.EnableGlobalBackground) SetGlobalBackground(); else UnsetGlobalBackground();
+                SetGlobalBackground();
             }
             if (startPageView is StartPageView view) BindDashboardProgress(view);
         }
 
-        private void UpdateGlobalBackgroundVisibility()
+        internal void UpdateGlobalBackgroundVisibility()
         {
             if (globalBackground == null) return;
-            globalBackground.Visibility = Settings.EnableGlobalBackground
+            globalBackground.Visibility = (Settings.EnableGlobalBackground || Settings.BackgroundAppearance.ShowSidebarLine || Settings.BackgroundAppearance.ShowTopBarLine)
                 && (isViewOpen || Settings.ShowBackgroundOutsideStartPage) ? Visibility.Visible : Visibility.Collapsed;
             if (isViewOpen) globalBackground.Opacity = 1;
             else globalBackground.SetBinding(UIElement.OpacityProperty,

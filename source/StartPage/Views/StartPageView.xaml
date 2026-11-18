@@ -598,7 +598,8 @@
                             </Expander>
                             <Expander Header="Page background" Margin="0,6,0,0">
                                 <StackPanel Margin="8,6,0,8">
-                                    <TextBlock Text="These background settings belong to the current page." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <CheckBox Content="Use global background" IsChecked="{Binding UseGlobalBackgroundForPage}" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="When Global Background is enabled, checked pages share it. Uncheck to use and edit the individual page background. With it checked, edits below affect the shared background." TextWrapping="Wrap" Margin="0,0,0,8"/>
                                     <TextBlock Text="Game artwork source (when no media file/folder is set)" TextWrapping="Wrap"/>
                                     <ComboBox SelectedValue="{Binding Settings.Settings.BackgroundImageSource}" SelectedValuePath="Tag" Margin="0,4,0,8">
                                         <ComboBoxItem Content="Last played" Tag="{x:Static lp:BackgroundImageSource.LastPlayed}"/>

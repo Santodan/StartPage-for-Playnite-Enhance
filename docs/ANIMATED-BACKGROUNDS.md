@@ -29,3 +29,13 @@ Enable **Settings > Debug**, then reproduce the issue. Open the log folder from 
 Logs include media readiness, decoded GIF dimensions/buffer size, playback state and periodic GIF average/maximum frame decode timings. Invalid media and missing codecs produce an error message in the background and a logged warning rather than an unhandled playback exception.
 
 This implementation covers dashboard/global backgrounds. Animated media inside the separate Image widget remains a roadmap task.
+
+## Playnite border lines
+
+Under Background appearance, expand **Playnite border lines** to add an optional sidebar separator and top bar separator. Each has its own color picker (under **Colors**) and thickness slider; both share a line opacity slider. They follow the native sidebar position and visible top bar, or the caption area in themes with a hidden top bar. They work with dashboard-only backgrounds too, stay independent of image framing and sidebar exclusion, and do not intercept clicks. The custom sidebar line temporarily replaces the theme's named sidebar separator to avoid a double border; the original theme border is restored when the line is disabled, StartPage is left, or the view is unloaded. The lines render above native content without intercepting clicks. Settings are stored per dashboard page and included in profiles. They hide when leaving StartPage unless **Also show StartPage background in the library and other extensions** is enabled.
+
+## One background for every dashboard
+
+Enable **Global Background** in the extension's Background settings to share the current background image/source, framing, effects, playback and separator settings across every dashboard. Changing the background while enabled changes the shared background. Page switching retains it without reloading it. Existing page-specific backgrounds are preserved; disabling Global Background and saving settings restores the active page's private background and subsequent switches use each page's background again. Saved profiles include the shared background. Showing it outside StartPage remains a separate opt-in setting.
+
+To give one dashboard a separate background, open **Dashboard pages > Page background** and uncheck **Use global background**. It restores that page's private background; edits there then affect only that page. Recheck it to return to the shared background. This preference is saved per page and included in profiles, and cancelling the page editor restores its previous value. New and existing pages use the global background by default when the extension-wide setting is enabled.

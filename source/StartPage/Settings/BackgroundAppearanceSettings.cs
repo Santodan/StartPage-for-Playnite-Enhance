@@ -19,6 +19,16 @@ namespace LandingPage.Settings
         public double Vignette { get => vignette; set => SetValue(ref vignette,Number(value,0,0,1)); }
         private bool excludeSidebar;
         public bool ExcludeSidebar { get => excludeSidebar; set => SetValue(ref excludeSidebar,value); }
+        private bool showSidebarLine,showTopBarLine;
+        public bool ShowSidebarLine { get => showSidebarLine; set => SetValue(ref showSidebarLine,value); }
+        public bool ShowTopBarLine { get => showTopBarLine; set => SetValue(ref showTopBarLine,value); }
+        private double sidebarLineThickness = 1,topBarLineThickness = 1,lineOpacity = 1;
+        public double SidebarLineThickness { get => sidebarLineThickness; set => SetValue(ref sidebarLineThickness,Number(value,1,.5,12)); }
+        public double TopBarLineThickness { get => topBarLineThickness; set => SetValue(ref topBarLineThickness,Number(value,1,.5,12)); }
+        public double LineOpacity { get => lineOpacity; set => SetValue(ref lineOpacity,Number(value,1,0,1)); }
+        private string sidebarLineColor = "#808080",topBarLineColor = "#808080";
+        public string SidebarLineColor { get => sidebarLineColor; set => SetValue(ref sidebarLineColor,Color(value)); }
+        public string TopBarLineColor { get => topBarLineColor; set => SetValue(ref topBarLineColor,Color(value)); }
         private bool flipHorizontal,flipVertical,useBaseColor,tintEnabled;
         public bool FlipHorizontal { get => flipHorizontal; set => SetValue(ref flipHorizontal,value); }
         public bool FlipVertical { get => flipVertical; set => SetValue(ref flipVertical,value); }
@@ -45,6 +55,7 @@ namespace LandingPage.Settings
         public int GifMaxDimension { get => gifMaxDimension; set => SetValue(ref gifMaxDimension,Math.Max(0,Math.Min(3840,value))); }
         public void RestartMedia() => NotifyPropertyChanged("RestartMedia",null,null);
         public BackgroundAppearanceSettings Copy() => new BackgroundAppearanceSettings { Fit = Fit,PositionX = PositionX,PositionY = PositionY,Zoom = Zoom,ImageOpacity = ImageOpacity,
+            ShowSidebarLine = ShowSidebarLine,ShowTopBarLine = ShowTopBarLine,SidebarLineThickness = SidebarLineThickness,TopBarLineThickness = TopBarLineThickness,LineOpacity = LineOpacity,SidebarLineColor = SidebarLineColor,TopBarLineColor = TopBarLineColor,
             ExcludeSidebar = ExcludeSidebar,TintOpacity = TintOpacity,FadeOpacity = FadeOpacity,Vignette = Vignette,FlipHorizontal = FlipHorizontal,FlipVertical = FlipVertical,UseBaseColor = UseBaseColor,TintEnabled = TintEnabled,
             PlayMedia = PlayMedia,LoopMedia = LoopMedia,PauseMediaWhenInactive = PauseMediaWhenInactive,VideoMuted = VideoMuted,VideoVolume = VideoVolume,PlaybackSpeed = PlaybackSpeed,GifFrameRate = GifFrameRate,GifMaxDimension = GifMaxDimension,
             Fade = Fade,BaseColor = BaseColor,TintColor = TintColor,FadeColor = FadeColor,VignetteColor = VignetteColor };
