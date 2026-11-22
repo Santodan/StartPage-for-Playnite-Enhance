@@ -272,7 +272,9 @@ namespace LandingPage
             UpdateGlobalBackgroundVisibility();
             if (startPageView?.DataContext is StartPageViewModel model)
             {
-                await model.Closed();
+                // async void: an exception here would reach Playnite's dispatcher and crash it.
+                try { await model.Closed(); }
+                catch (Exception ex) { logger.Error(ex, "Unable to close the StartPage dashboard cleanly."); }
             }
 
 
@@ -848,7 +850,9 @@ namespace LandingPage
             if (id == "GameShelves")
             {
                 var viewModel = new ShelvesViewModel(PlayniteApi, this, SettingsViewModel, instanceId);
-                shelvesViewModels.Add(instanceId, viewModel);
+                // A recreated instance replaces its stale view model instead of failing on a duplicate key.
+                if (shelvesViewModels.TryGetValue(instanceId, out var stale)) stale.OnViewClosed();
+                shelvesViewModels[instanceId] = viewModel;
                 return new ShelvesView { DataContext = viewModel };
             }
             if (id == "MostPlayed")
@@ -925,7 +929,8 @@ namespace LandingPage
             { featured.OnViewClosed(); featuredGameViews.Remove(instanceId); }
             if (viewId == "GameShelves")
             {
-                shelvesViewModels[instanceId].OnViewClosed();
+                // Shelves on pages that were never opened have no view model; still drop their settings.
+                if (shelvesViewModels.TryGetValue(instanceId, out var shelves)) shelves.OnViewClosed();
                 shelvesViewModels.Remove(instanceId);
                 Settings.ShelveInstanceSettings.Remove(instanceId);
             }

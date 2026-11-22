@@ -20,7 +20,7 @@ namespace LandingPage.Views
         public static readonly DependencyProperty LineAppearanceProperty = DependencyProperty.Register("LineAppearance",typeof(BackgroundAppearanceSettings),typeof(BackgroundView),new PropertyMetadata(null,(s,e) => { var view = (BackgroundView)s; if(view.IsLoaded) view.ObserveLines(); }));
         private BackgroundAppearanceSettings lineSettings;
         private FrameworkElement lineToolbar;
-        private bool lineToolbarLookedUp;
+        private bool lineToolbarLookedUp,lineSidebarLookedUp;
         private FrameworkElement[] captionButtons;
         private Border nativeSidebarBorder;
         private object savedBorderBrush;
@@ -55,7 +55,7 @@ namespace LandingPage.Views
         }
         private void LineSettingsChanged(object sender,PropertyChangedEventArgs e)
         {
-            ObserveLines();
+            UpdateBackgroundBounds();
             if(IsGlobalBackground) LandingPageExtension.Instance?.UpdateGlobalBackgroundVisibility();
         }
         public BackgroundView()
@@ -66,9 +66,9 @@ namespace LandingPage.Views
             SetBinding(LineAppearanceProperty,new Binding("Settings.Settings.BackgroundAppearance"));
             SetBinding(ArtworkEnabledProperty,new Binding("Settings.Settings.EnableGlobalBackground"));
             SetBinding(ExcludeSidebarProperty,new Binding("Settings.Settings.BackgroundAppearance.ExcludeSidebar"));
-            IsVisibleChanged += (s,e) => { if(!IsVisible) RestoreSidebarBorder(); else UpdateBackgroundBounds(); };
-            Loaded += (s,e) => { MountSeparatorOverlay(); lookedUp = false; lineToolbarLookedUp = false; captionButtons = null; LayoutUpdated += LayoutChanged; ObserveLines(); };
-            Unloaded += (s,e) => { RestoreSidebarBorder(); if(IsGlobalBackground && SeparatorCanvas.Parent is Panel parent) parent.Children.Remove(SeparatorCanvas); LayoutUpdated -= LayoutChanged; if(lineSettings != null) PropertyChangedEventManager.RemoveHandler(lineSettings,LineSettingsChanged,string.Empty); lineSettings = null; captionButtons = null; hostWindow = null; hostContent = hostSidebar = lineToolbar = null; lookedUp = false; };
+            IsVisibleChanged += (s,e) => { if(!IsVisible) RestoreSidebarBorder(); else { lineSidebarLookedUp = false; UpdateBackgroundBounds(); } };
+            Loaded += (s,e) => { MountSeparatorOverlay(); lookedUp = false; lineToolbarLookedUp = lineSidebarLookedUp = false; captionButtons = null; LayoutUpdated += LayoutChanged; ObserveLines(); };
+            Unloaded += (s,e) => { RestoreSidebarBorder(); if(IsGlobalBackground && SeparatorCanvas.Parent is Panel parent) parent.Children.Remove(SeparatorCanvas); LayoutUpdated -= LayoutChanged; if(lineSettings != null) PropertyChangedEventManager.RemoveHandler(lineSettings,LineSettingsChanged,string.Empty); lineSettings = null; captionButtons = null; hostWindow = null; hostContent = hostSidebar = lineToolbar = null; lookedUp = lineSidebarLookedUp = false; };
         }
         public static readonly DependencyProperty ArtworkEnabledProperty = DependencyProperty.Register("ArtworkEnabled",typeof(bool),typeof(BackgroundView),new PropertyMetadata(true,BoundsChanged));
         private static void BoundsChanged(DependencyObject sender,DependencyPropertyChangedEventArgs args) => ((BackgroundView)sender).UpdateBackgroundBounds();
@@ -118,7 +118,10 @@ namespace LandingPage.Views
             if(SeparatorCanvas == null) return;
             if(!IsLoaded || !IsVisible || !IsGlobalBackground || lineSettings == null || (!lineSettings.ShowSidebarLine && !lineSettings.ShowTopBarLine)) { RestoreSidebarBorder(); sidebarLine.Visibility = topLine.Visibility = Visibility.Collapsed; return; }
             var window = Window.GetWindow(this); if(window == null) return;
-            if(hostSidebar == null || !hostSidebar.IsLoaded) hostSidebar = Part(window,"PART_Sidebar");
+            // LayoutUpdated fires constantly; walk the window tree only once (or after the sidebar unloads),
+            // otherwise themes without PART_Sidebar pay a full visual-tree search on every layout pass.
+            if(hostSidebar != null && !hostSidebar.IsLoaded) { hostSidebar = null; lineSidebarLookedUp = false; }
+            if(hostSidebar == null && !lineSidebarLookedUp) { hostSidebar = Part(window,"PART_Sidebar"); lineSidebarLookedUp = true; }
             var sidebar = hostSidebar;
             var border = sidebar == null ? null : Part(sidebar,"BorderContentHolder") as Border;
             if(!lineSettings.ShowSidebarLine || sidebar?.IsVisible != true || border != nativeSidebarBorder) RestoreSidebarBorder();

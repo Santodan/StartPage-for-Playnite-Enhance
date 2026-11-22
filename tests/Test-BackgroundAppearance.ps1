@@ -145,6 +145,16 @@ $body = @'
     if((Get-Setting $settingsModel.Settings 'BackgroundAppearance').Zoom -ne 2.5) { throw 'Disabling global background loses inactive private background' }
     Wait-Task ($vm.SwitchPageAsync($privateFirst))
     'PASS: shared global backgrounds across pages, no reload, private background preservation, startup/profile restoration and disabling global mode.'
+    $upgraded = [LandingPage.LandingPageSettings]::new(); Set-Setting $upgraded 'EnableGlobalBackground' $true
+    (Get-Setting $upgraded 'BackgroundAppearance').Zoom = 2.75
+    $upgradedOther = [LandingPage.Models.DashboardPage]::new(); $upgradedOther.Name = 'Other'; $upgradedOther.Background.Appearance.Zoom = 1.25
+    $upgradedActive = [LandingPage.Models.DashboardPage]::new(); $upgradedActive.Name = 'Active'
+    Set-Setting $upgraded 'DashboardPages' ([Collections.ObjectModel.ObservableCollection[LandingPage.Models.DashboardPage]]::new([LandingPage.Models.DashboardPage[]]@($upgradedActive,$upgradedOther)))
+    Set-Setting $upgraded 'ActiveDashboardPageId' $upgradedActive.Id
+    [void][LandingPage.Models.DashboardPages]::Ensure($upgraded)
+    $seeded = Get-Setting $upgraded 'GlobalDashboardBackground'
+    if(!$seeded -or $seeded.Appearance.Zoom -ne 2.75) { throw 'Configs saved before shared backgrounds do not seed the shared background from the active projection' }
+    'PASS: pre-existing global-background configs seed the shared background on load.'
     $editor = [LandingPage.Views.Settings.BackgroundAppearanceSettingsView]::new(); $editor.DataContext = (Get-Setting $settingsModel.Settings 'BackgroundAppearance')
     [void]$view.Content.Children.Add($editor); Flush-Background
     $editor.FindName('ExcludeSidebarToggle').IsChecked = $true; if(!$editor.DataContext.ExcludeSidebar) { throw 'Sidebar exclusion checkbox does not update settings' }

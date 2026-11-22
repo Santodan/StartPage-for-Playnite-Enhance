@@ -43,7 +43,7 @@ if ($profile.Snapshot.Pages[0].Layout.Children[0].ViewProperties.TextSettings.Te
 $json = [LandingPage.Models.DashboardProfiles]::Export($profile)
 if ($json -match '"(StartPageViewArgs|DesignatorSize|IsLeaf|ViewCount|Item|Error)"\s*:') { throw 'Profiles must exclude runtime/computed/validation properties' }
 $imported = [LandingPage.Models.DashboardProfiles]::Import($json)
-if ($imported.Id -eq $profile.Id -or $imported.Snapshot.Pages.Count -ne 2 -or $imported.Snapshot.Pages[0].Layout.Children[3].ViewProperties.ToolbarSettings.Items.Count -ne 4) { throw 'Profile round-trip failed or defaults duplicated' }
+if ($imported.Id -eq $profile.Id -or $imported.Snapshot.Pages.Count -ne 2 -or $imported.Snapshot.Pages[0].Layout.Children[3].ViewProperties.ToolbarSettings.Items.Count -ne [LandingPage.Settings.ToolbarWidgetSettings]::Defaults().Count) { throw 'Profile round-trip failed or defaults duplicated' }
 $prepared = [LandingPage.Models.DashboardProfiles]::Prepare($imported,$builtin)
 if ($prepared.Pages[0].Id -eq $profile.Snapshot.Pages[0].Id -or $prepared.Pages[0].Layout.Children[0].ViewProperties.InstanceId -eq $text.ViewProperties.InstanceId) { throw 'Applying must allocate independent built-in page/widget IDs' }
 if ($prepared.Pages[0].Layout.Children[5].ViewProperties.InstanceId -ne $external.ViewProperties.InstanceId) { throw 'External widget identity must remain available for its provider settings' }

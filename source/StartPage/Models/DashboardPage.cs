@@ -103,6 +103,9 @@ namespace LandingPage.Models
                 if (!UsesGlobalBackground(settings,active)) active.Background = DashboardBackground.Capture(settings);
             }
             else { active = pages[0]; if (!UsesGlobalBackground(settings,active)) active.Background.Apply(settings); }
+            // Configs saved before shared backgrounds existed have no shared copy yet: seed it from the
+            // active projection so switching pages does not adopt the destination page's own background.
+            if (settings.GlobalDashboardBackground == null && UsesGlobalBackground(settings,active)) settings.GlobalDashboardBackground = DashboardBackground.Capture(settings);
             settings.ActiveDashboardPageId = active.Id;
             settings.GridLayout = active.Layout;
             return active;

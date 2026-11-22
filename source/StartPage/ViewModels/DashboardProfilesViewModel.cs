@@ -165,7 +165,7 @@ namespace LandingPage.ViewModels
             RootNodeViewModel = new GridNodeViewModel(selectedPage.Layout);
             pageRoots[selectedPage.Id] = RootNodeViewModel;
             OnPropertyChanged(nameof(Pages)); OnPropertyChanged(nameof(SelectedPage));
-            ApplyPageBackground(selectedPage);
+            ApplyPageBackground(selectedPage, true);
             plugin.RefreshDashboardPresentation();
             await RootNodeViewModel.InititalizeGrid();
             await InitializeAndOpenViews();

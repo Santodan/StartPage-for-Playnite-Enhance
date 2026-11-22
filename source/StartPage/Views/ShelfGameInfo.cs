@@ -290,7 +290,7 @@ namespace LandingPage.Views
                 if (settings.ShowLastPlayed) AddText("Last played: " + (game.LastActivity?.ToLocalTime().ToString("d") ?? "Never"));
                 if (settings.ShowSource || settings.ShowSourceIcon) AddSource(game);
                 if ((settings.ShowPlatform || settings.ShowPlatformIcons) && game.Platforms?.Any() == true) AddPlatforms(game.Platforms);
-                if (settings.ShowFavoriteBadge && game.Favorite) AddText("â˜… Favorite");
+                if (settings.ShowFavoriteBadge && game.Favorite) AddText("★ Favorite");
                 if (settings.ShowInstallationStatus) AddText(game.IsInstalled ? "Installed" : "Not installed");
                 if (progress != null) AddAchievementProgress(progress);
             });

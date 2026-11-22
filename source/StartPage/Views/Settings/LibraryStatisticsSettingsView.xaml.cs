@@ -104,11 +104,9 @@ namespace LandingPage.Views.Settings
         }
         private void GlobalTextColor_Editing(object sender,RoutedEventArgs args)
         {
-            if(DataContext is LibraryStatisticsSettings settings && sender is LandingPage.Controls.PopupColorPicker picker)
-            {
-                settings.CustomLabelColor = picker.UseCustomColor;
-                if(!ChartOnly) settings.ValueColorMode = settings.CustomLabelColor ? StatisticsValueColor.MatchLabels : StatisticsValueColor.Theme;
-            }
+            if(!(DataContext is LibraryStatisticsSettings settings)) return;
+            if(sender is LandingPage.Controls.PopupColorPicker picker) settings.CustomLabelColor = picker.UseCustomColor;
+            if(!ChartOnly) settings.ValueColorMode = settings.CustomLabelColor ? StatisticsValueColor.MatchLabels : StatisticsValueColor.Theme;
         }
         private void StatisticColors_Expanded(object sender,RoutedEventArgs args)
         {

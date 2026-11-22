@@ -1806,8 +1806,13 @@ try {
     if($movableLabel.Cursor -ne [Windows.Input.Cursors]::SizeAll) { throw 'Edit-mode labels do not expose drag interaction' }
     $beforeDragPlot = [ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot'); $beforeDragCount = $chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0])
     $downLabel = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left); $downLabel.RoutedEvent = [Windows.UIElement]::PreviewMouseLeftButtonDownEvent; $movableLabel.RaiseEvent($downLabel)
+    # Win32 SetCapture only succeeds for a background window when the cursor is over it or a button is down.
+    # Synthetic input has no pressed button, so on a desktop in use the capture (and drag) may end at once.
+    $labelCaptured = [object]::ReferenceEquals([Windows.Input.Mouse]::Captured,$movableLabel)
+    if(!$labelCaptured) { 'NOTE: mouse capture unavailable for synthetic input; mid-drag deferral checks skipped.' }
     $upLabel = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left); $upLabel.RoutedEvent = [Windows.UIElement]::PreviewMouseLeftButtonUpEvent; $movableLabel.RaiseEvent($upLabel)
-    if(!$downLabel.Handled -or !$upLabel.Handled -or $chartWidgets[0].GetType().GetField('manipulating',$flags).GetValue($chartWidgets[0])) { throw 'Label drag start/end did not capture and release cleanly' }
+    $labelReleased = ($upLabel.Handled -or !$labelCaptured) -and ![object]::ReferenceEquals([Windows.Input.Mouse]::Captured,$movableLabel)
+    if(!$downLabel.Handled -or !$labelReleased -or $chartWidgets[0].GetType().GetField('manipulating',$flags).GetValue($chartWidgets[0])) { throw 'Label drag start/end did not capture and release cleanly' }
     $window.UpdateLayout(); Wait-ChartRender
     if(![object]::ReferenceEquals($beforeDragPlot,[ToolbarTestVisuals]::Named($chartWidgets[0],'StatisticsPlot')) -or $chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0]) -ne $beforeDragCount) { throw 'Completing a label drag rebuilt the chart' }
     $originalOffset = $chartWidgets[0].Settings.LabelOffsetX
@@ -1820,7 +1825,7 @@ try {
     $deferredDown = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left); $deferredDown.RoutedEvent = [Windows.UIElement]::PreviewMouseLeftButtonDownEvent; $movableLabel.RaiseEvent($deferredDown)
     $chartWidgets[0].Settings.ChartTitle = 'Deferred visual change'
     $window.UpdateLayout(); Wait-ChartRender
-    if($chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0]) -ne $pendingCount) { throw 'Visual setting rebuilt the chart in the middle of a label drag' }
+    if($labelCaptured -and $chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0]) -ne $pendingCount) { throw 'Visual setting rebuilt the chart in the middle of a label drag' }
     $deferredUp = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left); $deferredUp.RoutedEvent = [Windows.UIElement]::PreviewMouseLeftButtonUpEvent; $movableLabel.RaiseEvent($deferredUp)
     $window.UpdateLayout(); Wait-ChartRender
     if($chartWidgets[0].GetType().GetField('renderCount',$flags).GetValue($chartWidgets[0]) -ne $pendingCount+1 -or !(@([ToolbarTestVisuals]::Text($chartWidgets[0]) | ForEach-Object Text) -contains 'Deferred visual change')) { throw 'Genuine deferred visual change was dropped or rebuilt more than once' }

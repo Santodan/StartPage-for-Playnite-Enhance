@@ -140,7 +140,7 @@ namespace LandingPage.ViewModels
             selectedPage = target; snapshot.ActiveDashboardPageId = target.Id; if (DashboardPages.UsesGlobalBackground(snapshot,target)) snapshot.GlobalDashboardBackground?.Apply(snapshot); else target.Background.Apply(snapshot); snapshot.GridLayout = restoredRoot.GridNode;
             RootNodeViewModel = restoredRoot;
             Settings.Settings = snapshot;
-            ApplyPageBackground(SelectedPage);
+            ApplyPageBackground(SelectedPage, true);
             OnPropertyChanged(nameof(Pages)); OnPropertyChanged(nameof(SelectedPage)); OnPropertyChanged(nameof(UseGlobalBackgroundForPage));
             if(oldRoot != restoredRoot)
             {
@@ -502,7 +502,7 @@ namespace LandingPage.ViewModels
                 Settings.Settings.ActiveDashboardPageId = previous.Id;
                 Settings.Settings.GridLayout = previous.Layout;
                 OnPropertyChanged(nameof(SelectedPage)); OnPropertyChanged(nameof(UseGlobalBackgroundForPage));
-                ApplyPageBackground(previous);
+                ApplyPageBackground(previous, true);
                 if (isPageVisible) await OpenPageAsync();
                 if(playniteAPI.Dialogs != null) playniteAPI.Dialogs.ShowErrorMessage("Unable to switch dashboard page. Your previous page has been restored.", "Dashboard pages");
                 else throw;
