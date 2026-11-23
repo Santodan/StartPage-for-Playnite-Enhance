@@ -1,30 +1,33 @@
 <UserControl x:Class="LandingPage.Views.Settings.TextWidgetSettingsView"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:controls="clr-namespace:LandingPage.Controls"
- xmlns:numeric="http://gu.se/NumericInput">
+ xmlns:controls="clr-namespace:LandingPage.Controls" Foreground="{DynamicResource TextBrush}">
  <StackPanel Margin="0,8">
-  <TextBlock Text="Heading or note"/>
-  <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
-           MinHeight="100" MaxHeight="240" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
-  <TextBlock Text="Font size" Margin="0,6,0,0"/>
-  <WrapPanel><numeric:DoubleBox Width="64" VerticalAlignment="Center" Value="{Binding FontSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="200" Style="{StaticResource {x:Type TextBox}}"/>
-  <ToggleButton IsChecked="{Binding Bold}" ToolTip="Bold" AutomationProperties.Name="Bold" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="B" FontWeight="Bold" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
-  <ToggleButton IsChecked="{Binding Italic}" ToolTip="Italic" AutomationProperties.Name="Italic" Width="32" Height="28" Margin="0,4,5,4" Foreground="{DynamicResource TextBrush}"><TextBlock Text="I" FontStyle="Italic" Margin="0" VerticalAlignment="Center" HorizontalAlignment="Center"/></ToggleButton>
-  <controls:PopupColorPicker Label="Color" UseCustomColor="{Binding UseCustomColor,Mode=TwoWay}" Margin="8,0,0,0" VerticalAlignment="Center" SelectedColor="{Binding Color,Mode=TwoWay}"/></WrapPanel><CheckBox Content="Wrap text" IsChecked="{Binding Wrap}" Margin="0,6,0,0"/>
-  <TextBlock Text="Text alignment" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="Left" Tag="{x:Static TextAlignment.Left}"/>
-   <ComboBoxItem Content="Center" Tag="{x:Static TextAlignment.Center}"/>
-   <ComboBoxItem Content="Right" Tag="{x:Static TextAlignment.Right}"/>
-   <ComboBoxItem Content="Justify" Tag="{x:Static TextAlignment.Justify}"/>
-  </ComboBox>
-  <TextBlock Text="Vertical alignment" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/>
-   <ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/>
-   <ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
-  </ComboBox>
-
+  <controls:SettingsField Label="Heading or note">
+   <TextBox x:Name="NoteText" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
+            MinHeight="100" MaxHeight="240" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+  </controls:SettingsField>
+  <controls:SettingsField Label="Font size and formatting">
+   <controls:TextFormatBar x:Name="FormatBar" TextSize="{Binding FontSize}" MinSize="8" MaxSize="200" Bold="{Binding Bold}" Italic="{Binding Italic}"
+                           Color="{Binding Color}" UseCustomColor="{Binding UseCustomColor}"/>
+  </controls:SettingsField>
+  <controls:SettingsColumns x:Name="AlignmentColumns">
+   <controls:SettingsField Label="Text alignment">
+    <ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag">
+     <ComboBoxItem Content="Left" Tag="{x:Static TextAlignment.Left}"/>
+     <ComboBoxItem Content="Center" Tag="{x:Static TextAlignment.Center}"/>
+     <ComboBoxItem Content="Right" Tag="{x:Static TextAlignment.Right}"/>
+     <ComboBoxItem Content="Justify" Tag="{x:Static TextAlignment.Justify}"/>
+    </ComboBox>
+   </controls:SettingsField>
+   <controls:SettingsField Label="Vertical alignment">
+    <ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
+     <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/>
+     <ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/>
+     <ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
+    </ComboBox>
+   </controls:SettingsField>
+  </controls:SettingsColumns>
+  <CheckBox Content="Wrap text" IsChecked="{Binding Wrap}" Margin="0,8,0,0" Foreground="{DynamicResource TextBrush}"/>
  </StackPanel>
 </UserControl>

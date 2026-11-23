@@ -52,6 +52,7 @@
     </Compile>
     <Compile Include="Controls\TextSettingsSelector.cs" />
     <Compile Include="Controls\PopupColorPicker.cs" />
+    <Compile Include="Controls\SettingsLayout.cs" />
     <Compile Include="Settings\ShortcutWidgetSettings.cs" />
     <Compile Include="Settings\DividerWidgetSettings.cs" />
     <Compile Include="Settings\BackgroundAppearanceSettings.cs" />

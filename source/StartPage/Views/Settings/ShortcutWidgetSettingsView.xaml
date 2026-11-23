@@ -3,43 +3,82 @@
  Foreground="{DynamicResource TextBrush}"
  xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:settings="clr-namespace:LandingPage.Settings" xmlns:numeric="http://gu.se/NumericInput">
  <StackPanel Margin="0,8">
-  <StackPanel.Resources><Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="Margin" Value="0,6,0,3"/></Style></StackPanel.Resources>
+  <StackPanel.Resources>
+   <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="Margin" Value="0,6,0,0"/></Style>
+   <Style x:Key="RowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Margin" Value="6,0,0,0"/><Setter Property="Padding" Value="10,4"/></Style>
+  </StackPanel.Resources>
   <Expander Header="Shortcuts" IsExpanded="True" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,6">
-   <TextBlock Text="Select a shortcut to edit"/>
-   <ComboBox x:Name="EntrySelector" ItemsSource="{Binding Items}" DisplayMemberPath="DisplayName" SelectionChanged="Selection_Changed"/>
-   <WrapPanel Margin="0,6,0,6"><Button Content="Add shortcut" Click="Add_Click" Margin="0,0,6,4"/><Button x:Name="DuplicateButton" Content="Duplicate" Click="Duplicate_Click" Margin="0,0,6,4"/><Button x:Name="RemoveButton" Content="Remove" Click="Remove_Click" Margin="0,0,6,4"/><Button x:Name="UpButton" Content="&#x2191;" ToolTip="Move up" Click="Up_Click" Margin="0,0,6,4"/><Button x:Name="DownButton" Content="&#x2193;" ToolTip="Move down" Click="Down_Click"/></WrapPanel>
+   <controls:SettingsField Label="Select a shortcut to edit">
+    <ComboBox x:Name="EntrySelector" ItemsSource="{Binding Items}" DisplayMemberPath="DisplayName" SelectionChanged="Selection_Changed"/>
+   </controls:SettingsField>
+   <WrapPanel Margin="0,6,0,2"><Button Content="Add shortcut" Click="Add_Click" Margin="0,0,6,4"/><Button x:Name="DuplicateButton" Content="Duplicate" Click="Duplicate_Click" Margin="0,0,6,4"/><Button x:Name="RemoveButton" Content="Remove" Click="Remove_Click" Margin="0,0,6,4"/><Button x:Name="UpButton" Content="&#x2191;" ToolTip="Move up" Click="Up_Click" Margin="0,0,6,4"/><Button x:Name="DownButton" Content="&#x2193;" ToolTip="Move down" Click="Down_Click" Margin="0,0,0,4"/></WrapPanel>
    <StackPanel x:Name="EntryEditor" DataContext="{Binding SelectedItem,ElementName=EntrySelector}">
-    <CheckBox Content="Enable shortcut" IsChecked="{Binding Enabled}" Foreground="{DynamicResource TextBrush}"/>
-    <TextBlock Text="Type"/><ComboBox x:Name="KindSelector" SelectedItem="{Binding Kind,Mode=TwoWay}"/>
-    <TextBlock Text="Label (blank = game name or target)"/><TextBox Text="{Binding Label,UpdateSourceTrigger=PropertyChanged}"/>
-    <StackPanel x:Name="GameFields"><Button Content="Choose game..." Click="ChooseGame_Click" Margin="0,6,0,0"/><TextBlock Text="{Binding Target}" TextWrapping="Wrap"/></StackPanel>
-    <StackPanel x:Name="TargetFields"><TextBlock Text="Target (website or absolute path)"/><TextBox Text="{Binding Target,UpdateSourceTrigger=PropertyChanged}"/><Button x:Name="BrowseTargetButton" Content="Browse..." Click="BrowseTarget_Click" Margin="0,6,0,0"/></StackPanel>
-    <StackPanel x:Name="ApplicationFields"><TextBlock Text="Arguments (optional)"/><TextBox Text="{Binding Arguments,UpdateSourceTrigger=PropertyChanged}"/><TextBlock Text="Working directory (blank = application folder)"/><TextBox Text="{Binding WorkingDirectory,UpdateSourceTrigger=PropertyChanged}"/><Button Content="Choose working directory..." Click="WorkingDirectory_Click" Margin="0,6,0,0"/></StackPanel>
-    <TextBlock Text="Custom icon (blank = automatic game, application, Windows folder or website icon)"/><TextBox Text="{Binding IconPath,UpdateSourceTrigger=PropertyChanged}"/>
-    <WrapPanel><Button Content="Choose icon..." Click="Icon_Click" Margin="0,6,6,0"/><Button Content="Use default icon" Click="ClearIcon_Click" Margin="0,6,0,0"/></WrapPanel>
+    <CheckBox Content="Enable shortcut" IsChecked="{Binding Enabled}" Margin="0,2,0,0"/>
+    <controls:SettingsColumns>
+     <controls:SettingsField Label="Type"><ComboBox x:Name="KindSelector" SelectedItem="{Binding Kind,Mode=TwoWay}"/></controls:SettingsField>
+     <controls:SettingsField Label="Label (blank = game name or target)"><TextBox Text="{Binding Label,UpdateSourceTrigger=PropertyChanged}"/></controls:SettingsField>
+    </controls:SettingsColumns>
+    <controls:SettingsField x:Name="GameFields" Label="Game">
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="{Binding Target}" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+      <Button Grid.Column="1" Content="Choose game..." Click="ChooseGame_Click" Style="{StaticResource RowButton}"/>
+     </Grid>
+    </controls:SettingsField>
+    <controls:SettingsField x:Name="TargetFields" Label="Target (website or absolute path)">
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBox Text="{Binding Target,UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
+      <Button x:Name="BrowseTargetButton" Grid.Column="1" Content="Browse..." Click="BrowseTarget_Click" Style="{StaticResource RowButton}"/>
+     </Grid>
+    </controls:SettingsField>
+    <StackPanel x:Name="ApplicationFields">
+     <controls:SettingsField Label="Arguments (optional)"><TextBox Text="{Binding Arguments,UpdateSourceTrigger=PropertyChanged}"/></controls:SettingsField>
+     <controls:SettingsField Label="Working directory (blank = application folder)">
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBox Text="{Binding WorkingDirectory,UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
+       <Button Grid.Column="1" Content="Browse..." ToolTip="Choose working directory" Click="WorkingDirectory_Click" Style="{StaticResource RowButton}"/>
+      </Grid>
+     </controls:SettingsField>
+    </StackPanel>
+    <controls:SettingsField Label="Custom icon">
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBox Text="{Binding IconPath,UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"/>
+      <Button Grid.Column="1" Content="Browse..." ToolTip="Choose icon" Click="Icon_Click" Style="{StaticResource RowButton}"/>
+      <Button Grid.Column="2" Content="Default" ToolTip="Use default icon" Click="ClearIcon_Click" Style="{StaticResource RowButton}"/>
+     </Grid>
+     <controls:SettingsHint Text="Blank uses the automatic game, application, Windows folder or website icon."/>
+    </controls:SettingsField>
    </StackPanel>
   </StackPanel></Expander>
-  <Expander Header="Layout" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,6">
-   <TextBlock Text="Layout"/><ComboBox x:Name="LayoutSelector" SelectedItem="{Binding Layout,Mode=TwoWay}"/>
-   <TextBlock Text="Alignment"/><ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag"><ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/><ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/><ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/></ComboBox>
-   <CheckBox Foreground="{DynamicResource TextBrush}" Content="Show icons" IsChecked="{Binding ShowIcons}"/><CheckBox Foreground="{DynamicResource TextBrush}" Content="Show labels" IsChecked="{Binding ShowLabels}"/><CheckBox Foreground="{DynamicResource TextBrush}" Content="Place icons above labels" IsChecked="{Binding IconAbove}"/>
-   <UniformGrid Columns="2">
-    <StackPanel Margin="0,0,8,4"><TextBlock Text="Icon size"/><numeric:DoubleBox Value="{Binding IconSize}" MinValue="12" MaxValue="256" Style="{StaticResource {x:Type TextBox}}"/></StackPanel>
-    <StackPanel Margin="0,0,8,4"><TextBlock Text="Button width (0 = automatic)"/><numeric:DoubleBox Value="{Binding ButtonWidth}" MinValue="0" MaxValue="1000" Style="{StaticResource {x:Type TextBox}}"/></StackPanel>
-    <StackPanel Margin="0,0,8,4"><TextBlock Text="Spacing"/><numeric:DoubleBox Value="{Binding Spacing}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></StackPanel>
-    <StackPanel Margin="0,0,8,4"><TextBlock Text="Padding"/><numeric:DoubleBox Value="{Binding Padding}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></StackPanel>
-    <StackPanel Margin="0,0,8,4"><TextBlock Text="Corner radius" ToolTip="Applies when custom button background or border is enabled."/><numeric:DoubleBox Value="{Binding CornerRadius}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></StackPanel>
-    <StackPanel Margin="0,0,8,4"><TextBlock Text="Border width" ToolTip="Applies when custom button background or border is enabled."/><numeric:DoubleBox Value="{Binding BorderWidth}" MinValue="0" MaxValue="20" Style="{StaticResource {x:Type TextBox}}"/></StackPanel>
-   </UniformGrid>
+  <Expander Header="Layout" Margin="0,6,0,0" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,6">
+   <controls:SettingsColumns>
+    <controls:SettingsField Label="Layout"><ComboBox x:Name="LayoutSelector" SelectedItem="{Binding Layout,Mode=TwoWay}"/></controls:SettingsField>
+    <controls:SettingsField Label="Alignment"><ComboBox SelectedValue="{Binding Alignment}" SelectedValuePath="Tag"><ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/><ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/><ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/></ComboBox></controls:SettingsField>
+   </controls:SettingsColumns>
+   <controls:SettingsColumns>
+    <CheckBox Content="Show icons" IsChecked="{Binding ShowIcons}"/>
+    <CheckBox Content="Show labels" IsChecked="{Binding ShowLabels}"/>
+    <CheckBox Content="Place icons above labels" IsChecked="{Binding IconAbove}"/>
+   </controls:SettingsColumns>
+   <controls:SettingsColumns x:Name="DimensionColumns">
+    <controls:SettingsField Label="Icon size"><numeric:DoubleBox Value="{Binding IconSize}" MinValue="12" MaxValue="256" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+    <controls:SettingsField Label="Button width (0 = automatic)"><numeric:DoubleBox Value="{Binding ButtonWidth}" MinValue="0" MaxValue="1000" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+    <controls:SettingsField Label="Spacing"><numeric:DoubleBox Value="{Binding Spacing}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+    <controls:SettingsField Label="Padding"><numeric:DoubleBox Value="{Binding Padding}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+    <controls:SettingsField Label="Corner radius"><numeric:DoubleBox Value="{Binding CornerRadius}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+    <controls:SettingsField Label="Border width"><numeric:DoubleBox Value="{Binding BorderWidth}" MinValue="0" MaxValue="20" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+   </controls:SettingsColumns>
+   <controls:SettingsHint Text="Corner radius and border width apply when a custom button background or border is enabled."/>
   </StackPanel></Expander>
-  <Expander Header="Text formatting" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,6">
-   <TextBlock Text="Label size and style"/>
-   <WrapPanel><numeric:DoubleBox Width="64" Value="{Binding FontSize}" MinValue="8" MaxValue="100" Style="{StaticResource {x:Type TextBox}}" VerticalAlignment="Center"/><ToggleButton Content="B" FontWeight="Bold" ToolTip="Bold" IsChecked="{Binding Bold}" Width="32" Height="28" Margin="4,0"/><ToggleButton Content="I" FontStyle="Italic" ToolTip="Italic" IsChecked="{Binding Italic}" Width="32" Height="28" Margin="0,0,4,0"/><controls:PopupColorPicker Label="Color" SelectedColor="{Binding TextColor,Mode=TwoWay}" UseCustomColor="{Binding CustomTextColor,Mode=TwoWay}" VerticalAlignment="Center"/></WrapPanel>
+  <Expander Header="Text formatting" Margin="0,6,0,0" Foreground="{DynamicResource TextBrush}"><StackPanel Margin="8,6">
+   <controls:SettingsField Label="Label size and style">
+    <controls:TextFormatBar x:Name="LabelFormatBar" TextSize="{Binding FontSize}" MinSize="8" MaxSize="100" Bold="{Binding Bold}" Italic="{Binding Italic}"
+                            Color="{Binding TextColor}" UseCustomColor="{Binding CustomTextColor}"/>
+   </controls:SettingsField>
   </StackPanel></Expander>
-  <Expander Header="Colors" Foreground="{DynamicResource TextBrush}"><UniformGrid Columns="3" Margin="8,6">
+  <Expander Header="Colors" Margin="0,6,0,0" Foreground="{DynamicResource TextBrush}"><UniformGrid Columns="3" Margin="8,6">
    <controls:PopupColorPicker Label="Button background" Margin="0,4,8,4" SelectedColor="{Binding Background,Mode=TwoWay}" UseCustomColor="{Binding CustomBackground,Mode=TwoWay}"/>
    <controls:PopupColorPicker Label="Button border" Margin="0,4,8,4" SelectedColor="{Binding BorderColor,Mode=TwoWay}" UseCustomColor="{Binding CustomBorder,Mode=TwoWay}"/>
   </UniformGrid></Expander>
-  <TextBlock Text="Open shortcuts outside dashboard Edit Mode. Missing targets are disabled and show the reason in a tooltip. Local files and game IDs are referenced in place when exporting profiles." TextWrapping="Wrap"/>
+  <controls:SettingsHint Margin="0,8,0,0" Text="Open shortcuts outside dashboard Edit Mode. Missing targets are disabled and show the reason in a tooltip. Local files and game IDs are referenced in place when exporting profiles."/>
  </StackPanel>
 </UserControl>

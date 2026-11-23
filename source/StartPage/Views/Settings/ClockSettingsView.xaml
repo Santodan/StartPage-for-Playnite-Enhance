@@ -2,55 +2,82 @@
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:settings="clr-namespace:LandingPage.Settings"
- xmlns:controls="clr-namespace:LandingPage.Controls"
- xmlns:numeric="http://gu.se/NumericInput">
+ xmlns:controls="clr-namespace:LandingPage.Controls" Foreground="{DynamicResource TextBrush}">
  <StackPanel Margin="0,8">
-<controls:TextSettingsSelector x:Name="TextEditor">
-<controls:TextSettingsEntry Header="Time"><StackPanel>  <TextBlock Text="Time size"/>
-  <WrapPanel><numeric:DoubleBox Width="64" VerticalAlignment="Center" Value="{Binding TimeSize, UpdateSourceTrigger=PropertyChanged}" MinValue="20" MaxValue="300" Style="{StaticResource {x:Type TextBox}}"/><controls:PopupColorPicker Margin="8,0,0,0" VerticalAlignment="Center" SelectedColor="{Binding TimeColor, Mode=TwoWay}" UseCustomColor="{Binding UseCustomColors, Mode=TwoWay}"/></WrapPanel>
-  <TextBlock Text="Time format" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding TimeFormat}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="System default" Tag="{x:Static settings:ClockTimeFormat.System}"/>
-   <ComboBoxItem Content="12-hour" Tag="{x:Static settings:ClockTimeFormat.TwelveHour}"/>
-   <ComboBoxItem Content="24-hour" Tag="{x:Static settings:ClockTimeFormat.TwentyFourHour}"/>
-  </ComboBox>
-  <CheckBox Content="Show seconds" IsChecked="{Binding ShowSeconds}" Margin="0,8,0,0"/>
-</StackPanel></controls:TextSettingsEntry>
-<controls:TextSettingsEntry Header="Date"><StackPanel>  <TextBlock Text="Date size" Margin="0,6,0,0"/>
-  <WrapPanel><numeric:DoubleBox Width="64" VerticalAlignment="Center" Value="{Binding DateSize, UpdateSourceTrigger=PropertyChanged}" MinValue="8" MaxValue="72" Style="{StaticResource {x:Type TextBox}}"/><controls:PopupColorPicker Margin="8,0,0,0" VerticalAlignment="Center" SelectedColor="{Binding DateColor, Mode=TwoWay}" UseCustomColor="{Binding UseCustomColors, Mode=TwoWay}"/></WrapPanel>
-  <CheckBox Content="Show date" IsChecked="{Binding ShowDate}" Margin="0,6,0,0"/>
-  <TextBlock Text="Date format" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding DateFormat}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="Long date (system)" Tag="{x:Static settings:ClockDateFormat.Long}"/>
-   <ComboBoxItem Content="Short date (system)" Tag="{x:Static settings:ClockDateFormat.Short}"/>
-   <ComboBoxItem Content="ISO (yyyy-MM-dd)" Tag="{x:Static settings:ClockDateFormat.ISO}"/>
-   <ComboBoxItem Content="Custom" Tag="{x:Static settings:ClockDateFormat.Custom}"/>
-  </ComboBox>
-  <TextBlock Text="Custom date format (example: dddd, d MMMM yyyy)" TextWrapping="Wrap" Margin="0,6,0,0"/>
-  <TextBox Text="{Binding CustomDateFormat, ValidatesOnExceptions=True}"/>
-  <TextBlock Text="Date capitalization" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding DateCapitalization}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="System default" Tag="{x:Static settings:ClockDateCapitalization.Default}"/>
-   <ComboBoxItem Content="Capitalize month's first letter" Tag="{x:Static settings:ClockDateCapitalization.CapitalizeMonth}"/>
-   <ComboBoxItem Content="Uppercase month" Tag="{x:Static settings:ClockDateCapitalization.UppercaseMonth}"/>
-   <ComboBoxItem Content="Uppercase entire date" Tag="{x:Static settings:ClockDateCapitalization.UppercaseDate}"/>
-  </ComboBox>
-</StackPanel></controls:TextSettingsEntry>
-</controls:TextSettingsSelector>
+  <controls:TextSettingsSelector x:Name="TextEditor">
+   <controls:TextSettingsEntry Header="Time">
+    <StackPanel>
+     <controls:SettingsField Label="Time size and color">
+      <controls:TextFormatBar x:Name="TimeFormatBar" ShowStyle="False" TextSize="{Binding TimeSize}" MinSize="20" MaxSize="300"
+                              Color="{Binding TimeColor}" UseCustomColor="{Binding UseCustomColors}"/>
+     </controls:SettingsField>
+     <controls:SettingsColumns>
+      <controls:SettingsField Label="Time format">
+       <ComboBox SelectedValue="{Binding TimeFormat}" SelectedValuePath="Tag">
+        <ComboBoxItem Content="System default" Tag="{x:Static settings:ClockTimeFormat.System}"/>
+        <ComboBoxItem Content="12-hour" Tag="{x:Static settings:ClockTimeFormat.TwelveHour}"/>
+        <ComboBoxItem Content="24-hour" Tag="{x:Static settings:ClockTimeFormat.TwentyFourHour}"/>
+       </ComboBox>
+      </controls:SettingsField>
+      <CheckBox Content="Show seconds" IsChecked="{Binding ShowSeconds}" VerticalAlignment="Bottom" Margin="0,0,0,5" Foreground="{DynamicResource TextBrush}"/>
+     </controls:SettingsColumns>
+    </StackPanel>
+   </controls:TextSettingsEntry>
+   <controls:TextSettingsEntry Header="Date">
+    <StackPanel>
+     <CheckBox Content="Show date" IsChecked="{Binding ShowDate}" Margin="0,6,0,0" Foreground="{DynamicResource TextBrush}"/>
+     <controls:SettingsField Label="Date size and color">
+      <controls:TextFormatBar x:Name="DateFormatBar" ShowStyle="False" TextSize="{Binding DateSize}" MinSize="8" MaxSize="72"
+                              Color="{Binding DateColor}" UseCustomColor="{Binding UseCustomColors}"/>
+     </controls:SettingsField>
+     <controls:SettingsColumns>
+      <controls:SettingsField Label="Date format">
+       <ComboBox SelectedValue="{Binding DateFormat}" SelectedValuePath="Tag">
+        <ComboBoxItem Content="Long date (system)" Tag="{x:Static settings:ClockDateFormat.Long}"/>
+        <ComboBoxItem Content="Short date (system)" Tag="{x:Static settings:ClockDateFormat.Short}"/>
+        <ComboBoxItem Content="ISO (yyyy-MM-dd)" Tag="{x:Static settings:ClockDateFormat.ISO}"/>
+        <ComboBoxItem Content="Custom" Tag="{x:Static settings:ClockDateFormat.Custom}"/>
+       </ComboBox>
+      </controls:SettingsField>
+      <controls:SettingsField Label="Date capitalization">
+       <ComboBox SelectedValue="{Binding DateCapitalization}" SelectedValuePath="Tag">
+        <ComboBoxItem Content="System default" Tag="{x:Static settings:ClockDateCapitalization.Default}"/>
+        <ComboBoxItem Content="Capitalize month's first letter" Tag="{x:Static settings:ClockDateCapitalization.CapitalizeMonth}"/>
+        <ComboBoxItem Content="Uppercase month" Tag="{x:Static settings:ClockDateCapitalization.UppercaseMonth}"/>
+        <ComboBoxItem Content="Uppercase entire date" Tag="{x:Static settings:ClockDateCapitalization.UppercaseDate}"/>
+       </ComboBox>
+      </controls:SettingsField>
+     </controls:SettingsColumns>
+     <controls:SettingsField x:Name="CustomDateFormatField" Label="Custom date format">
+      <controls:SettingsField.Style>
+       <Style TargetType="controls:SettingsField">
+        <Setter Property="Visibility" Value="Collapsed"/>
+        <Style.Triggers><DataTrigger Binding="{Binding DateFormat}" Value="{x:Static settings:ClockDateFormat.Custom}"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+       </Style>
+      </controls:SettingsField.Style>
+      <TextBox Text="{Binding CustomDateFormat, ValidatesOnExceptions=True}"/>
+      <controls:SettingsHint Text="Example: dddd, d MMMM yyyy"/>
+     </controls:SettingsField>
+    </StackPanel>
+   </controls:TextSettingsEntry>
+  </controls:TextSettingsSelector>
 
-  <TextBlock Text="Horizontal alignment" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding HorizontalAlignment}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/>
-   <ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/>
-   <ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/>
-  </ComboBox>
-  <TextBlock Text="Vertical alignment" Margin="0,6,0,0"/>
-  <ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/>
-   <ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/>
-   <ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
-  </ComboBox>
-
-  <CheckBox Content="Animate at 13:37" IsChecked="{Binding EnableAnimation}" Margin="0,8,0,0"/>
+  <controls:SettingsColumns>
+   <controls:SettingsField Label="Horizontal alignment">
+    <ComboBox SelectedValue="{Binding HorizontalAlignment}" SelectedValuePath="Tag">
+     <ComboBoxItem Content="Left" Tag="{x:Static HorizontalAlignment.Left}"/>
+     <ComboBoxItem Content="Center" Tag="{x:Static HorizontalAlignment.Center}"/>
+     <ComboBoxItem Content="Right" Tag="{x:Static HorizontalAlignment.Right}"/>
+    </ComboBox>
+   </controls:SettingsField>
+   <controls:SettingsField Label="Vertical alignment">
+    <ComboBox SelectedValue="{Binding VerticalAlignment}" SelectedValuePath="Tag">
+     <ComboBoxItem Content="Top" Tag="{x:Static VerticalAlignment.Top}"/>
+     <ComboBoxItem Content="Center" Tag="{x:Static VerticalAlignment.Center}"/>
+     <ComboBoxItem Content="Bottom" Tag="{x:Static VerticalAlignment.Bottom}"/>
+    </ComboBox>
+   </controls:SettingsField>
+  </controls:SettingsColumns>
+  <CheckBox Content="Animate at 13:37" IsChecked="{Binding EnableAnimation}" Margin="0,8,0,0" Foreground="{DynamicResource TextBrush}"/>
  </StackPanel>
 </UserControl>

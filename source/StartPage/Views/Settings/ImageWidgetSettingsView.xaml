@@ -2,32 +2,29 @@
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:media="clr-namespace:System.Windows.Media;assembly=PresentationCore"
- xmlns:numeric="http://gu.se/NumericInput">
+ xmlns:controls="clr-namespace:LandingPage.Controls" Foreground="{DynamicResource TextBrush}">
  <StackPanel Margin="0,8">
-  <TextBlock Text="Local image"/>
-  <TextBox Text="{Binding ImagePath}"/>
-  <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-   <Button Content="Browse..." Click="Browse_Click" Padding="10,4"/>
-   <Button Content="Clear image" Click="Clear_Click" Padding="10,4" Margin="8,0,0,0"/>
-  </StackPanel>
-  <TextBlock Text="PNG, JPEG, BMP, GIF, TIFF, and ICO. GIFs display a still frame." TextWrapping="Wrap" Margin="0,4,0,0"/>
-  <TextBlock Text="Image display" Margin="0,8,0,0"/>
-  <ComboBox SelectedValue="{Binding Stretch}" SelectedValuePath="Tag">
-   <ComboBoxItem Content="Fit (keep entire image)" Tag="{x:Static media:Stretch.Uniform}"/>
-   <ComboBoxItem Content="Fill (crop to panel)" Tag="{x:Static media:Stretch.UniformToFill}"/>
-   <ComboBoxItem Content="Stretch (fill without keeping proportions)" Tag="{x:Static media:Stretch.Fill}"/>
-   <ComboBoxItem Content="Original size" Tag="{x:Static media:Stretch.None}"/>
-  </ComboBox>
-  <TextBlock Text="Image opacity" Margin="0,8,0,0"/>
-  <Grid>
-   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions>
-   <Slider Value="{Binding Opacity}" Minimum="0" Maximum="1" TickFrequency="0.01" SmallChange="0.01" LargeChange="0.1"
-           IsSnapToTickEnabled="True" AutoToolTipPrecision="2" AutoToolTipPlacement="TopLeft"/>
-   <numeric:DoubleBox Grid.Column="1" Value="{Binding Opacity, UpdateSourceTrigger=PropertyChanged}" MinValue="0" MaxValue="1"
-                      Margin="8,0,0,0" Style="{StaticResource {x:Type TextBox}}"/>
-  </Grid>
-  <TextBlock Text="Optional website link" Margin="0,8,0,0"/>
-  <TextBox Text="{Binding Link, ValidatesOnExceptions=True}"/>
-  <TextBlock Text="Use https:// or http://. Click the image outside Edit Mode to open the link." TextWrapping="Wrap" Margin="0,4,0,0"/>
+  <controls:SettingsField Label="Local image">
+   <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <TextBox Text="{Binding ImagePath}" VerticalContentAlignment="Center"/>
+    <Button Grid.Column="1" Content="Browse..." Click="Browse_Click" Padding="10,4" Margin="6,0,0,0"/>
+    <Button Grid.Column="2" Content="Clear" ToolTip="Clear image" Click="Clear_Click" Padding="10,4" Margin="6,0,0,0"/>
+   </Grid>
+   <controls:SettingsHint Text="PNG, JPEG, BMP, GIF, TIFF, and ICO. GIFs display a still frame."/>
+  </controls:SettingsField>
+  <controls:SettingsField Label="Image display">
+   <ComboBox SelectedValue="{Binding Stretch}" SelectedValuePath="Tag">
+    <ComboBoxItem Content="Fit (keep entire image)" Tag="{x:Static media:Stretch.Uniform}"/>
+    <ComboBoxItem Content="Fill (crop to panel)" Tag="{x:Static media:Stretch.UniformToFill}"/>
+    <ComboBoxItem Content="Stretch (fill without keeping proportions)" Tag="{x:Static media:Stretch.Fill}"/>
+    <ComboBoxItem Content="Original size" Tag="{x:Static media:Stretch.None}"/>
+   </ComboBox>
+  </controls:SettingsField>
+  <controls:SettingsSlider x:Name="OpacitySlider" Label="Image opacity" Value="{Binding Opacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+  <controls:SettingsField Label="Optional website link">
+   <TextBox Text="{Binding Link, ValidatesOnExceptions=True}"/>
+   <controls:SettingsHint Text="Use https:// or http://. Click the image outside Edit Mode to open the link."/>
+  </controls:SettingsField>
  </StackPanel>
 </UserControl>
