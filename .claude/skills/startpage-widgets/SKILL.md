@@ -48,6 +48,14 @@ Shared infrastructure: `Controls/WidgetPalette.cs` (Add-widget catalog), `Contro
 `ColorPicker.xaml` (color fields), `Controls/TextSettingsSelector.cs`, `Controls/SectionAppearanceBorder.cs`,
 `Controls/FloatingPanel.cs` (Test-FloatingPanels), `Controls/ContentAutoScroll.cs` (Test-ContentAutoScroll).
 
+Editor layout kit `Controls/SettingsLayout.cs` (Test-SettingsLayout): `SettingsField` (label above a control),
+`SettingsHint`, `SettingsSlider` (label + full-width slider + numeric box), `TextFormatBar` (size + B/I + popup
+color swatch), `SettingsColumns` (2 columns, stacks below 150 px each; `SettingsColumns.Span`). Use it for new or
+reworked editors. Converted: Text, Clock, Image, Divider, Shortcut, Toolbar, Library statistics/charts (targeted); the rest are listed in `CUSTOMIZATION-ROADMAP.md`
+("Consistent, compact widget settings"). Add each converted editor to the fit/unchanged-on-open loop in the test. Inner kit bindings go through
+`SettingsLayout.Bind` (proxy + `SetCurrentValue`); never bind inner controls TwoWay straight to the owner's DP, or
+template-applied bindings (DataTemplate rows) get replaced on the first write-back.
+
 ## Shelves are special
 
 Shelf settings are **not** on `ViewProperties`: they live in

@@ -28,6 +28,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/skills/startpage
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/skills/startpage-recipes/scripts/run-tests.ps1 -Only BackgroundAppearance,FeaturedGame
 ```
 
+- The runner shows a progress bar plus a status line every 30 s (`[2/11 DashboardPages] 20/55 checks, 3:10 elapsed,
+  ~5:20 left`), counting each test's `PASS:` lines; durations are remembered in `%TEMP%\StartPageTests\timings.json`
+  for the overall estimate. A test silent for `-StallMinutes` (default 4) is stopped and reported as `STALLED` with
+  its last passed check. Tests run without a console window. For runs longer than a tool timeout, start the runner
+  detached (`Start-Process`, output to a UTF-8 log) and watch the log instead of blocking on it.
 - **Never run tests with `pwsh` 7**: they `Add-Type`/load net462 WPF assemblies and fail with bogus
   `System.Runtime.Remoting` / `List<>` compile errors. Use `powershell.exe` (5.1), `-STA`.
 - Tests are plain scripts: each `throw 'message'` is one assertion; they print `PASS:` lines.
