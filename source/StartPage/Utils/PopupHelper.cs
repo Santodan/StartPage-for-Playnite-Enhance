@@ -74,11 +74,34 @@ namespace LandingPage.Utils
             const int flags = 0x0001 | 0x0002 | 0x0010; // No size, move, or activation.
             // WPF can promote a popup again after opening. Reset its z-order on owner
             // activation changes, and give it an owner so it follows Playnite behind other apps.
-            SetWindowLongPtr(hwnd, -8, new WindowInteropHelper(owner).Handle);
-            SetWindowPos(hwnd, new IntPtr(1), 0, 0, 0, 0, flags);
-            if (owner.IsActive) SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, flags);
-            SetWindowPos(hwnd, new IntPtr(-2), 0, 0, 0, 0, flags);
+            var ownerHwnd = new WindowInteropHelper(owner).Handle;
+            if (ownerHwnd == IntPtr.Zero) return;
+            // Find the window directly above Playnite before touching anything, so the popup can be
+            // slotted between it and Playnite. Any z-order call on an owned window moves its owner
+            // along with it: HWND_BOTTOM sank Playnite behind every app, HWND_TOP/NOTOPMOST raised it.
+            var above = owner.IsActive ? IntPtr.Zero : WindowAboveOwner(ownerHwnd, hwnd);
+            SetWindowLongPtr(hwnd, -8, ownerHwnd);
+            // Inserting a topmost window after a non-topmost one also clears its topmost bit, in one
+            // move that keeps Playnite where it is. Without such a window Playnite already tops the
+            // normal band, so lifting the popup to the top of that band changes nothing visible.
+            SetWindowPos(hwnd, above != IntPtr.Zero ? above : new IntPtr(-2), 0, 0, 0, 0, flags);
         }
+
+        // Non-topmost window directly above the owner (skipping the popup itself), or zero when the
+        // owner is the top non-topmost window.
+        private static IntPtr WindowAboveOwner(IntPtr ownerHwnd, IntPtr popupHwnd)
+        {
+            var above = GetWindow(ownerHwnd, 3); // GW_HWNDPREV
+            while (above != IntPtr.Zero && (above == popupHwnd || GetWindow(above, 4) == ownerHwnd)) above = GetWindow(above, 3); // Skip windows owned by Playnite (GW_OWNER).
+            if (above == IntPtr.Zero || (GetWindowLong(above, -20) & 0x8) != 0) return IntPtr.Zero; // WS_EX_TOPMOST
+            return above;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetWindow(IntPtr hwnd, uint cmd);
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+        private static extern int GetWindowLong(IntPtr hwnd, int index);
 
         private static IntPtr SetWindowLongPtr(IntPtr hwnd, int index, IntPtr value)
             => IntPtr.Size == 8 ? SetWindowLongPtr64(hwnd, index, value)
