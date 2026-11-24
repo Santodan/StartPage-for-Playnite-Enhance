@@ -21,6 +21,8 @@ Remote/GitHub name: `Santodan/StartPage-for-Playnite-Enhance`.
   must print nothing.
 - Do not bump versions or edit `source/StartPage/extension.yaml`, `Properties/AssemblyInfo.cs`,
   `InstallerManifest/*.yaml` or README badges unless a release is requested (see `startpage-release`).
+  When a release is requested, the version is `0.<last completed roadmap step>.0` until v1.0.0
+  (patch bumps `0.N.1`, `0.N.2` for later fixes) - rule and checklist in `startpage-release`.
 - Never change the plugin runtime GUID `a6a3dcf6-9bfe-426c-afb0-9f49409ae0c5` or the public SDK
   interfaces (`source/StartPage.SDK*`): the fork deliberately shares them with the original so
   settings and external widgets keep working. Package Id is `santodan_StartPage_Enhanced_Plugin`.

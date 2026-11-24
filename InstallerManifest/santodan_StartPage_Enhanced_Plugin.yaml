@@ -1,5 +1,17 @@
 AddonId: santodan_StartPage_Enhanced_Plugin
 Packages:
+  - Version: 0.23.0
+    RequiredApiVersion: 6.1.0
+    ReleaseDate: 2026-11-24
+    PackageUrl: https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases/download/v0.23.0/santodan_StartPage_Enhanced_Plugin_0_23_0.pext
+    Changelog:
+      - Added startup intros: your own image, GIF or video while Playnite loads, when StartPage opens or when switching to a dashboard page.
+      - Added optional dashboard reveal animations: fade, rise, zoom, cascading or rippling panels, spotlight and curtain.
+      - Added GIF and video playback to the Image widget, with loop, speed, mute and volume controls.
+      - Improved every widget editor with a compact, consistent layout, exact values for sliders and side-by-side fields.
+      - Added Playnite sidebar and top bar separator lines, and one shared background for every dashboard with per-page overrides.
+      - Fixed Playnite moving behind other windows when hovering a shelf while it was in the background.
+      - Fixed shared background refreshes, leftover shelf settings and backgrounds showing outside StartPage.
   - Version: 0.21.0
     RequiredApiVersion: 6.1.0
     ReleaseDate: 2026-11-17

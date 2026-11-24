@@ -10,7 +10,7 @@
   <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/v/release/Santodan/StartPage-for-Playnite-Enhance?include_prereleases&amp;sort=date&amp;style=for-the-badge&amp;logo=github&amp;label=Release&amp;color=00A8E8" alt="Latest release, including experimental releases" /></a>
   <a href="https://github.com/JosefNemec/PlayniteSDK"><img src="https://img.shields.io/badge/Playnite%20SDK-6.1.0-6C63FF?style=for-the-badge" alt="Playnite SDK 6.1.0" /></a>
   <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/downloads/Santodan/StartPage-for-Playnite-Enhance/total?style=for-the-badge&amp;label=Total%20downloads&amp;color=00BE8E" alt="Total release downloads" /></a>
-  <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/downloads/Santodan/StartPage-for-Playnite-Enhance/v0.21.0/total?style=for-the-badge&amp;label=Latest%20release%20downloads&amp;color=8B5CF6" alt="Latest release downloads" /></a>
+  <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases"><img src="https://img.shields.io/github/downloads/Santodan/StartPage-for-Playnite-Enhance/v0.23.0/total?style=for-the-badge&amp;label=Latest%20release%20downloads&amp;color=8B5CF6" alt="Latest release downloads" /></a>
     <a href="https://github.com/Santodan/StartPage-for-Playnite-Enhance/stargazers"><img src="https://img.shields.io/github/stars/Santodan/StartPage-for-Playnite-Enhance?style=for-the-badge&amp;logo=github&amp;label=Stars&amp;color=F5A000" alt="GitHub stars" /></a>
 </p>
 
@@ -40,7 +40,7 @@ Experimental **0.x** builds include published prereleases. From **1.0.0**, the c
 
 ## Install or move from the original StartPage
 
-1. Download the experimental `.pext` package from [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases). For a local build, use `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_21_0.pext`.
+1. Download the experimental `.pext` package from [Releases](https://github.com/Santodan/StartPage-for-Playnite-Enhance/releases). For a local build, use `source/StartPage/bin/santodan_StartPage_Enhanced_Plugin_0_23_0.pext`.
 2. Disable the original StartPage before enabling this fork. **They must not run together:** the shared runtime identity preserves settings and external widget compatibility.
 3. Open the `.pext` with Playnite and restart when prompted.
 4. Open StartPage from Playnite's sidebar. Enter Edit Mode from the dashboard's background menu to split panels and add widgets.

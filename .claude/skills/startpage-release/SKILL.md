@@ -5,7 +5,17 @@ description: Release checklist for StartPage-for-Playnite-Enhance - which files 
 
 # Release (only when asked)
 
-Versioning: experimental `0.x.0` (e.g. `0.21.0`); prereleases are offered by the update checker until 1.0.0.
+## Version number rule (owner's instruction, until v1.0.0)
+
+- The version follows the **last completed roadmap step** in `CUSTOMIZATION-ROADMAP.md`: `0.<step>.0`.
+  Finishing step 23 makes the release `0.23.0`; finishing step 24 makes it `0.24.0`. Use the step number as
+  rendered in the roadmap list (the list is numbered 1, 2, 3, ... without gaps).
+- Fixes or small additions released before the next step is completed bump only the patch: `0.23.1`, `0.23.2`.
+- Never reuse or skip back: if a version already exists as a tag/release, bump the patch.
+- `1.0.0` is the first stable release (owner decides when); after it, use normal semantic versioning.
+- Tags are `vX.Y.Z`; the package is `santodan_StartPage_Enhanced_Plugin_X_Y_Z.pext`.
+
+Experimental `0.x.y` releases are published as GitHub **prereleases** (the update checker offers them until 1.0.0).
 Reference commit: `git show 5fdb7a1` ("Prepare experimental 0.21.0 release") plus the version lines of
 `e8a6f45`.
 
