@@ -65,6 +65,23 @@ namespace LandingPage.Controls
         }
     }
 
+    // Small converters for editors that cannot rely on a host window's resources.
+    public static class SettingsLayoutConverters
+    {
+        public static IValueConverter Not { get; } = new Negate();
+        public static IValueConverter Visible { get; } = new ToVisibility();
+        private sealed class Negate : IValueConverter
+        {
+            public object Convert(object value,Type type,object parameter,System.Globalization.CultureInfo culture) => !(value is bool flag && flag);
+            public object ConvertBack(object value,Type type,object parameter,System.Globalization.CultureInfo culture) => !(value is bool flag && flag);
+        }
+        private sealed class ToVisibility : IValueConverter
+        {
+            public object Convert(object value,Type type,object parameter,System.Globalization.CultureInfo culture) => value is bool flag && flag ? Visibility.Visible : Visibility.Collapsed;
+            public object ConvertBack(object value,Type type,object parameter,System.Globalization.CultureInfo culture) => value is Visibility visibility && visibility == Visibility.Visible;
+        }
+    }
+
     // A label above one control: <controls:SettingsField Label="Font size"><ComboBox/></controls:SettingsField>
     public class SettingsField : StackPanel
     {

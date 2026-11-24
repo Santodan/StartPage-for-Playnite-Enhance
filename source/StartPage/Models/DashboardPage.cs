@@ -15,6 +15,9 @@ namespace LandingPage.Models
         public GridNode Layout { get; set; } = DashboardPages.CreateDefaultLayout();
         public DashboardBackground Background { get; set; } = new DashboardBackground();
         public bool UseGlobalBackground { get; set; } = true;
+        // Optional intro shown when switching to this page; saved with the page, so profiles carry it.
+        private Settings.StartupIntroSettings intro;
+        public Settings.StartupIntroSettings Intro { get => intro ?? (intro = new Settings.StartupIntroSettings()); set => SetValue(ref intro, value ?? new Settings.StartupIntroSettings()); }
     }
 
     // The existing settings remain the active-page projection, so existing controls,

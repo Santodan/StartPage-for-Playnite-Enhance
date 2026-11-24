@@ -95,6 +95,7 @@
     <Compile Include="Views\Settings\SectionAppearanceSettingsView.xaml.cs"><DependentUpon>SectionAppearanceSettingsView.xaml</DependentUpon></Compile>
     <Page Include="Views\Settings\BackgroundAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\DividerWidgetSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Views\Settings\StartupIntroSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\ShortcutWidgetSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\SectionAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Compile Include="Views\Settings\GameDetailSettingsView.xaml.cs"><DependentUpon>GameDetailSettingsView.xaml</DependentUpon></Compile>
@@ -269,6 +270,21 @@
     <Compile Include="Views\ShelveView.xaml.cs">
       <DependentUpon>ShelveView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\StartPageView.Intro.cs">
+      <DependentUpon>StartPageView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Settings\StartupIntroSettings.cs" />
+    <Compile Include="Controls\IntroPresenter.cs" />
+    <Compile Include="Utils\IntroHost.cs" />
+    <Compile Include="Utils\LaunchIntro.cs" />
+    <Compile Include="Views\Settings\StartupIntroSettingsView.xaml.cs">
+      <DependentUpon>StartupIntroSettingsView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\StartPageView.Startup.cs">
+      <DependentUpon>StartPageView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Settings\StartupAnimationSettings.cs" />
+    <Compile Include="Controls\StartupAnimator.cs" />
     <Compile Include="Views\StartPageView.xaml.cs">
       <DependentUpon>StartPageView.xaml</DependentUpon>
     </Compile>

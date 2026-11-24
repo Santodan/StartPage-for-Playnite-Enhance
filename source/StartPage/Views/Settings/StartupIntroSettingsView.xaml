@@ -1,0 +1,129 @@
+<UserControl x:Class="LandingPage.Views.Settings.StartupIntroSettingsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:settings="clr-namespace:LandingPage.Settings" Foreground="{DynamicResource TextBrush}">
+ <UserControl.Resources>
+  <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="Margin" Value="0,6,0,0"/>
+   <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate></Setter.Value></Setter></Style>
+  <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="Margin" Value="0,8,0,0"/></Style>
+  <Style x:Key="RowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Margin" Value="6,0,0,0"/><Setter Property="Padding" Value="10,4"/></Style>
+ </UserControl.Resources>
+ <StackPanel Margin="0,4">
+  <CheckBox x:Name="EnabledToggle" Content="Play a startup intro" IsChecked="{Binding Enabled}" Margin="0"/>
+  <controls:SettingsHint x:Name="Summary" Text="Shows your image, GIF or video over Playnite before the dashboard appears. Widgets keep loading behind it."/>
+  <StackPanel x:Name="IntroOptions" Visibility="{Binding Enabled, Converter={x:Static controls:SettingsLayoutConverters.Visible}}">
+   <controls:SettingsColumns>
+    <controls:SettingsField Label="Media">
+     <ComboBox SelectedValue="{Binding Source}" SelectedValuePath="Tag">
+      <ComboBoxItem Content="A file" Tag="{x:Static settings:IntroMediaSource.File}"/>
+      <ComboBoxItem Content="Random file from a folder" Tag="{x:Static settings:IntroMediaSource.RandomFromFolder}"/>
+     </ComboBox>
+    </controls:SettingsField>
+    <controls:SettingsField Label="Cover">
+     <ComboBox x:Name="CoverageSelector" SelectedValue="{Binding Coverage}" SelectedValuePath="Tag">
+      <ComboBoxItem Content="Whole Playnite window" Tag="{x:Static settings:IntroCoverage.PlayniteWindow}"/>
+      <ComboBoxItem Content="StartPage area only" Tag="{x:Static settings:IntroCoverage.StartPageArea}"/>
+     </ComboBox>
+    </controls:SettingsField>
+   </controls:SettingsColumns>
+   <controls:SettingsField x:Name="FileField" Label="Image, GIF or video">
+    <controls:SettingsField.Style><Style TargetType="controls:SettingsField"><Style.Triggers><DataTrigger Binding="{Binding UsesFolder}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></controls:SettingsField.Style>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <TextBox Text="{Binding MediaPath, UpdateSourceTrigger=LostFocus}" VerticalContentAlignment="Center"/>
+     <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Style="{StaticResource RowButton}"/>
+    </Grid>
+   </controls:SettingsField>
+   <controls:SettingsField x:Name="FolderField" Label="Folder (a random supported file plays each time)">
+    <controls:SettingsField.Style><Style TargetType="controls:SettingsField"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding UsesFolder}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></controls:SettingsField.Style>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <TextBox Text="{Binding FolderPath, UpdateSourceTrigger=LostFocus}" VerticalContentAlignment="Center"/>
+     <Button Grid.Column="1" Content="Browse..." Click="BrowseFolder_Click" Style="{StaticResource RowButton}"/>
+    </Grid>
+   </controls:SettingsField>
+   <controls:SettingsHint Text="PNG, JPEG, BMP, TIFF, WebP, GIF and Windows-supported videos (MP4, M4V, WMV, AVI, MOV, MKV, WebM with installed codecs)."/>
+   <controls:SettingsColumns>
+    <controls:SettingsField Label="Play">
+     <ComboBox x:Name="RepeatSelector" SelectedValue="{Binding Repeat}" SelectedValuePath="Tag">
+      <ComboBoxItem x:Name="RepeatOnce" Content="When Playnite starts" Tag="{x:Static settings:IntroRepeat.OncePerSession}"/>
+      <ComboBoxItem x:Name="RepeatEvery" Content="Every time StartPage opens" Tag="{x:Static settings:IntroRepeat.EveryTime}"/>
+     </ComboBox>
+    </controls:SettingsField>
+    <controls:SettingsField Label="Length">
+     <ComboBox SelectedValue="{Binding Length}" SelectedValuePath="Tag">
+      <ComboBoxItem Content="Until the video or GIF ends" Tag="{x:Static settings:IntroLength.UntilMediaEnds}"/>
+      <ComboBoxItem Content="Fixed time" Tag="{x:Static settings:IntroLength.FixedTime}"/>
+      <ComboBoxItem Content="Until the dashboard has loaded" Tag="{x:Static settings:IntroLength.UntilDashboardLoaded}"/>
+     </ComboBox>
+    </controls:SettingsField>
+   </controls:SettingsColumns>
+   <StackPanel x:Name="LaunchOptions">
+    <controls:SettingsColumns>
+     <CheckBox x:Name="PlayWhileLoadingToggle" Content="Start while Playnite is loading" IsChecked="{Binding PlayWhileLoading}"/>
+     <CheckBox Content="Full screen (otherwise where Playnite's window opens)" IsChecked="{Binding LaunchFullScreen}" IsEnabled="{Binding PlayWhileLoading}"/>
+    </controls:SettingsColumns>
+    <controls:SettingsHint Text="Plays in its own window as soon as StartPage loads, while Playnite opens behind it, and stays until Playnite is ready. Playnite shows its small banner before extensions load; to hide it, add --hidesplashscreen to your Playnite shortcut. Desktop mode only."/>
+   </StackPanel>
+   <CheckBox x:Name="PlayOnOpenToggle" Content="Also play when StartPage opens on this page (after the global intro, if any, has played this session)" IsChecked="{Binding PlayWhenStartPageOpens}" Visibility="Collapsed"/>
+   <controls:SettingsSlider Label="Fixed time (ms) - also used for images and looping media" Value="{Binding FixedMs}" Minimum="500" Maximum="30000" Step="100" Precision="0"/>
+   <controls:SettingsColumns>
+    <controls:SettingsSlider Label="Minimum (ms)" Value="{Binding MinimumMs}" Minimum="0" Maximum="30000" Step="100" Precision="0"/>
+    <controls:SettingsSlider Label="Maximum (ms)" Value="{Binding MaximumMs}" Minimum="1000" Maximum="60000" Step="500" Precision="0"/>
+   </controls:SettingsColumns>
+   <controls:SettingsColumns>
+    <controls:SettingsField Label="Exit">
+     <ComboBox SelectedValue="{Binding Exit}" SelectedValuePath="Tag">
+      <ComboBoxItem Content="Fade out" Tag="{x:Static settings:IntroExit.Fade}"/>
+      <ComboBoxItem Content="Zoom in and fade" Tag="{x:Static settings:IntroExit.ZoomIn}"/>
+      <ComboBoxItem Content="Zoom out and fade" Tag="{x:Static settings:IntroExit.ZoomOut}"/>
+      <ComboBoxItem Content="Spotlight (hole opens from the center)" Tag="{x:Static settings:IntroExit.Spotlight}"/>
+      <ComboBoxItem Content="Curtain (splits from the middle)" Tag="{x:Static settings:IntroExit.Curtain}"/>
+      <ComboBoxItem Content="Cut (no animation)" Tag="{x:Static settings:IntroExit.Cut}"/>
+     </ComboBox>
+    </controls:SettingsField>
+    <controls:PopupColorPicker Label="Background" ShowCustomColorOption="False" SelectedColor="{Binding BackgroundColor, Mode=TwoWay}" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+   </controls:SettingsColumns>
+   <controls:SettingsColumns>
+    <controls:SettingsSlider Label="Fade in (ms)" Value="{Binding FadeInMs}" Minimum="0" Maximum="3000" Step="50" Precision="0"/>
+    <controls:SettingsSlider Label="Exit duration (ms)" Value="{Binding ExitMs}" Minimum="0" Maximum="3000" Step="50" Precision="0"/>
+   </controls:SettingsColumns>
+   <controls:SettingsColumns>
+    <CheckBox Content="Skip on click or key press" IsChecked="{Binding SkipOnInput}"/>
+    <CheckBox Content="Show a skip hint" IsChecked="{Binding ShowSkipHint}" IsEnabled="{Binding SkipOnInput}"/>
+   </controls:SettingsColumns>
+   <Expander Header="Framing and playback">
+    <StackPanel Margin="8,4,0,4" DataContext="{Binding Media}">
+     <controls:SettingsColumns>
+      <controls:SettingsField Label="Fit">
+       <ComboBox SelectedValue="{Binding Fit}" SelectedValuePath="Tag">
+        <ComboBoxItem Content="Fit (show everything)" Tag="{x:Static settings:BackgroundFit.Fit}"/>
+        <ComboBoxItem Content="Fill (crop edges)" Tag="{x:Static settings:BackgroundFit.Fill}"/>
+        <ComboBoxItem Content="Stretch" Tag="{x:Static settings:BackgroundFit.Stretch}"/>
+        <ComboBoxItem Content="Original size" Tag="{x:Static settings:BackgroundFit.OriginalSize}"/>
+       </ComboBox>
+      </controls:SettingsField>
+      <controls:SettingsSlider Label="Zoom" Value="{Binding Zoom}" Minimum="1" Maximum="4" Step="0.05" Precision="2"/>
+      <controls:SettingsSlider Label="Horizontal position" Value="{Binding PositionX}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+      <controls:SettingsSlider Label="Vertical position" Value="{Binding PositionY}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+      <controls:SettingsSlider Label="Opacity" Value="{Binding ImageOpacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+      <controls:SettingsSlider Label="Playback speed" Value="{Binding PlaybackSpeed}" Minimum="0.25" Maximum="2" Step="0.05" Precision="2"/>
+     </controls:SettingsColumns>
+     <controls:SettingsColumns>
+      <CheckBox Content="Loop (then Length uses the fixed time)" IsChecked="{Binding LoopMedia}"/>
+      <CheckBox Content="Mute video" IsChecked="{Binding VideoMuted}"/>
+      <CheckBox Content="Flip horizontally" IsChecked="{Binding FlipHorizontal}"/>
+      <CheckBox Content="Flip vertically" IsChecked="{Binding FlipVertical}"/>
+     </controls:SettingsColumns>
+     <controls:SettingsSlider Label="Video volume" Value="{Binding VideoVolume}" Minimum="0" Maximum="1" Step="0.01" Precision="2" IsEnabled="{Binding VideoMuted, Converter={x:Static controls:SettingsLayoutConverters.Not}}"/>
+    </StackPanel>
+   </Expander>
+   <Border x:Name="PreviewArea" Height="190" Margin="0,10,0,0" BorderThickness="1" BorderBrush="{DynamicResource NormalBorderBrush}" Background="#22000000">
+    <TextBlock x:Name="PreviewPlaceholder" Text="Preview" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity=".5"/>
+   </Border>
+   <WrapPanel Margin="0,6,0,0">
+    <Button x:Name="PreviewButton" Content="Preview intro" Click="Preview_Click" Padding="10,4" Margin="0,0,6,6"/>
+    <Button Content="Stop" Click="StopPreview_Click" Padding="10,4" Margin="0,0,6,6"/>
+    <Button Content="Reset options" ToolTip="Restore every option except the chosen file or folder and whether the intro is on" Click="Reset_Click" Padding="10,4" Margin="0,0,6,6"/>
+   </WrapPanel>
+   <TextBlock x:Name="PreviewStatus" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"/>
+  </StackPanel>
+ </StackPanel>
+</UserControl>

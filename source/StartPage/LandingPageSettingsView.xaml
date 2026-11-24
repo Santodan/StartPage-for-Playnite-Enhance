@@ -372,6 +372,11 @@
         <!--<TabItem Header="Layouts">
             <views:GridNodePresetsView DataContext="{Binding GridNodePresetsViewModel}"/>
         </TabItem>-->
+        <TabItem Header="Startup intro">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <settingsViews:StartupIntroSettingsView x:Name="StartupIntroEditor" DataContext="{Binding Settings.StartupIntro}" Margin="10"/>
+            </ScrollViewer>
+        </TabItem>
         <TabItem Header="Import from original StartPage">
             <ScrollViewer Padding="12" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <StackPanel>

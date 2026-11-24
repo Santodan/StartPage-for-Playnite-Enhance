@@ -148,6 +148,22 @@ namespace LandingPage
                 }
                 return null;
             }, LazyThreadSafetyMode.ExecutionAndPublication);
+            StartLaunchIntro();
+        }
+
+        // Launch intro: open the global whole-window intro while Playnite is still loading (Desktop mode only).
+        private void StartLaunchIntro()
+        {
+            try
+            {
+                if (PlayniteApi?.ApplicationInfo?.Mode != ApplicationMode.Desktop) return;
+                var intro = Settings?.StartupIntro;
+                if (intro == null || !intro.Enabled || !intro.PlayWhileLoading || intro.Coverage != LandingPage.Settings.IntroCoverage.PlayniteWindow
+                    || intro.Repeat != LandingPage.Settings.IntroRepeat.OncePerSession) return;
+                var bounds = Utils.LaunchIntro.MainWindowBounds(PlayniteApi.Paths?.ConfigurationPath,out var maximized);
+                if (Utils.LaunchIntro.Start(intro,bounds,maximized || intro.LaunchFullScreen)) Utils.IntroHost.GlobalPlayed = true;
+            }
+            catch (Exception ex) { logger.Warn(ex,"Launch intro could not start."); }
         }
 
         internal StartPageView startPageView;
@@ -431,6 +447,38 @@ namespace LandingPage
             // Add code to be executed when game is uninstalled.
         }
 
+        // Whole-window startup intro when Playnite launches. StartPage-area intros wait for StartPage to open.
+        private void PlayStartupIntroAtLaunch()
+        {
+            if (Utils.LaunchIntro.IsRunning)
+            {
+                // The launch intro is already covering Playnite: tell it the window is up, and when the dashboard is ready.
+                Application.Current?.Dispatcher.BeginInvoke(new Action(() => Utils.LaunchIntro.PlayniteReady = true),System.Windows.Threading.DispatcherPriority.ContextIdle);
+                var started = DateTime.UtcNow;
+                var readiness = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+                readiness.Tick += (sender,args) =>
+                {
+                    var ready = startPageViewModel != null ? !startPageViewModel.IsLoading && startPageViewModel.IsSelectedPageInitialized
+                        : (DateTime.UtcNow - started).TotalSeconds >= 2; // StartPage is not the startup view.
+                    if (ready || !Utils.LaunchIntro.IsRunning) { Utils.LaunchIntro.DashboardReady = true; readiness.Stop(); }
+                };
+                readiness.Start();
+                return;
+            }
+            var intro = Settings.StartupIntro;
+            if (!intro.Enabled || intro.Coverage != LandingPage.Settings.IntroCoverage.PlayniteWindow || Utils.IntroHost.GlobalPlayed) return;
+            Utils.IntroHost.GlobalPlayed = true;
+            Application.Current?.Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                try
+                {
+                    var target = Utils.IntroHost.Target(LandingPage.Settings.IntroCoverage.PlayniteWindow,startPageView);
+                    await Utils.IntroHost.PlayAsync(target,intro,() => startPageViewModel == null || (!startPageViewModel.IsLoading && startPageViewModel.IsSelectedPageInitialized));
+                }
+                catch (Exception ex) { logger.Warn(ex,"Startup intro failed at launch."); }
+            }),System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
         public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
         {
             ExtensionDiagnostics.Record(this, "Lifecycle: OnApplicationStarted");
@@ -455,6 +503,7 @@ namespace LandingPage
             }
             //Settings.IgnoreTagId = PlayniteApi.Database.Tags.Add("[SPG] Ignored").Id;
             //Settings.IgnoreMostPlayedTagId = PlayniteApi.Database.Tags.Add("[SPG] Most Played Ignored").Id;
+            PlayStartupIntroAtLaunch();
             var switchWithLowPrio = false;
             var parentWindow = Application.Current.Windows.Cast<Window>().FirstOrDefault(w => w.Name == "WindowMain");
             parentWindow?.Dispatcher.Invoke(() =>

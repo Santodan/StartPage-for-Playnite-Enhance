@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:settingsViews="clr-namespace:LandingPage.Views.Settings" xmlns:local="clr-namespace:LandingPage.Views"
              xmlns:lp="clr-namespace:LandingPage"
+             xmlns:settings="clr-namespace:LandingPage.Settings"
              xmlns:models="clr-namespace:LandingPage.Models"
              xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
              xmlns:numeric="http://gu.se/NumericInput"
@@ -117,7 +118,7 @@
     </UserControl.ContextMenu>
     <Grid x:Name="DashboardSurface">
         <Grid x:Name="DashboardScene" ClipToBounds="True">
-        <local:BackgroundView DataContext="{Binding BackgroundViewModel}" Visibility="{Binding Settings.Settings.EnableGlobalBackground, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
+        <local:BackgroundView x:Name="SceneBackground" DataContext="{Binding BackgroundViewModel}" Visibility="{Binding Settings.Settings.EnableGlobalBackground, Converter={StaticResource InvertedBooleanToVisibilityConverter}}"/>
         <Border>
             <Border.Background>
                 <SolidColorBrush Color="{DynamicResource WhiteColor}"/>
@@ -587,6 +588,56 @@
                                     <TextBlock x:Name="TransitionPresetStatus" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="0,6,0,6"/>
                                     <CheckBox Content="Follow Windows animation preference" Foreground="{DynamicResource TextBrush}" IsChecked="{Binding Settings.Settings.DashboardRespectWindowsAnimations}" Margin="0,4,0,6"/>
                                     <TextBlock Foreground="{DynamicResource TextBrush}" Text="Uncheck to animate even when Windows animations are disabled. None switches without an animation." TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Expander>
+                            <Expander x:Name="PageIntroSection" Header="Page intro" Margin="0,6,0,0">
+                                <StackPanel Margin="8,6,0,8">
+                                    <settingsViews:StartupIntroSettingsView x:Name="PageIntroEditor" IsPageIntro="True" DataContext="{Binding SelectedPage.Intro}"/>
+                                    <controls:SettingsHint Text="The global startup intro is in the extension settings (Startup intro tab)."/>
+                                </StackPanel>
+                            </Expander>
+                            <Expander x:Name="StartupAnimationSection" Header="Dashboard reveal (when StartPage opens)" Margin="0,6,0,0">
+                                <StackPanel Margin="8,6,0,8">
+                                    <controls:SettingsHint Text="Reveals the dashboard when StartPage opens. Widgets finish loading behind the scenes first, so nothing appears half-built. Clicks and key presses can skip it."/>
+                                    <controls:SettingsColumns>
+                                        <controls:SettingsField Label="Effect">
+                                            <ComboBox x:Name="StartupEffectSelector" SelectedValue="{Binding Settings.Settings.StartupAnimation.Effect}" SelectedValuePath="Tag"><ComboBoxItem Content="None" Tag="{x:Static settings:StartupAnimationEffect.None}"/><ComboBoxItem Content="Fade" Tag="{x:Static settings:StartupAnimationEffect.Fade}"/><ComboBoxItem Content="Rise (slide in and fade)" Tag="{x:Static settings:StartupAnimationEffect.Rise}"/><ComboBoxItem Content="Zoom" Tag="{x:Static settings:StartupAnimationEffect.Zoom}"/><ComboBoxItem Content="Cascade (panels one by one)" Tag="{x:Static settings:StartupAnimationEffect.Cascade}"/><ComboBoxItem Content="Ripple (panels pop from a point)" Tag="{x:Static settings:StartupAnimationEffect.Ripple}"/><ComboBoxItem Content="Spotlight (growing circle)" Tag="{x:Static settings:StartupAnimationEffect.Spotlight}"/><ComboBoxItem Content="Curtain (opens from the middle)" Tag="{x:Static settings:StartupAnimationEffect.Curtain}"/></ComboBox>
+                                        </controls:SettingsField>
+                                        <controls:SettingsField Label="Play" Visibility="{Binding Settings.Settings.StartupAnimation.IsEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <ComboBox SelectedValue="{Binding Settings.Settings.StartupAnimation.Trigger}" SelectedValuePath="Tag"><ComboBoxItem Content="First time each session" Tag="{x:Static settings:StartupAnimationTrigger.FirstOpen}"/><ComboBoxItem Content="Every time StartPage opens" Tag="{x:Static settings:StartupAnimationTrigger.EveryOpen}"/></ComboBox>
+                                        </controls:SettingsField>
+                                    </controls:SettingsColumns>
+                                    <StackPanel Visibility="{Binding Settings.Settings.StartupAnimation.IsEnabled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <controls:SettingsSlider Label="Duration (ms)" Value="{Binding Settings.Settings.StartupAnimation.DurationMs}" Minimum="100" Maximum="3000" Step="50" Precision="0"/>
+                                        <controls:SettingsSlider Label="Start delay (ms)" Value="{Binding Settings.Settings.StartupAnimation.DelayMs}" Minimum="0" Maximum="3000" Step="50" Precision="0"/>
+                                        <controls:SettingsSlider Label="Delay between panels (ms)" Value="{Binding Settings.Settings.StartupAnimation.StaggerMs}" Minimum="0" Maximum="600" Step="10" Precision="0" Visibility="{Binding Settings.Settings.StartupAnimation.IsPanelEffect, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <controls:SettingsColumns>
+                                            <controls:SettingsField Label="Easing">
+                                                <ComboBox SelectedValue="{Binding Settings.Settings.StartupAnimation.Easing}" SelectedValuePath="Tag"><ComboBoxItem Content="Smooth" Tag="{x:Static settings:StartupAnimationEasing.Smooth}"/><ComboBoxItem Content="Gentle" Tag="{x:Static settings:StartupAnimationEasing.Gentle}"/><ComboBoxItem Content="Snappy" Tag="{x:Static settings:StartupAnimationEasing.Snappy}"/><ComboBoxItem Content="Overshoot" Tag="{x:Static settings:StartupAnimationEasing.Overshoot}"/><ComboBoxItem Content="Bounce" Tag="{x:Static settings:StartupAnimationEasing.Bounce}"/><ComboBoxItem Content="Elastic" Tag="{x:Static settings:StartupAnimationEasing.Elastic}"/></ComboBox>
+                                            </controls:SettingsField>
+                                            <controls:SettingsField Label="Panel order" Visibility="{Binding Settings.Settings.StartupAnimation.UsesOrder, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <ComboBox SelectedValue="{Binding Settings.Settings.StartupAnimation.Order}" SelectedValuePath="Tag"><ComboBoxItem Content="Reading order" Tag="{x:Static settings:StartupAnimationOrder.Reading}"/><ComboBoxItem Content="Top to bottom" Tag="{x:Static settings:StartupAnimationOrder.TopToBottom}"/><ComboBoxItem Content="Bottom to top" Tag="{x:Static settings:StartupAnimationOrder.BottomToTop}"/><ComboBoxItem Content="Left to right" Tag="{x:Static settings:StartupAnimationOrder.LeftToRight}"/><ComboBoxItem Content="Right to left" Tag="{x:Static settings:StartupAnimationOrder.RightToLeft}"/><ComboBoxItem Content="Center outward" Tag="{x:Static settings:StartupAnimationOrder.CenterOut}"/><ComboBoxItem Content="Edges inward" Tag="{x:Static settings:StartupAnimationOrder.EdgesIn}"/><ComboBoxItem Content="Random" Tag="{x:Static settings:StartupAnimationOrder.Random}"/></ComboBox>
+                                            </controls:SettingsField>
+                                            <controls:SettingsField Label="Direction" Visibility="{Binding Settings.Settings.StartupAnimation.UsesDirection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <ComboBox SelectedValue="{Binding Settings.Settings.StartupAnimation.Direction}" SelectedValuePath="Tag"><ComboBoxItem Content="Up" Tag="{x:Static settings:StartupAnimationDirection.Up}"/><ComboBoxItem Content="Down" Tag="{x:Static settings:StartupAnimationDirection.Down}"/><ComboBoxItem Content="Left" Tag="{x:Static settings:StartupAnimationDirection.Left}"/><ComboBoxItem Content="Right" Tag="{x:Static settings:StartupAnimationDirection.Right}"/></ComboBox>
+                                            </controls:SettingsField>
+                                            <controls:SettingsField Label="Origin" Visibility="{Binding Settings.Settings.StartupAnimation.UsesOrigin, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <ComboBox SelectedValue="{Binding Settings.Settings.StartupAnimation.Origin}" SelectedValuePath="Tag"><ComboBoxItem Content="Center" Tag="{x:Static settings:StartupAnimationOrigin.Center}"/><ComboBoxItem Content="Top left" Tag="{x:Static settings:StartupAnimationOrigin.TopLeft}"/><ComboBoxItem Content="Top" Tag="{x:Static settings:StartupAnimationOrigin.Top}"/><ComboBoxItem Content="Top right" Tag="{x:Static settings:StartupAnimationOrigin.TopRight}"/><ComboBoxItem Content="Left" Tag="{x:Static settings:StartupAnimationOrigin.Left}"/><ComboBoxItem Content="Right" Tag="{x:Static settings:StartupAnimationOrigin.Right}"/><ComboBoxItem Content="Bottom left" Tag="{x:Static settings:StartupAnimationOrigin.BottomLeft}"/><ComboBoxItem Content="Bottom" Tag="{x:Static settings:StartupAnimationOrigin.Bottom}"/><ComboBoxItem Content="Bottom right" Tag="{x:Static settings:StartupAnimationOrigin.BottomRight}"/></ComboBox>
+                                            </controls:SettingsField>
+                                        </controls:SettingsColumns>
+                                        <controls:SettingsSlider Label="Movement distance (px)" Value="{Binding Settings.Settings.StartupAnimation.Distance}" Minimum="0" Maximum="400" Step="2" Precision="0" Visibility="{Binding Settings.Settings.StartupAnimation.UsesDistance, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <controls:SettingsSlider Label="Start scale" Value="{Binding Settings.Settings.StartupAnimation.StartScale}" Minimum="0.3" Maximum="1.3" Step="0.01" Precision="2" Visibility="{Binding Settings.Settings.StartupAnimation.UsesScale, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <controls:SettingsColumns>
+                                            <CheckBox Content="Fade in the background" IsChecked="{Binding Settings.Settings.StartupAnimation.AnimateBackground}" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,0"/>
+                                            <CheckBox Content="Skip on click or key press" IsChecked="{Binding Settings.Settings.StartupAnimation.SkipOnInput}" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,0"/>
+                                        </controls:SettingsColumns>
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <Button Content="Preview startup animation" Click="PreviewStartupAnimation_Click" Padding="10,4" Margin="0,0,6,6"/>
+                                            <Button Content="Reset options" ToolTip="Restore every option except the chosen effect" Click="ResetStartupAnimation_Click" Padding="10,4" Margin="0,0,6,6"/>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="StartupAnimationStatus" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"/>
+                                        <controls:SettingsHint Text="Uses the Follow Windows animation preference setting from Dashboard transitions. Startup animations are not part of dashboard profiles."/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Expander>
                             <Expander x:Name="CreatePageSection" Header="Create a page" Margin="0,6,0,0">

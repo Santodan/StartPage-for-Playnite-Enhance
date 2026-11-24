@@ -67,6 +67,7 @@ See [fork identity, import scope and compatibility](docs/FORK-IDENTITY.md) for t
 | Library statistics | Library totals, playtime, progress, metadata coverage and source/platform breakdowns; per-counter layout, text and colors. |
 | Library charts | Multiple bar, vertical bar, pie and doughnut charts with configurable data, size, rotation, legends, labels and segment borders. |
 | Transitions | Fade, slide, zoom, wipe and custom presets with previews and JSON import/export. |
+| Startup intros | Your own image, GIF or video when Playnite starts or StartPage opens, over the whole window or only StartPage, plus per-page intros when switching dashboards; length, exit effects, framing, sound and skip controls. An optional dashboard reveal animates the widgets in afterwards. |
 | Profiles | Save, import, export, append or restore complete dashboards, with independent snapshots and automatic backups when applying. |
 
 Some data depends on other extensions. Weekly Activity, Most Played and period playtime statistics use **GameActivity** history. Achievement widgets and progress use the achievement provider selected in settings, with data supplied by that provider. Playtime charts grouped by source use Playnite's recorded lifetime playtime.
@@ -115,6 +116,7 @@ Priorities may change based on experimental-release feedback. There are no relea
 - [Selected/hovered game detail widgets](docs/GAME-DETAIL-WIDGETS.md)
 - [Library statistics and counter definitions](docs/LIBRARY-STATISTICS.md)
 - [Transitions and custom JSON presets](docs/TRANSITION-PRESETS.md)
+- [Startup intros and dashboard reveal](docs/STARTUP-ANIMATIONS.md)
 - [Fork compatibility and original-settings import](docs/FORK-IDENTITY.md)
 
 ## Feedback and troubleshooting

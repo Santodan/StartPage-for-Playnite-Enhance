@@ -20,6 +20,9 @@ namespace LandingPage.Controls
         public bool PlaybackVisible { get => (bool)GetValue(PlaybackVisibleProperty); set => SetValue(PlaybackVisibleProperty,value); }
         public static readonly DependencyProperty MediaErrorProperty = DependencyProperty.Register(nameof(MediaError),typeof(string),typeof(BackgroundMediaArtwork),new PropertyMetadata(null));
         public string MediaError { get => (string)GetValue(MediaErrorProperty); private set => SetValue(MediaErrorProperty,value); }
+        // Raised once when non-looping media reaches its end, or when playback fails (MediaError is then set).
+        public event EventHandler MediaFinished;
+        private void RaiseFinished() => MediaFinished?.Invoke(this,EventArgs.Empty);
         private CancellationTokenSource cancellation;
         private readonly SemaphoreSlim resume = new SemaphoreSlim(0,1);
         private MediaPlayer player;
@@ -132,7 +135,7 @@ namespace LandingPage.Controls
                             LandingPageExtension.logger?.Debug("GIF playback: frames="+rendered+"; avgDecodeMs="+(decodeTotal/rendered).ToString("F2")+"; maxDecodeMs="+decodeMax.ToString("F2")+"; fpsLimit="+Volatile.Read(ref frameRate)+"; resolution="+loaded.Width+"x"+loaded.Height+".");
                             loggedAt = clock.Elapsed.TotalMilliseconds; rendered = 0; decodeTotal = decodeMax = 0;
                         }
-                        if(finished) { await Dispatcher.InvokeAsync(() => { if(version == generation) { ended = true; UpdatePlayback(); } }); break; }
+                        if(finished) { await Dispatcher.InvokeAsync(() => { if(version == generation) { ended = true; UpdatePlayback(); RaiseFinished(); } }); break; }
                         await Task.Delay(Math.Max(16,1000/Volatile.Read(ref frameRate)),token).ConfigureAwait(false);
                     }
                 },token);
@@ -152,10 +155,10 @@ namespace LandingPage.Controls
         {
             if(sender != player) return;
             if(Appearance?.LoopMedia == true) { player.Position = TimeSpan.Zero; UpdatePlayback(); }
-            else { ended = true; UpdatePlayback(); }
+            else { ended = true; UpdatePlayback(); RaiseFinished(); }
         }
         private void VideoFailed(object sender,ExceptionEventArgs e) { if(sender == player) Fail(e.ErrorException,"The video could not be played. Check the file and installed Windows video codecs."); }
-        private void Fail(Exception error,string message) { CloseMedia(); MediaError = message; LandingPageExtension.logger?.Warn(error,"Background media playback failed."); InvalidateVisual(); }
+        private void Fail(Exception error,string message) { CloseMedia(); MediaError = message; LandingPageExtension.logger?.Warn(error,"Background media playback failed."); InvalidateVisual(); RaiseFinished(); }
         protected override void OnRender(DrawingContext context)
         {
             if(!BackgroundMediaFiles.IsAnimated(MediaUri)) { base.OnRender(context); return; }

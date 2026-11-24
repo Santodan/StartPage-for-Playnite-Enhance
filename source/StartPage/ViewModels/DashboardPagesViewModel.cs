@@ -27,6 +27,8 @@ namespace LandingPage.ViewModels
 
         private readonly Dictionary<Guid, GridNodeViewModel> pageRoots = new Dictionary<Guid, GridNodeViewModel>();
         private readonly HashSet<Guid> initializedPages = new HashSet<Guid>();
+        // True once the selected page's widgets were initialized and opened (startup animation waits for it).
+        internal bool IsSelectedPageInitialized => SelectedPage != null && initializedPages.Contains(SelectedPage.Id);
         private DashboardPage selectedPage;
         public ObservableCollection<DashboardPage> Pages => Settings.Settings.DashboardPages;
         public DashboardPage SelectedPage

@@ -42,6 +42,8 @@ namespace LandingPage.Views
             };
             LayoutUpdated += (sender, args) => { UpdateDashboardTopInset(); PositionNotifications(); };
             DataContextChanged += (sender, args) => WatchPageModel(true);
+            HookStartupIntro();
+            HookStartupAnimation();
         }
 
         private Window insetWindow;
@@ -234,6 +236,7 @@ namespace LandingPage.Views
 
         private void BeginDashboardTransition(object sender, ViewModels.DashboardTransitionEventArgs args)
         {
+            CancelStartupAnimation();
             ResetDashboardTransition();
             var settings = observedPageModel?.Settings.Settings;
             if (!IsLoaded || settings == null || settings.DashboardTransition == DashboardTransition.None

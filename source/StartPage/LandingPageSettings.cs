@@ -91,6 +91,12 @@ namespace LandingPage
         public bool DashboardRespectWindowsAnimations { get => dashboardRespectWindowsAnimations; set => SetValue(ref dashboardRespectWindowsAnimations, value); }
         private int dashboardTransitionMilliseconds = 200;
         public int DashboardTransitionMilliseconds { get => dashboardTransitionMilliseconds; set => SetValue(ref dashboardTransitionMilliseconds, Math.Max(50, Math.Min(1000, value))); }
+        // Optional image/GIF/video intro when Playnite starts or StartPage opens. Off for existing configs.
+        private Settings.StartupIntroSettings startupIntro;
+        public Settings.StartupIntroSettings StartupIntro { get => startupIntro ?? (startupIntro = new Settings.StartupIntroSettings()); set => SetValue(ref startupIntro, value ?? new Settings.StartupIntroSettings()); }
+        // Optional reveal when StartPage opens. Configs saved before this setting existed load with Effect = None.
+        private Settings.StartupAnimationSettings startupAnimation;
+        public Settings.StartupAnimationSettings StartupAnimation { get => startupAnimation ?? (startupAnimation = new Settings.StartupAnimationSettings()); set => SetValue(ref startupAnimation, value ?? new Settings.StartupAnimationSettings()); }
 
         private ObservableCollection<DashboardProfile> dashboardProfiles = new ObservableCollection<DashboardProfile>();
         public ObservableCollection<DashboardProfile> DashboardProfiles { get => dashboardProfiles; set => SetValue(ref dashboardProfiles, value ?? new ObservableCollection<DashboardProfile>()); }

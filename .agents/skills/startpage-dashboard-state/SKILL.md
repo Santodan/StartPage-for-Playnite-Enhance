@@ -64,7 +64,15 @@ controls/bindings read those. The real per-page data is `DashboardPages` (`Model
 `ImportOriginalSettings(json)` (original StartPage `config.json`), `Clone<T>` (JSON deep copy - the
 canonical way tests round-trip objects). `sharedNames` lists the top-level settings a profile carries
 - add new dashboard-wide settings there. VM: `ViewModels/DashboardProfilesViewModel.cs`. Starters:
-`Models/DashboardStarterTemplates.cs`. Transitions: `Models/DashboardTransitionPreset.cs`.
+`Models/DashboardStarterTemplates.cs`. Transitions: `Models/DashboardTransitionPreset.cs`. Startup animation (global, not in profiles): `Settings/StartupAnimationSettings.cs`
+(`LandingPageSettings.StartupAnimation`), engine `Controls/StartupAnimator.cs` (only animates opacity, restores raw local
+transform/origin/clip), hookup `Views/StartPageView.Startup.cs` (waits for `IsSelectedPageInitialized`), editor in the page
+manager; test StartupAnimation, doc STARTUP-ANIMATIONS. Startup intros: `Settings/StartupIntroSettings.cs` (global
+`LandingPageSettings.StartupIntro`, per page `DashboardPage.Intro` - travels with profiles), player `Controls/IntroPresenter.cs`,
+adorner host + session bookkeeping `Utils/IntroHost.cs` (coverage = window root or StartPage view), early launch intro
+`Utils/LaunchIntro.cs` (plugin ctor, own STA thread/window, held until `PlayniteReady`), launch hook
+`LandingPageExtension.PlayStartupIntroAtLaunch`, open/page-switch hooks `Views/StartPageView.Intro.cs`, editor
+`Views/Settings/StartupIntroSettingsView` (settings tab + page manager); test StartupIntro.
 Tests: DashboardProfiles, StarterProfiles, OriginalSettingsImport, TransitionPresets, ConfigStartup.
 Docs: DASHBOARD-PROFILES, DASHBOARD-PAGES, TRANSITION-PRESETS.
 
