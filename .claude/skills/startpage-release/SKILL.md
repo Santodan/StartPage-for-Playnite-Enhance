@@ -26,7 +26,7 @@ Reference commit: `git show 5fdb7a1` ("Prepare experimental 0.21.0 release") plu
 | `source/StartPage/extension.yaml` | `Version: X.Y.Z` |
 | `source/StartPage/Properties/AssemblyInfo.cs` | `AssemblyVersion` and `AssemblyFileVersion` `"X.Y.Z.0"` |
 | `InstallerManifest/santodan_StartPage_Enhanced_Plugin.yaml` | New entry at the **top** of `Packages:` (below) |
-| `README.md` | "Latest release downloads" badge tag `vX.Y.Z`; install step path `santodan_StartPage_Enhanced_Plugin_X_Y_Z.pext` |
+| `README.md` | Install step path `santodan_StartPage_Enhanced_Plugin_X_Y_Z.pext`. The "Latest release downloads" badge uses `github/downloads-pre/.../latest/total` and follows the newest release automatically - do not put a version in it (a tag badge pushed before its release exists gets cached by GitHub as "Repo or release not found"). |
 | `CUSTOMIZATION-ROADMAP.md` | Move finished items if the owner tracks them there |
 
 ```yaml
