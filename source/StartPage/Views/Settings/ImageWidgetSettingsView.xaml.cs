@@ -12,9 +12,11 @@ namespace LandingPage.Views.Settings
         {
             if (!(DataContext is ImageWidgetSettings settings)) return;
             var path = LandingPageExtension.Instance.PlayniteApi.Dialogs.SelectFile(
-                "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff;*.ico");
+                "Images, GIFs and videos|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff;*.ico;*.webp;*.mp4;*.m4v;*.wmv;*.avi;*.mov;*.mkv;*.webm|All files|*.*");
             if (!string.IsNullOrEmpty(path)) settings.ImagePath = path;
         }
+
+        private void Restart_Click(object sender, RoutedEventArgs e) => (DataContext as ImageWidgetSettings)?.RestartMedia();
 
         private void Clear_Click(object sender, RoutedEventArgs e)
         {

@@ -11,7 +11,7 @@
     <Button Grid.Column="1" Content="Browse..." Click="Browse_Click" Padding="10,4" Margin="6,0,0,0"/>
     <Button Grid.Column="2" Content="Clear" ToolTip="Clear image" Click="Clear_Click" Padding="10,4" Margin="6,0,0,0"/>
    </Grid>
-   <controls:SettingsHint Text="PNG, JPEG, BMP, GIF, TIFF, and ICO. GIFs display a still frame."/>
+   <controls:SettingsHint Text="PNG, JPEG, BMP, TIFF, WebP and ICO images; animated GIFs; and Windows-supported videos (MP4, M4V, WMV, AVI, MOV, MKV, WebM with installed codecs)."/>
   </controls:SettingsField>
   <controls:SettingsField Label="Image display">
    <ComboBox SelectedValue="{Binding Stretch}" SelectedValuePath="Tag">
@@ -22,6 +22,25 @@
    </ComboBox>
   </controls:SettingsField>
   <controls:SettingsSlider x:Name="OpacitySlider" Label="Image opacity" Value="{Binding Opacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+  <Expander x:Name="PlaybackSection" Header="GIF and video playback" Margin="0,8,0,0" Foreground="{DynamicResource TextBrush}">
+   <StackPanel Margin="8,4,0,4">
+    <StackPanel.Resources><Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="Margin" Value="0,6,0,0"/></Style></StackPanel.Resources>
+    <controls:SettingsColumns>
+     <CheckBox Content="Play" IsChecked="{Binding PlayMedia}"/>
+     <CheckBox Content="Loop" IsChecked="{Binding LoopMedia}"/>
+     <CheckBox Content="Mute video" IsChecked="{Binding VideoMuted}"/>
+     <CheckBox Content="Pause while Playnite is inactive" IsChecked="{Binding PauseWhenInactive}"/>
+    </controls:SettingsColumns>
+    <controls:SettingsSlider Label="Playback speed" Value="{Binding PlaybackSpeed}" Minimum="0.25" Maximum="2" Step="0.05" Precision="2"/>
+    <controls:SettingsSlider Label="Video volume" Value="{Binding VideoVolume}" Minimum="0" Maximum="1" Step="0.01" Precision="2" IsEnabled="{Binding VideoMuted, Converter={x:Static controls:SettingsLayoutConverters.Not}}"/>
+    <controls:SettingsColumns>
+     <controls:SettingsSlider Label="GIF frame rate limit" Value="{Binding GifFrameRate}" Minimum="1" Maximum="60" Step="1" Precision="0"/>
+     <controls:SettingsSlider Label="GIF resolution limit (px, 0 = original)" Value="{Binding GifMaxDimension}" Minimum="0" Maximum="3840" Step="64" Precision="0"/>
+    </controls:SettingsColumns>
+    <Button Content="Restart playback" Click="Restart_Click" HorizontalAlignment="Left" Padding="10,4" Margin="0,8,0,0"/>
+    <controls:SettingsHint Text="Playback pauses while the page is hidden or Playnite is minimized, and the file is released when the widget is removed. Still images ignore these options."/>
+   </StackPanel>
+  </Expander>
   <controls:SettingsField Label="Optional website link">
    <TextBox Text="{Binding Link, ValidatesOnExceptions=True}"/>
    <controls:SettingsHint Text="Use https:// or http://. Click the image outside Edit Mode to open the link."/>

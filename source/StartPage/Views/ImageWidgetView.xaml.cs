@@ -8,6 +8,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using LandingPage.Settings;
+using LandingPage.Utils;
 using LandingPage.ViewModels.Layout;
 
 namespace LandingPage.Views
@@ -32,10 +33,15 @@ namespace LandingPage.Views
             nameof(HasLink), typeof(bool), typeof(ImageWidgetView), new PropertyMetadata(false));
         public bool HasLink { get => (bool)GetValue(HasLinkProperty); private set => SetValue(HasLinkProperty, value); }
 
+        // Framing/playback handed to the media player for GIF and video files.
+        private readonly BackgroundAppearanceSettings media = new BackgroundAppearanceSettings();
+        // True while a still image or an animated file is shown (the link only opens on content).
+        public bool HasDisplayedMedia => ImageSource != null || WidgetMedia?.MediaUri != null;
         public ImageWidgetView()
         {
             Settings = new ImageWidgetSettings();
             InitializeComponent();
+            WidgetMedia.Appearance = media;
             SetBinding(SettingsProperty, new Binding("DataContext.GridNode.ViewProperties.ImageSettings")
             {
                 RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(GridNodeView), 1),
@@ -68,17 +74,28 @@ namespace LandingPage.Views
         {
             if (args.PropertyName == nameof(ImageWidgetSettings.ImagePath)) ReloadImage();
             else if (args.PropertyName == nameof(ImageWidgetSettings.Link)) HasLink = !string.IsNullOrEmpty(Settings?.Link);
+            else if (args.PropertyName == nameof(ImageWidgetSettings.RestartMedia)) media.RestartMedia();
+            else Settings?.ApplyTo(media);
         }
 
         private void ReloadImage()
         {
             ImageSource = null;
+            if (WidgetMedia != null) { WidgetMedia.MediaUri = null; WidgetMedia.Visibility = Visibility.Collapsed; }
             HasLink = !string.IsNullOrEmpty(Settings?.Link);
-            Status = "Choose a local image in Appearance > Image settings.";
+            Status = "Choose a local image, GIF or video in Appearance > Image settings.";
             if (string.IsNullOrWhiteSpace(Settings?.ImagePath)) return;
             try
             {
                 if (!File.Exists(Settings.ImagePath)) { Status = "Image file not found."; return; }
+                // GIFs and videos play through the shared media player (same engine as animated backgrounds).
+                if (Uri.TryCreate(Path.GetFullPath(Settings.ImagePath), UriKind.Absolute, out var mediaUri) && BackgroundMediaFiles.IsAnimated(mediaUri) && WidgetMedia != null)
+                {
+                    Settings.ApplyTo(media);
+                    WidgetMedia.MediaUri = mediaUri; WidgetMedia.Visibility = Visibility.Visible;
+                    Status = string.Empty;
+                    return;
+                }
                 // Decode fully before closing the stream, so the widget does not lock the image file.
                 using (var stream = new FileStream(Settings.ImagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
@@ -105,7 +122,7 @@ namespace LandingPage.Views
             DependencyObject parent = this;
             while (parent != null && !(parent is GridNodeView)) parent = VisualTreeHelper.GetParent(parent);
             if ((parent as FrameworkElement)?.DataContext is GridNodeViewModel model && model.EditModeEnabled) return;
-            if (ImageSource == null || !Uri.TryCreate(Settings?.Link, UriKind.Absolute, out var uri)
+            if (!HasDisplayedMedia || !Uri.TryCreate(Settings?.Link, UriKind.Absolute, out var uri)
                 || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)) return;
             try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
             catch (Exception ex)

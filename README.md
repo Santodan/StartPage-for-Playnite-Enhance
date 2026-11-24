@@ -61,7 +61,7 @@ See [fork identity, import scope and compatibility](docs/FORK-IDENTITY.md) for t
 | Shelf metadata | Titles, source icons, playtime, last played, favorites, installation status and achievement progress, including artwork overlays. |
 | Shelf interactions | Dock magnification, zoom, lift, tilt, bounce, glow and dimming; animation direction and optional details popups. |
 | Toolbar | Native Playnite and extension items, page navigation, labels, configurable groups, alignment and group appearance. |
-| Clock, text and images | Configurable clock/date formats, text styling, image sizing and optional links. |
+| Clock, text and images | Configurable clock/date formats, text styling, image sizing and optional links; the Image widget also plays GIFs and videos. |
 | Featured game | Selected, hovered, pinned or automatically chosen game, with artwork, formatted description, activity and actions. |
 | Game detail widgets | Independent artwork, title, description, activity, details, library information, scores, links and actions, synchronized to the same game. |
 | Library statistics | Library totals, playtime, progress, metadata coverage and source/platform breakdowns; per-counter layout, text and colors. |
