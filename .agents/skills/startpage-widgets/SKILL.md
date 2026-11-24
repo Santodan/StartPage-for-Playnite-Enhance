@@ -51,7 +51,8 @@ Shared infrastructure: `Controls/WidgetPalette.cs` (Add-widget catalog), `Contro
 Editor layout kit `Controls/SettingsLayout.cs` (Test-SettingsLayout): `SettingsField` (label above a control),
 `SettingsHint`, `SettingsSlider` (label + full-width slider + numeric box), `TextFormatBar` (size + B/I + popup
 color swatch), `SettingsColumns` (2 columns, stacks below 150 px each; `SettingsColumns.Span`). Use it for new or
-reworked editors. Converted: Text, Clock, Image, Divider, Shortcut, Toolbar, Library statistics/charts (targeted); the rest are listed in `CUSTOMIZATION-ROADMAP.md`
+reworked editors. All built-in editors converted (Library statistics/charts, Featured, Game detail and Achievement with
+targeted edits that keep their named sections); the rest are listed in `CUSTOMIZATION-ROADMAP.md`
 ("Consistent, compact widget settings"). Add each converted editor to the fit/unchanged-on-open loop in the test. Inner kit bindings go through
 `SettingsLayout.Bind` (proxy + `SetCurrentValue`); never bind inner controls TwoWay straight to the owner's DP, or
 template-applied bindings (DataTemplate rows) get replaced on the first write-back.

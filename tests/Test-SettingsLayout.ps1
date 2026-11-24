@@ -150,8 +150,57 @@ $body = @'
     foreach($label in @('Segment border width (0 = none)','Doughnut hole size')) { if($chartSliders -notcontains $label) { throw "Chart slider '$label' has no numeric box" } }
     'PASS: library statistics/chart editors use labeled sliders with numeric boxes and keep their named sections.'
 
+    # Featured game: format bars, opacity sliders and templated per-section appearance sliders keep their bindings.
+    $featuredSettings = [LandingPage.Settings.FeaturedGameSettings]::new(); $featuredBefore = [Newtonsoft.Json.JsonConvert]::SerializeObject($featuredSettings)
+    $featuredEditor = [LandingPage.Views.Settings.FeaturedGameSettingsView]::new(); $featuredEditor.DataContext = $featuredSettings
+    $featuredHost = Host-Editor $featuredEditor 520; Expand-All $featuredEditor
+    $titleBar = $featuredEditor.FindName('TitleFormatBar')
+    if(!$titleBar -or $titleBar.SizeBox.Value -ne $featuredSettings.TitleSize -or $titleBar.BoldButton.Visibility -ne 'Collapsed') { throw 'Featured title size/color is not a format bar bound to the title size' }
+    $sectionSliders = @(Get-Descendants $featuredEditor | Where-Object { $_ -is [LandingPage.Controls.SettingsSlider] -and $_.Label -eq 'Background opacity' })
+    if($sectionSliders.Count -lt 2) { throw 'Shared and per-section appearance opacity sliders are missing' }
+    $perSection = $sectionSliders[$sectionSliders.Count-1]; $sectionAppearance = $perSection.DataContext; $sectionOpacity = $sectionAppearance.BackgroundOpacity
+    $perSection.Slider.Value = 0.33; Flush-Layout
+    if([Math]::Abs($sectionAppearance.BackgroundOpacity - 0.33) -gt 0.001 -or ![Windows.Data.BindingOperations]::GetBindingExpression($perSection,[LandingPage.Controls.SettingsSlider]::ValueProperty)) { throw 'Per-section appearance slider inside the section template lost its binding' }
+    $sectionAppearance.BackgroundOpacity = $sectionOpacity; Flush-Layout
+    if([Newtonsoft.Json.JsonConvert]::SerializeObject($featuredSettings) -ne $featuredBefore) { throw 'Opening the featured game editor modified its settings' }
+    'PASS: featured game editor uses format bars and kit sliders; templated section appearance sliders keep their bindings.'
+
+    # Game detail and achievement editors keep their section switching and gain columns.
+    $artworkId = @([LandingPage.Models.GameDetailWidgets]::Definitions | Where-Object IsArtwork)[0].Id
+    $detailSettings = [LandingPage.Settings.FeaturedGameSettings]::new(); $detailBefore = [Newtonsoft.Json.JsonConvert]::SerializeObject($detailSettings)
+    $detailEditor = [LandingPage.Views.Settings.GameDetailSettingsView]::new(); $detailEditor.WidgetId = $artworkId; $detailEditor.DataContext = $detailSettings
+    $detailHost = Host-Editor $detailEditor 520; Expand-All $detailEditor
+    if($detailEditor.FindName('ArtworkOptions').Visibility -ne 'Visible' -or $detailEditor.FindName('ScoresOptions').Visibility -ne 'Collapsed') { throw 'Game detail editor no longer shows only the artwork widget sections' }
+    if(!@(Get-Descendants $detailEditor | Where-Object { $_ -is [LandingPage.Controls.SettingsSlider] -and $_.Label -eq 'Image opacity' }).Count) { throw 'Game detail image opacity is not a slider' }
+    $achievementSettings = [LandingPage.Settings.AchievementWidgetSettings]::Create('AchievementProgress'); $achievementBefore = [Newtonsoft.Json.JsonConvert]::SerializeObject($achievementSettings)
+    $achievementEditor = [LandingPage.Views.Settings.AchievementWidgetSettingsView]::new(); $achievementEditor.WidgetId = 'AchievementProgress'; $achievementEditor.DataContext = $achievementSettings
+    $achievementHost = Host-Editor $achievementEditor 520; Expand-All $achievementEditor
+    if(@(Get-Descendants $achievementEditor | Where-Object { $_ -is [LandingPage.Controls.SettingsColumns] -and $_.IsVisible }).Count -lt 2) { throw 'Achievement filters and display options are not in columns' }
+    'PASS: game detail and achievement editors keep their widget-specific sections and use columns and sliders.'
+
+    # Most played, shelves and the shared panel appearance section.
+    $mostPlayedEditor = [LandingPage.Views.Settings.MostPlayedSettingsView]::new(); $mostPlayedEditor.DataContext = $settingsModel
+    $mostPlayedHost = Host-Editor $mostPlayedEditor 520
+    if($mostPlayedEditor.FindName('TimeframeRows').Items.Count -ne @([LandingPage.LandingPageSettings].GetProperty('MostPlayedOptions').GetValue($settingsModel.Settings)).Count) { throw 'Most played editor lost its timeframe rows' }
+    $shelfSettings = [LandingPage.Settings.ShelvesSettings]::new(); $shelfBefore = [Newtonsoft.Json.JsonConvert]::SerializeObject($shelfSettings)
+    $shelvesEditor = [LandingPage.Views.Settings.ShelvesSettingsView]::new(); $shelvesEditor.DataContext = [LandingPage.ViewModels.ShelvesSettingsViewModel]::new($settingsModel,$shelfSettings)
+    $shelvesHost = Host-Editor $shelvesEditor 520
+    $coverSlider = $shelvesEditor.FindName('MaxCoverWidthSlider')
+    if($coverSlider.NumberBox.Value -ne $shelfSettings.MaxCoverWidth) { throw 'Shelf cover width slider does not show the saved width' }
+    $coverSlider.Slider.Value = 180; Flush-Layout
+    if($shelfSettings.MaxCoverWidth -ne 180) { throw 'Shelf cover width slider does not save the width' }
+    $shelfSettings.MaxCoverWidth = [Newtonsoft.Json.JsonConvert]::DeserializeObject($shelfBefore,[LandingPage.Settings.ShelvesSettings]).MaxCoverWidth; Flush-Layout
+    $panelNode = [LandingPage.Models.Layout.GridNode]::new(); $panelNode.ViewProperties = [LandingPage.Models.Layout.ViewProperties]::new(); $panelNode.ViewProperties.ViewId = 'TextWidget'
+    $panelAppearance = [LandingPage.Views.PanelAppearanceView]::new(); $panelAppearance.DataContext = [LandingPage.ViewModels.Layout.GridNodeViewModel]::new($panelNode)
+    $panelHost = Host-Editor $panelAppearance 520; Expand-All $panelAppearance
+    $panelDimensions = Find-Named $panelAppearance 'PanelDimensionColumns'
+    if(!$panelDimensions -or @($panelDimensions.Children | Where-Object { $_ -is [LandingPage.Controls.SettingsSlider] }).Count -ne 4) { throw 'Panel border/radius/padding/spacing are not labeled sliders with numeric boxes' }
+    @($panelDimensions.Children)[0].Slider.Value = 3; Flush-Layout
+    if($panelNode.ViewProperties.Appearance.BorderWidth -ne 3) { throw 'Panel border width slider does not save the width' }
+    'PASS: most played rows, shelf sliders and the shared panel appearance sliders edit their settings.'
+
     # Editors fit narrow and wide settings panels and do not modify settings when shown.
-    foreach($pair in @(@($textHost,'Text editor'),@($imageHost,'Image editor'),@($clockHost,'Clock editor'),@($dividerHost,'Divider editor'),@($shortcutHost,'Shortcut editor'),@($toolbarHost,'Toolbar editor'),@($statsHost,'Library statistics editor'),@($chartsHost,'Library charts editor'))) {
+    foreach($pair in @(@($textHost,'Text editor'),@($imageHost,'Image editor'),@($clockHost,'Clock editor'),@($dividerHost,'Divider editor'),@($shortcutHost,'Shortcut editor'),@($toolbarHost,'Toolbar editor'),@($statsHost,'Library statistics editor'),@($chartsHost,'Library charts editor'),@($featuredHost,'Featured game editor'),@($detailHost,'Game detail editor'),@($achievementHost,'Achievement editor'),@($mostPlayedHost,'Most played editor'),@($shelvesHost,'Shelves editor'),@($panelHost,'Panel appearance'))) {
         foreach($width in @(260,520)) { $pair[0].Width = $width; Flush-Layout; Assert-Fits $pair[0] $pair[1] }
     }
     $alignment = Find-Named $textEditor 'AlignmentColumns'
@@ -164,9 +213,10 @@ $body = @'
         [void]$view.Content.Children.Remove($freshHost)
     }
     if([Newtonsoft.Json.JsonConvert]::SerializeObject($toolbarSettings) -ne $toolbarBefore) { throw 'Resizing the toolbar editor modified toolbar settings' }
+    foreach($check in @(@($featuredSettings,$featuredBefore,'featured game'),@($detailSettings,$detailBefore,'game detail'),@($achievementSettings,$achievementBefore,'achievement'),@($shelfSettings,$shelfBefore,'shelf'))) { if([Newtonsoft.Json.JsonConvert]::SerializeObject($check[0]) -ne $check[1]) { throw ('Opening or resizing the '+$check[2]+' editor modified its settings') } }
     if([Newtonsoft.Json.JsonConvert]::SerializeObject($statsSettings) -ne $statsBefore -or [Newtonsoft.Json.JsonConvert]::SerializeObject($chartSettings) -ne $chartBefore) { throw 'Opening or resizing the library editors modified their settings' }
-    foreach($editorHost in @($textHost,$imageHost,$clockHost,$dividerHost,$shortcutHost,$toolbarHost,$statsHost,$chartsHost)) { [void]$view.Content.Children.Remove($editorHost) }
-    'PASS: text, image, clock, divider, shortcut, toolbar and library editors fit 260px and 520px panels and leave settings untouched when opened.'
+    foreach($editorHost in @($textHost,$imageHost,$clockHost,$dividerHost,$shortcutHost,$toolbarHost,$statsHost,$chartsHost,$featuredHost,$detailHost,$achievementHost,$mostPlayedHost,$shelvesHost,$panelHost)) { [void]$view.Content.Children.Remove($editorHost) }
+    'PASS: every converted editor fits 260px and 520px panels and leaves its settings untouched when opened.'
 
 '@
 Invoke-Expression ($prefix + "`n" + $body + "`n" + $cleanup)

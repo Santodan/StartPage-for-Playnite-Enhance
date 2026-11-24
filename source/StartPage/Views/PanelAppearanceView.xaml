@@ -123,10 +123,8 @@
                                                     <TextBlock Text="Appearance settings" Style="{DynamicResource BaseTextBlockStyle}" Foreground="{DynamicResource TextBrush}"/>
                                                 </Expander.Header>
                                                 <StackPanel Margin="0,8,0,0">
-                                            <CheckBox Content="Use custom appearance" IsChecked="{Binding GridNode.ViewProperties.Appearance.Enabled}"/>
-                                            <CheckBox Content="Show title" IsChecked="{Binding GridNode.ViewProperties.ShowLabel}" Margin="0,6,0,0"/>
-                                            <TextBlock Text="Custom title (blank = widget name)" Margin="0,6,0,0"/>
-                                            <TextBox Text="{Binding GridNode.ViewProperties.Appearance.Title, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <controls:SettingsColumns><CheckBox Content="Use custom appearance" IsChecked="{Binding GridNode.ViewProperties.Appearance.Enabled}"/><CheckBox Content="Show title" IsChecked="{Binding GridNode.ViewProperties.ShowLabel}"/></controls:SettingsColumns>
+                                            <controls:SettingsField Label="Custom title (blank = widget name)"><TextBox Text="{Binding GridNode.ViewProperties.Appearance.Title, UpdateSourceTrigger=PropertyChanged}"/></controls:SettingsField>
 <Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,6"><UniformGrid Columns="3" Margin="8,6,0,8">
     <controls:PopupColorPicker Label="Background" SelectedColor="{Binding GridNode.ViewProperties.Appearance.Background, Mode=TwoWay}" ShowCustomColorOption="False" Margin="0,4,8,4"/>
     <controls:PopupColorPicker Label="Border" SelectedColor="{Binding GridNode.ViewProperties.Appearance.BorderColor, Mode=TwoWay}" ShowCustomColorOption="False" Margin="0,4,8,4"/>
@@ -136,31 +134,10 @@
     <controls:PopupColorPicker Label="Chart" SelectedColor="{Binding GridNode.ViewProperties.Appearance.ChartColor, Mode=TwoWay}" UseCustomColor="{Binding GridNode.ViewProperties.Appearance.CustomizeCharts, Mode=TwoWay}" Margin="0,4,8,4"/>
     <controls:PopupColorPicker Label="Highlight" SelectedColor="{Binding GridNode.ViewProperties.Appearance.HighlightColor, Mode=TwoWay}" UseCustomColor="{Binding GridNode.ViewProperties.Appearance.CustomizeHighlights, Mode=TwoWay}" Margin="0,4,8,4"/>
 </UniformGrid></Expander>
-                                            <TextBlock Text="Background opacity" Margin="0,6,0,0"/>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions>
-                                                <Slider Value="{Binding GridNode.ViewProperties.Appearance.BackgroundOpacity}" Minimum="0" Maximum="1"
-                                                        TickFrequency="0.01" SmallChange="0.01" LargeChange="0.1" IsSnapToTickEnabled="True" AutoToolTipPrecision="2" AutoToolTipPlacement="TopLeft"/>
-                                                <numeric:DoubleBox Grid.Column="1" Value="{Binding GridNode.ViewProperties.Appearance.BackgroundOpacity, UpdateSourceTrigger=PropertyChanged}"
-                                                                   MinValue="0" MaxValue="1" Margin="8,0,0,0" Style="{StaticResource {x:Type TextBox}}"/>
-                                            </Grid>
-                                            <TextBlock Text="Border width" Margin="0,6,0,0"/>
-                                            <Slider Value="{Binding GridNode.ViewProperties.Appearance.BorderWidth}" Minimum="0" Maximum="10" TickFrequency="1" IsSnapToTickEnabled="True" AutoToolTipPlacement="TopLeft"/>
-                                            <TextBlock Text="Corner radius" Margin="0,6,0,0"/>
-                                            <Slider Value="{Binding GridNode.ViewProperties.Appearance.CornerRadius}" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" AutoToolTipPlacement="TopLeft"/>
-                                            <TextBlock Text="Internal padding" Margin="0,6,0,0"/>
-                                            <Slider Value="{Binding GridNode.ViewProperties.Appearance.Padding}" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" AutoToolTipPlacement="TopLeft"/>
-                                            <TextBlock Text="Outer spacing" Margin="0,6,0,0"/>
-                                            <Slider Value="{Binding GridNode.ViewProperties.Appearance.Margin}" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" AutoToolTipPlacement="TopLeft"/>
-                                            <TextBlock Text="Title size" Margin="0,6,0,0"/>
-                                            <Slider Value="{Binding GridNode.ViewProperties.Appearance.TitleSize}" Minimum="8" Maximum="72" TickFrequency="1" IsSnapToTickEnabled="True" AutoToolTipPlacement="TopLeft"/>
-                                            <TextBlock Text="Title alignment" Margin="0,6,0,0"/>
-                                            <ComboBox SelectedValue="{Binding GridNode.ViewProperties.Appearance.TitleAlignment}" SelectedValuePath="Tag">
-                                                <ComboBoxItem Content="Left" Tag="{x:Static TextAlignment.Left}"/>
-                                                <ComboBoxItem Content="Center" Tag="{x:Static TextAlignment.Center}"/>
-                                                <ComboBoxItem Content="Right" Tag="{x:Static TextAlignment.Right}"/>
-                                            </ComboBox>
-                                            <CheckBox Content="Shadow" IsChecked="{Binding GridNode.ViewProperties.Appearance.Shadow}" Margin="0,6,0,0"/>
+                                            <controls:SettingsSlider x:Name="PanelOpacitySlider" Label="Background opacity" Value="{Binding GridNode.ViewProperties.Appearance.BackgroundOpacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+                                            <controls:SettingsColumns x:Name="PanelDimensionColumns"><controls:SettingsSlider Label="Border width" Value="{Binding GridNode.ViewProperties.Appearance.BorderWidth}" Minimum="0" Maximum="10" Step="1" Precision="0"/><controls:SettingsSlider Label="Corner radius" Value="{Binding GridNode.ViewProperties.Appearance.CornerRadius}" Minimum="0" Maximum="100" Step="1" Precision="0"/><controls:SettingsSlider Label="Internal padding" Value="{Binding GridNode.ViewProperties.Appearance.Padding}" Minimum="0" Maximum="100" Step="1" Precision="0"/><controls:SettingsSlider Label="Outer spacing" Value="{Binding GridNode.ViewProperties.Appearance.Margin}" Minimum="0" Maximum="100" Step="1" Precision="0"/></controls:SettingsColumns>
+                                            <controls:SettingsColumns><controls:SettingsSlider Label="Title size" Value="{Binding GridNode.ViewProperties.Appearance.TitleSize}" Minimum="8" Maximum="72" Step="1" Precision="0"/><controls:SettingsField Label="Title alignment"><ComboBox SelectedValue="{Binding GridNode.ViewProperties.Appearance.TitleAlignment}" SelectedValuePath="Tag"><ComboBoxItem Content="Left" Tag="{x:Static TextAlignment.Left}"/><ComboBoxItem Content="Center" Tag="{x:Static TextAlignment.Center}"/><ComboBoxItem Content="Right" Tag="{x:Static TextAlignment.Right}"/></ComboBox></controls:SettingsField></controls:SettingsColumns>
+                                            <CheckBox Content="Shadow" IsChecked="{Binding GridNode.ViewProperties.Appearance.Shadow}" Margin="0,8,0,0"/>
                                                 </StackPanel>
                                             </Expander>
                                             <Button Content="Done" Click="Done_Click" Margin="0,12,0,0" Padding="8,4"/>

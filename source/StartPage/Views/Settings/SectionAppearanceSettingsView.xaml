@@ -3,23 +3,25 @@
  xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:numeric="http://gu.se/NumericInput">
  <UserControl.Resources>
   <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
-  <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/></Style>
+  <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource TextBrush}"/><Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate></Setter.Value></Setter></Style>
  </UserControl.Resources>
  <StackPanel>
   <CheckBox Content="Use custom section appearance" IsChecked="{Binding Enabled}" Margin="0,4"/>
   <StackPanel IsEnabled="{Binding Enabled}">
-   <TextBlock Text="Background opacity"/><numeric:DoubleBox Value="{Binding BackgroundOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
-   <TextBlock Text="Border width" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding BorderWidth}" MinValue="0" MaxValue="10" Style="{StaticResource {x:Type TextBox}}"/>
-   <TextBlock Text="Corner radius" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding CornerRadius}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
-   <TextBlock Text="Internal padding" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding Padding}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
-   <TextBlock Text="Spacing (automatic layout)" Margin="0,5,0,2"/><numeric:DoubleBox Value="{Binding Margin}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
-   <CheckBox Content="Shadow" IsChecked="{Binding Shadow}" Margin="0,6,0,4"/>
+   <controls:SettingsSlider x:Name="BackgroundOpacitySlider" Label="Background opacity" Value="{Binding BackgroundOpacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+   <controls:SettingsColumns>
+    <controls:SettingsField Label="Border width"><numeric:DoubleBox Value="{Binding BorderWidth}" MinValue="0" MaxValue="10" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+    <controls:SettingsField Label="Corner radius"><numeric:DoubleBox Value="{Binding CornerRadius}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+    <controls:SettingsField Label="Internal padding"><numeric:DoubleBox Value="{Binding Padding}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+    <controls:SettingsField Label="Spacing (automatic layout)"><numeric:DoubleBox Value="{Binding Margin}" MinValue="0" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+   </controls:SettingsColumns>
+   <CheckBox Content="Shadow" IsChecked="{Binding Shadow}" Margin="0,8,0,4"/>
    <Expander Header="Colors" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,4"><UniformGrid Columns="3" Margin="8,6,0,8">
     <controls:PopupColorPicker Label="Background color" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding Background, Mode=TwoWay, ValidatesOnExceptions=True}"/>
     <controls:PopupColorPicker Label="Border color" ShowCustomColorOption="False" Margin="0,4,8,4" SelectedColor="{Binding BorderColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
     <controls:PopupColorPicker Label="Override section text color" UseCustomColor="{Binding CustomizeText}" Margin="0,4,8,4" SelectedColor="{Binding TextColor, Mode=TwoWay, ValidatesOnExceptions=True}"/>
    </UniformGrid></Expander>
   </StackPanel>
-  <Button Content="Reset section appearance" Click="Reset_Click" Margin="0,6,0,0"/>
+  <Button Content="Reset section appearance" Click="Reset_Click" HorizontalAlignment="Left" Padding="10,4" Margin="0,6,0,0"/>
  </StackPanel>
 </UserControl>

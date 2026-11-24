@@ -69,7 +69,7 @@ namespace LandingPage.Views.Settings
             Check(source,"Keep last hovered game when leaving the shelf","KeepLastHoveredGame");
             goalTarget = new StackPanel(); source.Children.Add(goalTarget);
             Number(goalTarget,"Default target percentage (selected / hovered game)","TargetPercent");
-            Label(goalTarget,"For Achievement goals. Saved per-game targets take priority over the default target.");
+            Hint(goalTarget,"For Achievement goals. Saved per-game targets take priority over the default target.");
             var listOptions = Section("Achievement list"); listSection = (Expander)listOptions.Parent;
             Choice(listOptions,"Show achievements",typeof(AchievementListFilter),"ListFilter");
             listFilterLabel = (FrameworkElement)listOptions.Children[0]; listFilterChoice = (FrameworkElement)listOptions.Children[1];
@@ -77,36 +77,41 @@ namespace LandingPage.Views.Settings
             listSortChoice = (ComboBox)listOptions.Children[3];
             Number(listOptions,"Maximum achievements (0 = all)","Limit");
             recentOptions = new StackPanel(); listOptions.Children.Add(recentOptions);
-            Number(recentOptions,"Maximum achievements per game (0 = all)","PerGameLimit");
-            Number(recentOptions,"Unlocked within last N days (0 = any date)","RecentDays");
-            Choice(recentOptions,"Group achievements by",typeof(RecentAchievementGrouping),"RecentGrouping");
-            Choice(recentOptions,"Group order",typeof(RecentAchievementGroupOrder),"RecentGroupOrder");
-            Label(recentOptions,"Game name contains"); var gameFilter = new TextBox(); gameFilter.SetBinding(TextBox.TextProperty,Bind("GameNameFilter")); recentOptions.Children.Add(gameFilter);
-            Label(recentOptions,"Source name contains"); var sourceFilter = new TextBox(); sourceFilter.SetBinding(TextBox.TextProperty,Bind("SourceNameFilter")); recentOptions.Children.Add(sourceFilter);
-            Label(recentOptions,"Platform name contains"); var platformFilter = new TextBox(); platformFilter.SetBinding(TextBox.TextProperty,Bind("PlatformNameFilter")); recentOptions.Children.Add(platformFilter);
-            Check(recentOptions,"Include hidden games","IncludeHidden"); Check(recentOptions,"Installed games only","InstalledOnly"); Check(recentOptions,"Favorite games only","FavoritesOnly");
-            Check(recentOptions,"Show game-group progress bar","ShowGroupProgress"); Check(recentOptions,"Show achievement icons","ShowArtwork");
-            Check(recentOptions,"Show achievement names","ShowTitle"); Check(recentOptions,"Show descriptions","ShowDescription");
-            Check(recentOptions,"Show game name inside each achievement row","ShowRecentGameName"); Check(recentOptions,"Show unlock date inside each achievement row","ShowRecentExtraDetails");
-            Check(recentOptions,"Customize icon size","CustomizeRecentIconSize"); Number(recentOptions,"Icon size","ArtworkSize");
+            var recentLimits = Columns(recentOptions);
+            NumberField(recentLimits,"Maximum achievements per game (0 = all)","PerGameLimit");
+            NumberField(recentLimits,"Unlocked within last N days (0 = any date)","RecentDays");
+            ChoiceField(recentLimits,"Group achievements by",typeof(RecentAchievementGrouping),"RecentGrouping");
+            ChoiceField(recentLimits,"Group order",typeof(RecentAchievementGroupOrder),"RecentGroupOrder");
+            var recentFilters = Columns(recentOptions);
+            TextField(recentFilters,"Game name contains","GameNameFilter"); TextField(recentFilters,"Source name contains","SourceNameFilter"); TextField(recentFilters,"Platform name contains","PlatformNameFilter");
+            var recentChecks = Columns(recentOptions);
+            Check(recentChecks,"Include hidden games","IncludeHidden"); Check(recentChecks,"Installed games only","InstalledOnly"); Check(recentChecks,"Favorite games only","FavoritesOnly");
+            Check(recentChecks,"Show game-group progress bar","ShowGroupProgress"); Check(recentChecks,"Show achievement icons","ShowArtwork");
+            Check(recentChecks,"Show achievement names","ShowTitle"); Check(recentChecks,"Show descriptions","ShowDescription");
+            Check(recentChecks,"Show game name inside each achievement row","ShowRecentGameName"); Check(recentChecks,"Show unlock date inside each achievement row","ShowRecentExtraDetails");
+            var recentIcon = Columns(recentOptions);
+            Check(recentIcon,"Customize icon size","CustomizeRecentIconSize"); NumberField(recentIcon,"Icon size","ArtworkSize");
             var recentColors = new StackPanel(); recentOptions.Children.Add(new Expander { Header = "Colors", Content = recentColors, Margin = new Thickness(0,6,0,6) });
             var recentPalette = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 }; recentColors.Children.Add(recentPalette);
             foreach (var pair in new[] { new[] { "Progress color","ProgressColor" } }) {
                 var picker = InlineTextColor(pair[1],"CustomizeRecentProgress"); picker.Label = "Progress"; recentPalette.Children.Add(picker);
             }
             listFields = new StackPanel(); listOptions.Children.Add(listFields);
-            Check(listFields,"Show achievement icons","ShowArtwork"); Check(listFields,"Show achievement names","ShowTitle");
-            Check(listFields,"Show descriptions","ShowDescription"); Check(listFields,"Show game name","ShowCounts");
-            Check(listFields,"Show locked / unlocked state","ShowUnlockState"); Check(listFields,"Show unlock date","ShowUnlockDate");
-            Check(listFields,"Include hidden games","IncludeHidden"); Check(listFields,"Installed games only","InstalledOnly"); Check(listFields,"Favorite games only","FavoritesOnly");
+            var listChecks = Columns(listFields);
+            Check(listChecks,"Show achievement icons","ShowArtwork"); Check(listChecks,"Show achievement names","ShowTitle");
+            Check(listChecks,"Show descriptions","ShowDescription"); Check(listChecks,"Show game name","ShowCounts");
+            Check(listChecks,"Show locked / unlocked state","ShowUnlockState"); Check(listChecks,"Show unlock date","ShowUnlockDate");
+            Check(listChecks,"Include hidden games","IncludeHidden"); Check(listChecks,"Installed games only","InstalledOnly"); Check(listChecks,"Favorite games only","FavoritesOnly");
             var content = Section("Content and filters"); contentSection = (Expander)content.Parent;
             Number(content,"Maximum games (0 = all)","Limit");
-            Number(content,"Minimum achievement progress (%)","MinimumPercent"); Number(content,"Maximum remaining achievements (0 = any)","MaximumRemaining");
+            var contentLimits = Columns(content);
+            NumberField(contentLimits,"Minimum achievement progress (%)","MinimumPercent"); NumberField(contentLimits,"Maximum remaining achievements (0 = any)","MaximumRemaining");
             Choice(content,"Sort games",typeof(AchievementGameOrder),"Order");
-            Check(content,"Include hidden games","IncludeHidden"); Check(content,"Installed only","InstalledOnly");
-            Check(content,"Favorites only","FavoritesOnly"); Check(content,"Include fully unlocked games (progress/goals)","IncludeCompleted");
-            Check(content,"Show artwork","ShowArtwork"); Check(content,"Show game title","ShowTitle");
-            Check(content,"Show earned / total","ShowCounts"); Check(content,"Show percentage","ShowPercent"); Check(content,"Show remaining count","ShowRemaining");
+            var contentChecks = Columns(content);
+            Check(contentChecks,"Include hidden games","IncludeHidden"); Check(contentChecks,"Installed only","InstalledOnly");
+            Check(contentChecks,"Favorites only","FavoritesOnly"); Check(contentChecks,"Include fully unlocked games (progress/goals)","IncludeCompleted");
+            Check(contentChecks,"Show artwork","ShowArtwork"); Check(contentChecks,"Show game title","ShowTitle");
+            Check(contentChecks,"Show earned / total","ShowCounts"); Check(contentChecks,"Show percentage","ShowPercent"); Check(contentChecks,"Show remaining count","ShowRemaining");
             var layout = Section("Layout"); layoutSection = (Expander)layout.Parent;
             Choice(layout,"Layout",typeof(AchievementCardLayout),"Layout"); Choice(layout,"Progress graphic",typeof(AchievementProgressStyle),"ProgressStyle");
             progressLabel = (FrameworkElement)layout.Children[2]; progressChoice = (FrameworkElement)layout.Children[3];
@@ -157,7 +162,7 @@ namespace LandingPage.Views.Settings
                 picker.SetBinding(PopupColorPicker.SelectedColorProperty,Bind(pair[1])); palette.Children.Add(picker);
             }
             var goals = Section("Goals",false); goalsSection = (Expander)goals.Parent;
-            Label(goals,"Used by Achievement goals. Add a game, then set its target percentage."); pinnedDescription = (TextBlock)goals.Children[goals.Children.Count-1];
+            pinnedDescription = Hint(goals,"Used by Achievement goals. Add a game, then set its target percentage.");
             var add = new Button { Content = "Add pinned game", Margin = new Thickness(0,6,0,6) }; add.Click += AddGoal; goals.Children.Add(add);
             var items = new ItemsControl(); items.SetBinding(ItemsControl.ItemsSourceProperty,new Binding("Goals"));
             var template = new DataTemplate(typeof(AchievementGoal));
@@ -221,7 +226,13 @@ namespace LandingPage.Views.Settings
         private static void Label(Panel panel,string text) { var label = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,6,0,2) }; label.SetResourceReference(TextBlock.ForegroundProperty,"TextBrush"); panel.Children.Add(label); }
         private static void Number(Panel panel,string title,string property) { Label(panel,title); var box = new TextBox(); box.SetBinding(TextBox.TextProperty,Bind(property)); panel.Children.Add(box); }
         private static void Choice(Panel panel,string title,Type type,string property) { Label(panel,title); var box = new ComboBox { ItemsSource = Enum.GetValues(type) }; box.SetBinding(ComboBox.SelectedItemProperty,Bind(property)); panel.Children.Add(box); }
-        private static void Check(Panel panel,string title,string property) { var box = new CheckBox { Content = title, Margin = new Thickness(0,4,0,0) }; box.SetResourceReference(Control.ForegroundProperty,"TextBrush"); box.SetBinding(CheckBox.IsCheckedProperty,Bind(property)); panel.Children.Add(box); }
+        private static void Check(Panel panel,string title,string property) { var box = new CheckBox { Content = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap }, Margin = new Thickness(0,4,0,0) }; box.SetResourceReference(Control.ForegroundProperty,"TextBrush"); box.SetBinding(CheckBox.IsCheckedProperty,Bind(property)); panel.Children.Add(box); }
+        // Shared layout kit (Controls/SettingsLayout.cs): related fields in responsive columns, labeled fields and hints.
+        private static SettingsColumns Columns(Panel panel) { var columns = new SettingsColumns(); panel.Children.Add(columns); return columns; }
+        private static void NumberField(Panel panel,string title,string property) { var field = new SettingsField { Label = title }; var box = new TextBox(); box.SetBinding(TextBox.TextProperty,Bind(property)); field.Children.Add(box); panel.Children.Add(field); }
+        private static void TextField(Panel panel,string title,string property) => NumberField(panel,title,property);
+        private static void ChoiceField(Panel panel,string title,Type type,string property) { var field = new SettingsField { Label = title }; var box = new ComboBox { ItemsSource = Enum.GetValues(type) }; box.SetBinding(ComboBox.SelectedItemProperty,Bind(property)); field.Children.Add(box); panel.Children.Add(field); }
+        private static SettingsHint Hint(Panel panel,string text) { var hint = new SettingsHint { Text = text, Margin = new Thickness(0,3,0,4) }; panel.Children.Add(hint); return hint; }
         private sealed class GameChoice : GenericItemOption { public Guid GameId { get; set; } }
         private void AddGoal(object sender,RoutedEventArgs e) {
             if (!(DataContext is AchievementWidgetSettings options)) return;
