@@ -91,6 +91,16 @@ namespace LandingPage
         public bool DashboardRespectWindowsAnimations { get => dashboardRespectWindowsAnimations; set => SetValue(ref dashboardRespectWindowsAnimations, value); }
         private int dashboardTransitionMilliseconds = 200;
         public int DashboardTransitionMilliseconds { get => dashboardTransitionMilliseconds; set => SetValue(ref dashboardTransitionMilliseconds, Math.Max(50, Math.Min(1000, value))); }
+        // Custom Playnite window sizes for the toolbar's window size button (shared by every toolbar).
+        private ObservableCollection<Settings.WindowSizePreset> customWindowSizes = new ObservableCollection<Settings.WindowSizePreset>();
+        [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
+        public ObservableCollection<Settings.WindowSizePreset> CustomWindowSizes { get => customWindowSizes; set => SetValue(ref customWindowSizes, value ?? new ObservableCollection<Settings.WindowSizePreset>()); }
+        // Shared toolbar: when on, every toolbar widget shows the settings of the source toolbar (by panel instance id),
+        // except toolbars that keep their own (ToolbarWidgetSettings.KeepOwnToolbar).
+        private bool useSharedToolbar;
+        public bool UseSharedToolbar { get => useSharedToolbar; set => SetValue(ref useSharedToolbar, value); }
+        private Guid sharedToolbarId;
+        public Guid SharedToolbarId { get => sharedToolbarId; set => SetValue(ref sharedToolbarId, value); }
         // Optional image/GIF/video intro when Playnite starts or StartPage opens. Off for existing configs.
         private Settings.StartupIntroSettings startupIntro;
         public Settings.StartupIntroSettings StartupIntro { get => startupIntro ?? (startupIntro = new Settings.StartupIntroSettings()); set => SetValue(ref startupIntro, value ?? new Settings.StartupIntroSettings()); }

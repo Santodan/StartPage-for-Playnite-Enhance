@@ -63,7 +63,7 @@
                                                     </Style>
                                                 </Expander.Style>
                                                 <StackPanel>
-                                                    <settingsViews:ToolbarSettingsView DataContext="{Binding GridNode.ViewProperties.ToolbarSettings}"/>
+                                                    <controls:SharedToolbarEditor x:Name="ToolbarEditorHost" OwnSettings="{Binding GridNode.ViewProperties.ToolbarSettings}" InstanceId="{Binding GridNode.ViewProperties.InstanceId}"/>
                                                     <Button Content="Reset toolbar settings" Click="ResetToolbar_Click" Margin="0,8,0,0"/>
                                                 </StackPanel>
                                             </Expander>

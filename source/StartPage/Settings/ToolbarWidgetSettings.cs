@@ -79,6 +79,9 @@ namespace LandingPage.Settings
     {
         public event EventHandler NativeRefreshRequested;
         public void RequestNativeRefresh() => NativeRefreshRequested?.Invoke(this, EventArgs.Empty);
+        // With a shared toolbar enabled, this toolbar keeps its own items and layout instead of following the shared one.
+        private bool keepOwnToolbar;
+        public bool KeepOwnToolbar { get => keepOwnToolbar; set => SetValue(ref keepOwnToolbar, value); }
         private ObservableCollection<ToolbarGroup> groups = new ObservableCollection<ToolbarGroup> { new ToolbarGroup { Id = "main", Name = "Main" } };
         [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
         public ObservableCollection<ToolbarGroup> Groups { get => groups; set => SetValue(ref groups, value ?? new ObservableCollection<ToolbarGroup>()); }

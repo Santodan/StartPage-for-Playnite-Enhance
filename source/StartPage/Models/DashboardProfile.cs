@@ -50,7 +50,7 @@ namespace LandingPage.Models
             "DownScaleCovers", "EnableNotifications", "EnableGlobalProgressBar", "EnableGlobalBackground", "GlobalBackgroundOpacity", "GlobalDashboardBackground",
             "MostPlayedOptions", "SkipGamesInPreviousMostPlayed", "MaxNumberRecentAchievements", "MaxNumberRecentAchievementsPerGame",
             "SelectedAchievementsProvider", "ShowDetails", "ShowTitleOnCover", "NumberOfGames", "HorizontalShelveLabels",
-            "SkipGamesInPreviousShelves", "IgnoreTagId", "IgnoreMostPlayedTagId"
+            "SkipGamesInPreviousShelves", "IgnoreTagId", "IgnoreMostPlayedTagId", "UseSharedToolbar", "SharedToolbarId"
         };
 
         public static DashboardProfile Capture(LandingPageSettings settings, string name)

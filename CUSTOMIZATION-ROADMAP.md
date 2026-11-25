@@ -506,3 +506,13 @@ Dashboard reveal:
 - Switch to another dashboard page and back, minimize Playnite and switch to another sidebar view: playback should pause and resume. Remove the widget: the file must no longer be in use (for example, it can be renamed).
 - With a website link set, clicking a GIF or video outside Edit Mode still opens the link. Restart Playnite and round-trip a dashboard profile to confirm the playback options persist. Existing Image widgets load muted, looping and playing.
 - Build, playback defaults/legacy load/clamping/display-mode mapping/round-trip, GIF playback with option sync, restart, pause while hidden, video opening, still/animated switching, missing files, media release on removal and the editor (saving and 260/520 px fit) passed; DashboardPages, DashboardProfiles, BackgroundMedia, StartupIntro and SettingsLayout passed.
+
+## Step 25.7 findings: toolbar window size button and shared toolbar (awaiting user testing)
+
+Added from the owner's requests during the review of the toolbar widget. Step 25.7 stays open for the rest of the utility widget review.
+
+- Add **Playnite window size** to a toolbar. Its menu lists 4K, 2K, 1080p and 720p, then custom sizes, then **Add or manage custom sizes...**. Choose each built-in size and confirm Playnite's window takes that pixel size (or the largest that fits the screen, with a notification), stays centered and is restored first when maximized. Try it with display scaling above 100%.
+- In **Add or manage custom sizes...**, add a size by typing a name, width and height; add another with **Use current size**; use **Add and apply**, **Apply** and **Remove**. Custom sizes appear in every toolbar's menu and persist after restarting Playnite.
+- In a toolbar's settings, use **Use this toolbar on every dashboard**, then open other dashboards: their toolbars show the shared items and layout. Edit the toolbar from another dashboard and confirm the change appears everywhere. Try **Keep this dashboard's own toolbar**, **Make this the shared toolbar** and **Stop sharing** (each dashboard's own toolbar returns unchanged).
+- Delete the shared toolbar's panel or page: other dashboards fall back to their own toolbars. Save and apply a dashboard profile and confirm the shared toolbar setting is kept.
+- Build and the ToolbarSizeAndSharing test passed: built-in sizes, limits, persistence and legacy load; fit math and pixel-accurate resizing of a real window, restore from maximized and shrink to fit; the toolbar button, menu entries, applying and checking the current size; the custom size dialog; shared toolbar resolution (off, source, followers, keep own, missing source, source page) and profile round-trip; the editor host; and the toolbar widget rendering the shared toolbar.

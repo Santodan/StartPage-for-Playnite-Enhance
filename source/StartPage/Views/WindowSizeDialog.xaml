@@ -1,0 +1,38 @@
+<UserControl x:Class="LandingPage.Views.WindowSizeDialog"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:controls="clr-namespace:LandingPage.Controls" xmlns:numeric="http://gu.se/NumericInput"
+ Foreground="{DynamicResource TextBrush}" MinWidth="420">
+ <StackPanel Margin="16">
+  <TextBlock Text="Custom window sizes" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextBrush}"/>
+  <controls:SettingsHint Text="Sizes are in pixels. They appear in the window size button of every toolbar, after 4K, 2K, 1080p and 720p. A size larger than the screen is reduced to fit."/>
+  <ItemsControl x:Name="SizeList" Margin="0,8,0,0">
+   <ItemsControl.ItemTemplate>
+    <DataTemplate>
+     <Grid Margin="0,3">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextBrush}"/>
+      <Button Grid.Column="1" Content="Apply" Click="ApplySize_Click" Padding="10,3" Margin="6,0,0,0"/>
+      <Button Grid.Column="2" Content="Remove" Click="RemoveSize_Click" Padding="10,3" Margin="6,0,0,0"/>
+     </Grid>
+    </DataTemplate>
+   </ItemsControl.ItemTemplate>
+  </ItemsControl>
+  <TextBlock x:Name="EmptyText" Text="No custom sizes yet." Opacity=".7" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+  <TextBlock Text="Add a size" FontWeight="SemiBold" Margin="0,14,0,0" Foreground="{DynamicResource TextBrush}"/>
+  <controls:SettingsField Label="Name">
+   <TextBox x:Name="NameInput"/>
+  </controls:SettingsField>
+  <Grid Margin="0,2,0,0">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+   <controls:SettingsField Label="Width (px)"><numeric:IntBox x:Name="WidthInput" Value="1920" MinValue="320" MaxValue="16384" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+   <TextBlock Grid.Column="1" Text="&#x00D7;" VerticalAlignment="Bottom" Margin="8,0,8,6" Foreground="{DynamicResource TextBrush}"/>
+   <controls:SettingsField Grid.Column="2" Label="Height (px)"><numeric:IntBox x:Name="HeightInput" Value="1080" MinValue="240" MaxValue="16384" Style="{StaticResource {x:Type TextBox}}"/></controls:SettingsField>
+   <Button Grid.Column="3" Content="Use current size" Click="UseCurrent_Click" VerticalAlignment="Bottom" Padding="10,3" Margin="8,0,0,0"/>
+  </Grid>
+  <WrapPanel Margin="0,10,0,0">
+   <Button x:Name="AddButton" Content="Add size" Click="Add_Click" Padding="12,4" Margin="0,0,6,0"/>
+   <Button x:Name="AddApplyButton" Content="Add and apply" Click="AddApply_Click" Padding="12,4" Margin="0,0,6,0"/>
+  </WrapPanel>
+  <TextBlock x:Name="Status" TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource TextBrush}"/>
+ </StackPanel>
+</UserControl>

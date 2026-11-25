@@ -96,6 +96,7 @@
     <Page Include="Views\Settings\BackgroundAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\DividerWidgetSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\StartupIntroSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Views\WindowSizeDialog.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\ShortcutWidgetSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\SectionAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Compile Include="Views\Settings\GameDetailSettingsView.xaml.cs"><DependentUpon>GameDetailSettingsView.xaml</DependentUpon></Compile>
@@ -277,6 +278,13 @@
     <Compile Include="Controls\IntroPresenter.cs" />
     <Compile Include="Utils\IntroHost.cs" />
     <Compile Include="Utils\LaunchIntro.cs" />
+    <Compile Include="Utils\WindowSizer.cs" />
+    <Compile Include="Models\SharedToolbar.cs" />
+    <Compile Include="Controls\SharedToolbarEditor.cs" />
+    <Compile Include="Settings\WindowSizePreset.cs" />
+    <Compile Include="Views\WindowSizeDialog.xaml.cs">
+      <DependentUpon>WindowSizeDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\Settings\StartupIntroSettingsView.xaml.cs">
       <DependentUpon>StartupIntroSettingsView.xaml</DependentUpon>
     </Compile>

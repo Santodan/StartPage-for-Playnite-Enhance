@@ -14,6 +14,7 @@ using System.Windows.Threading;
 using LandingPage.Controls;
 using LandingPage.Settings;
 using LandingPage.ViewModels;
+using LandingPage.ViewModels.Layout;
 
 namespace LandingPage.Views
 {
@@ -51,8 +52,8 @@ namespace LandingPage.Views
                 RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(GridNodeView), 1),
                 FallbackValue = Settings, TargetNullValue = Settings
             });
-            Loaded += (sender, args) => { AttachSettings(); ScheduleRender(); nativeRetryTimer.Start(); };
-            Unloaded += (sender, args) => { nativeRetryTimer.Stop(); DetachSettings(); if (openNativeMenu != null) openNativeMenu.IsOpen = false; };
+            Loaded += (sender, args) => { WatchShared(true); AttachSettings(); ScheduleRender(); nativeRetryTimer.Start(); };
+            Unloaded += (sender, args) => { nativeRetryTimer.Stop(); WatchShared(false); DetachSettings(); if (openNativeMenu != null) openNativeMenu.IsOpen = false; };
         }
 
         protected override Size MeasureOverride(Size constraint)
@@ -60,6 +61,35 @@ namespace LandingPage.Views
             if (Content is ScrollViewer viewer && viewer.Content is FrameworkElement layout)
                 layout.MinHeight = double.IsInfinity(constraint.Height) ? 0 : Math.Max(0, constraint.Height - Padding.Top - Padding.Bottom);
             return base.MeasureOverride(constraint);
+        }
+
+        // Shared toolbar: the settings this toolbar shows (its own, or the shared toolbar's) and what it watches.
+        private LandingPageSettings watchedGlobal;
+        private ToolbarWidgetSettings watchedOwn;
+        private Guid OwnInstanceId()
+        {
+            DependencyObject current = this;
+            while (current != null && !(current is GridNodeView)) current = VisualTreeHelper.GetParent(current);
+            return ((current as FrameworkElement)?.DataContext as GridNodeViewModel)?.GridNode?.ViewProperties?.InstanceId ?? Guid.Empty;
+        }
+        internal ToolbarWidgetSettings EffectiveSettings() => Models.SharedToolbar.Effective(LandingPageExtension.Instance?.Settings, Settings, OwnInstanceId());
+        private void WatchShared(bool watch)
+        {
+            if (watchedGlobal != null) watchedGlobal.PropertyChanged -= GlobalChanged;
+            if (watchedOwn != null) watchedOwn.PropertyChanged -= OwnChanged;
+            watchedGlobal = null; watchedOwn = null;
+            if (!watch) return;
+            watchedGlobal = LandingPageExtension.Instance?.Settings; watchedOwn = Settings;
+            if (watchedGlobal != null) watchedGlobal.PropertyChanged += GlobalChanged;
+            if (watchedOwn != null) watchedOwn.PropertyChanged += OwnChanged;
+        }
+        private void GlobalChanged(object sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == nameof(LandingPageSettings.UseSharedToolbar) || args.PropertyName == nameof(LandingPageSettings.SharedToolbarId)) AttachSettings();
+        }
+        private void OwnChanged(object sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == nameof(ToolbarWidgetSettings.KeepOwnToolbar)) AttachSettings();
         }
 
         private void DetachSettings()
@@ -79,7 +109,8 @@ namespace LandingPage.Views
         private void AttachSettings()
         {
             DetachSettings();
-            observedSettings = Settings;
+            if (IsLoaded && !ReferenceEquals(watchedOwn, Settings)) WatchShared(true);
+            observedSettings = EffectiveSettings();
             if (observedSettings != null)
             {
                 observedSettings.PropertyChanged += SettingChanged;
@@ -126,6 +157,63 @@ namespace LandingPage.Views
                 }
             }));
         }
+        // Window size button: built-in sizes, the user's custom sizes, then the custom size manager.
+        internal ContextMenu WindowSizeMenu()
+        {
+            var window = Window.GetWindow(this) ?? Utils.IntroHost.MainWindow();
+            var current = Utils.WindowSizer.CurrentPixels(window);
+            var menu = new ContextMenu();
+            Func<WindowSizePreset, MenuItem> item = preset =>
+            {
+                var entry = new MenuItem { Header = preset.Label, Tag = preset, IsCheckable = false,
+                    IsChecked = !current.IsEmpty && Math.Abs(current.Width - preset.Width) <= 2 && Math.Abs(current.Height - preset.Height) <= 2 && window?.WindowState == WindowState.Normal };
+                entry.Click += (sender, args) => ApplyWindowSize(window, preset);
+                return entry;
+            };
+            foreach (var preset in WindowSizePreset.Defaults) menu.Items.Add(item(preset));
+            var custom = LandingPageExtension.Instance?.Settings?.CustomWindowSizes;
+            if (custom != null && custom.Count > 0) { menu.Items.Add(new Separator()); foreach (var preset in custom) menu.Items.Add(item(preset)); }
+            menu.Items.Add(new Separator());
+            var manage = new MenuItem { Header = "Add or manage custom sizes..." };
+            manage.Click += (sender, args) => OpenWindowSizeDialog(window);
+            menu.Items.Add(manage);
+            return menu;
+        }
+        private void OpenWindowSizeMenu(Button button)
+        {
+            var menu = WindowSizeMenu();
+            menu.PlacementTarget = button; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true;
+        }
+        private void ApplyWindowSize(Window window, WindowSizePreset preset)
+        {
+            try
+            {
+                Utils.WindowSizer.Apply(window, preset.Width, preset.Height, out var shrunk);
+                if (shrunk) LandingPageExtension.Instance?.PlayniteApi?.Notifications?.Add(new Playnite.SDK.NotificationMessage("StartPage.WindowSize",
+                    $"{preset.Label} is larger than the screen, so Playnite's window was reduced to fit.", Playnite.SDK.NotificationType.Info));
+            }
+            catch (Exception ex) { LandingPageExtension.logger?.Warn(ex, "Unable to resize the Playnite window."); }
+        }
+        private static void SaveSettings()
+        {
+            var plugin = LandingPageExtension.Instance; if (plugin == null) return;
+            if (plugin.startPageViewModel != null) plugin.startPageViewModel.SaveCurrentPage();
+            else plugin.SavePluginSettings(plugin.Settings);
+        }
+        private void OpenWindowSizeDialog(Window window)
+        {
+            var plugin = LandingPageExtension.Instance; if (plugin?.Settings == null) return;
+            var dialog = new WindowSizeDialog(plugin.Settings.CustomWindowSizes, () => window, SaveSettings);
+            try
+            {
+                var host = plugin.PlayniteApi.Dialogs.CreateWindow(new Playnite.SDK.WindowCreationOptions { ShowCloseButton = true, ShowMaximizeButton = false, ShowMinimizeButton = false });
+                host.Title = "Playnite window sizes"; host.Content = dialog; host.SizeToContent = SizeToContent.WidthAndHeight;
+                host.Owner = window; host.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                host.ShowDialog();
+            }
+            catch (Exception ex) { LandingPageExtension.logger?.Warn(ex, "Unable to open the window size dialog."); }
+        }
+
         private StartPageView Host()
         {
             DependencyObject current = this;
@@ -135,6 +223,7 @@ namespace LandingPage.Views
 
         internal void RenderToolbar()
         {
+            var Settings = EffectiveSettings();
             if (Settings == null) return;
             ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Toolbar render: items={Settings.Items.Count}; groups={Settings.Groups.Count}; attached={Host() != null}; loaded={IsLoaded}; bounds={ActualWidth:0.#}x{ActualHeight:0.#}.");
             if (openNativeMenu != null) openNativeMenu.IsOpen = false;
@@ -258,6 +347,7 @@ namespace LandingPage.Views
                     else if (option.Id == "page.remove") button.Command = model?.QuickRemovePageCommand;
                     else if (option.Id == "page.manage") button.Click += (sender, args) => host?.ShowPages();
                     else if (option.Id == "profile.manage") button.Click += (sender, args) => host?.ShowProfiles();
+                    else if (option.Id == "window.size") button.Click += (sender, args) => OpenWindowSizeMenu(button);
                     else if (!entry.IsExtension && option.NativeControl?.ContextMenu != null)
                         button.Click += (sender, args) => OpenMenu(option.NativeControl, button);
                     else if (option.Command != null) { button.Command = option.Command; button.CommandParameter = option.CommandParameter; }
@@ -323,6 +413,7 @@ namespace LandingPage.Views
 
         private object ButtonContent(ToolbarOption option, string title)
         {
+            var Settings = EffectiveSettings() ?? this.Settings;
             var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             if (Settings.ShowIcons)
             {

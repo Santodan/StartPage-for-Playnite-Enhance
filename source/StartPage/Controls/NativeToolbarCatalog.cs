@@ -157,7 +157,7 @@ namespace LandingPage.Controls
                 var fallback = new TextBlock { Text = Option.Glyph, FontSize = 18, VerticalAlignment = VerticalAlignment.Center };
                 fallback.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                 if (Option.IsNativeFont) fallback.SetResourceReference(TextBlock.FontFamilyProperty, "FontIcoFont");
-                else if (Option.Id == "native.details" || Option.Id == "native.grid" || Option.Id == "native.list") fallback.FontFamily = new FontFamily("Segoe UI Symbol");
+                else if (Option.Id == "native.details" || Option.Id == "native.grid" || Option.Id == "native.list" || Option.Id == "window.size") fallback.FontFamily = new FontFamily("Segoe UI Symbol");
                 rendered = fallback;
             }
             Content = rendered == null ? null : new Viewbox { Child = rendered, Stretch = Stretch.Uniform };
@@ -419,6 +419,7 @@ namespace LandingPage.Controls
                 new ToolbarOption { Id = "page.remove", Title = "Remove current dashboard page", Glyph = "\u2212" },
                 new ToolbarOption { Id = "page.manage", Title = "Manage dashboard pages", Glyph = "\u25A4" },
                 new ToolbarOption { Id = "profile.manage", Title = "Manage dashboard profiles", Glyph = "\u25A5", IconTemplate = SavedProfilesIcon() },
+                new ToolbarOption { Id = "window.size", Title = "Playnite window size", Glyph = "\u2922" },
                 new ToolbarOption { Id = "separator", Title = "Separator", Kind = "separator" }
             };
             var panel = ReadMember(topPanel, "PanelMainItems") as Panel;

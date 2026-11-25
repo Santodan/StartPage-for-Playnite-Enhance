@@ -144,3 +144,22 @@ Where a widget has multiple text elements, its formatting editor uses a **Text e
 ### Merge adjacent spaces safely
 
 In Edit Mode, right-click the panel you want to extend and choose **Merge adjacent space > Left / Right / Above / Below**. The two spaces must share aligned edges and form a rectangle. The merge changes only those spaces; widgets above, below and beside them are retained, including when the spaces belong to separate nested columns or rows. Adjust the split dividers if an edge needs aligning. If one space is empty, the populated widget is kept. If both contain widgets, a confirmation identifies the neighboring widget that will be removed while retaining the selected widget. Splitter merge menus are limited to individual panels so they cannot remove an entire nested section.
+
+## Playnite window size button
+
+Add **Playnite window size** from the toolbar item picker. Clicking it opens a menu with **4K** (3840 x 2160), **2K** (2560 x 1440), **1080p** (1920 x 1080) and **720p** (1280 x 720), then your custom sizes and **Add or manage custom sizes...**. The size currently in use is checked.
+
+Choosing a size resizes Playnite's window to that many physical pixels, taking display scaling into account. A maximized window is restored first, the window stays centered where it was, and it is kept inside the monitor's work area; a size larger than the screen is reduced to fit and a notification says so.
+
+**Add or manage custom sizes...** opens a window listing your custom sizes with **Apply** and **Remove**, and a form to add one: a name, the width and height in pixels, or **Use current size** to fill them in from Playnite's window. **Add and apply** adds the size and resizes immediately. Custom sizes are saved right away and shared by every toolbar on every dashboard.
+
+## Shared toolbar
+
+Open a toolbar widget's settings (Edit Mode > gear > Appearance > Toolbar settings). The **Shared toolbar** section at the top controls whether every dashboard shows the same toolbar:
+
+- **Use this toolbar on every dashboard** makes this toolbar the shared one. Toolbars on every other dashboard then show its items, groups and layout.
+- On another dashboard, the section says which dashboard the shared toolbar comes from, and the toolbar editor below edits the shared toolbar, so it can be changed from any dashboard.
+- **Keep this dashboard's own toolbar** opts one dashboard out; its own items and layout are kept and edited separately.
+- **Make this the shared toolbar** moves the source to the current toolbar; **Stop sharing** returns every dashboard to its own toolbar.
+
+If the shared toolbar's panel or page is deleted, every dashboard falls back to its own toolbar until another one is shared. Each toolbar keeps its own saved settings while it follows the shared one, so stopping sharing restores them. The shared toolbar choice is saved with the dashboard and carried by dashboard profiles.
