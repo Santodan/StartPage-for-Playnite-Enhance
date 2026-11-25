@@ -53,7 +53,7 @@ namespace LandingPage.Views
                 FallbackValue = Settings, TargetNullValue = Settings
             });
             Loaded += (sender, args) => { WatchShared(true); AttachSettings(); ScheduleRender(); nativeRetryTimer.Start(); };
-            Unloaded += (sender, args) => { nativeRetryTimer.Stop(); WatchShared(false); DetachSettings(); if (openNativeMenu != null) openNativeMenu.IsOpen = false; };
+            Unloaded += (sender, args) => { nativeRetryTimer.Stop(); WatchShared(false); DetachSettings(); notificationCloser.Detach(); if (openNativeMenu != null) openNativeMenu.IsOpen = false; };
         }
 
         protected override Size MeasureOverride(Size constraint)
@@ -63,6 +63,8 @@ namespace LandingPage.Views
             return base.MeasureOverride(constraint);
         }
 
+        // Closes Playnite's notifications panel on outside clicks, Dismiss all, or when the last notification goes.
+        internal readonly NotificationPanelCloser notificationCloser = new NotificationPanelCloser();
         // Shared toolbar: the settings this toolbar shows (its own, or the shared toolbar's) and what it watches.
         private LandingPageSettings watchedGlobal;
         private ToolbarWidgetSettings watchedOwn;
@@ -223,6 +225,7 @@ namespace LandingPage.Views
 
         internal void RenderToolbar()
         {
+            notificationCloser.Detach();
             var Settings = EffectiveSettings();
             if (Settings == null) return;
             ExtensionDiagnostics.Record(LandingPageExtension.Instance, $"Toolbar render: items={Settings.Items.Count}; groups={Settings.Groups.Count}; attached={Host() != null}; loaded={IsLoaded}; bounds={ActualWidth:0.#}x{ActualHeight:0.#}.");
@@ -317,6 +320,26 @@ namespace LandingPage.Views
                     else if (option.NativeModel != null) toggle.SetBinding(ToggleButton.IsCheckedProperty,
                         new Binding(option.Id == "native.filters" ? "FilterPanelVisible" : "NotificationPanelVisible") { Source = option.NativeModel, Mode = BindingMode.OneWay });
                     else toggle.IsEnabled = false;
+                    if (option.Id == "native.notifications" && toggle.IsEnabled)
+                    {
+                        Action closePanel = () =>
+                        {
+                            if (sourceToggle != null)
+                            {
+                                if (sourceToggle.IsChecked != true) return;
+                                sourceToggle.SetCurrentValue(ToggleButton.IsCheckedProperty, false);
+                                sourceToggle.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, sourceToggle));
+                                if (sourceToggle.Command?.CanExecute(sourceToggle.CommandParameter) == true) sourceToggle.Command.Execute(sourceToggle.CommandParameter);
+                            }
+                            else
+                            {
+                                var property = option.NativeModel?.GetType().GetProperty("NotificationPanelVisible");
+                                if (property?.CanWrite == true) property.SetValue(option.NativeModel, false);
+                            }
+                        };
+                        var messages = LandingPageExtension.Instance?.PlayniteApi?.Notifications?.Messages as INotifyCollectionChanged;
+                        notificationCloser.Attach(() => Window.GetWindow(toggle) ?? Application.Current?.MainWindow, toggle, closePanel, messages);
+                    }
                     control = toggle;
                 }
                 else if (option.Kind == "status")

@@ -163,3 +163,9 @@ Open a toolbar widget's settings (Edit Mode > gear > Appearance > Toolbar settin
 - **Make this the shared toolbar** moves the source to the current toolbar; **Stop sharing** returns every dashboard to its own toolbar.
 
 If the shared toolbar's panel or page is deleted, every dashboard falls back to its own toolbar until another one is shared. Each toolbar keeps its own saved settings while it follows the shared one, so stopping sharing restores them. The shared toolbar choice is saved with the dashboard and carried by dashboard profiles.
+
+## Notifications panel from the toolbar
+
+On a dashboard, the toolbar's **Notifications panel** item is a bell that opens StartPage's notifications flyout under it. While it is open, clicking anywhere outside the flyout closes it (the click still reaches what you clicked), as do **Dismiss all** and dismissing the last notification. Clicking the bell toggles it as before, and **Minimize** still closes it. Opening the bell while there are no notifications shows the empty state until you click elsewhere.
+
+When the toolbar is shown outside a dashboard, the same item toggles Playnite's own notifications panel instead, and that panel closes the same way.

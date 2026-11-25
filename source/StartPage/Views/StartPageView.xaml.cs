@@ -31,7 +31,8 @@ namespace LandingPage.Views
             {
                 if (args.Key == Key.F4 || args.Key == Key.Down) PrepareDropdown(Keyboard.FocusedElement as DependencyObject);
             };
-            Unloaded += (sender, args) => { CloseQuickPageDeletion(); CloseAppearance(); ClosePages(); CloseProfiles(); WatchPageModel(false); };
+            Unloaded += (sender, args) => { CloseQuickPageDeletion(); CloseAppearance(); ClosePages(); CloseProfiles(); WatchPageModel(false); WatchNotificationClicks(false); };
+            NotificationGrid.IsVisibleChanged += (sender, args) => WatchNotificationClicks(NotificationGrid.IsVisible);
             Loaded += (sender, args) =>
             {
                 insetWindow = Window.GetWindow(this);
@@ -685,6 +686,44 @@ namespace LandingPage.Views
         private void ToggleNotifications_Click(object sender, RoutedEventArgs e)
         {
             (DataContext as ViewModels.StartPageViewModel)?.ToggleNotificationsCommand.Execute(null);
+        }
+
+        // The notifications flyout behaves like a flyout: a click anywhere outside it (and outside the buttons that
+        // toggle it, which toggle it themselves) closes it.
+        private Window notificationClickWindow;
+        private MouseButtonEventHandler notificationClickHandler;
+
+        private void WatchNotificationClicks(bool watch)
+        {
+            if (notificationClickWindow != null && notificationClickHandler != null)
+                notificationClickWindow.RemoveHandler(PreviewMouseDownEvent, notificationClickHandler);
+            notificationClickWindow = null;
+            if (!watch) return;
+            notificationClickWindow = Window.GetWindow(this);
+            if (notificationClickWindow == null) return;
+            if (notificationClickHandler == null) notificationClickHandler = NotificationWindowMouseDown;
+            notificationClickWindow.AddHandler(PreviewMouseDownEvent, notificationClickHandler, true);
+        }
+
+        private void NotificationWindowMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            var source = e.OriginalSource as DependencyObject;
+            if (IsWithin(source, NotificationGrid)) return;
+            if (notificationAnchors.Any(reference => IsWithin(source, reference.Target as DependencyObject))) return;
+            if (IsWithin(source, notificationAnchor?.Target as DependencyObject)) return;
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                if (DataContext is ViewModels.StartPageViewModel model && model.NotificationsOpen) model.NotificationsOpen = false;
+            }));
+        }
+
+        private static bool IsWithin(DependencyObject node, DependencyObject container)
+        {
+            if (node == null || container == null) return false;
+            for (var current = node; current != null; current = current is Visual || current is System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(current) ?? LogicalTreeHelper.GetParent(current) : LogicalTreeHelper.GetParent(current))
+                if (ReferenceEquals(current, container)) return true;
+            return false;
         }
     }
 }

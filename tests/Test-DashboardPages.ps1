@@ -508,6 +508,26 @@ try {
     $window.UpdateLayout()
     if (!$vm.NotificationsOpen -or $view.FindName('NotificationGrid').Visibility -ne [Windows.Visibility]::Visible) { throw 'Notifications toolbar button did not open StartPage notifications' }
     if (@([ToolbarTestVisuals]::Text($view.FindName('NotificationGrid')) | Where-Object { $_.Text -eq 'No notifications' -and $_.Visibility -eq [Windows.Visibility]::Visible }).Count -ne 1) { throw 'Empty notifications panel must show an empty state' }
+    # Flyout behaviour: clicks inside the panel or on the bell keep it open, a click anywhere else closes it.
+    $pressOn = {
+        param($element)
+        $press = [Windows.Input.MouseButtonEventArgs]::new([Windows.Input.Mouse]::PrimaryDevice,0,[Windows.Input.MouseButton]::Left)
+        $press.RoutedEvent = [Windows.UIElement]::PreviewMouseDownEvent; $element.RaiseEvent($press)
+        $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    }
+    & $pressOn $view.FindName('NotificationItemsControl')
+    & $pressOn $controls[9]
+    if (!$vm.NotificationsOpen) { throw 'A click inside the notifications panel or on the bell closed it' }
+    & $pressOn $controls[0]
+    if ($vm.NotificationsOpen) { throw 'A click outside the notifications panel did not close it' }
+    $vm.NotificationsOpen = $true; $window.UpdateLayout()
+    $vm.Notifications.Add($badgeNotification); $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    $vm.Notifications.Remove($badgeNotification) | Out-Null; $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle)
+    if ($vm.NotificationsOpen) { throw 'Dismissing the last notification did not close the notifications panel' }
+    $vm.NotificationsOpen = $true; $window.UpdateLayout()
+    $vm.ClearNotificationsCommand.Execute($null)
+    if ($vm.NotificationsOpen) { throw 'Dismiss all did not close the notifications panel' }
+    $vm.NotificationsOpen = $true; $window.UpdateLayout()
     $vm.ToggleNotificationsCommand.Execute($null)
     $window.UpdateLayout()
     if ($view.FindName('NotificationGrid').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Minimizing must fully hide notifications without leaving a floating popup' }
@@ -1143,8 +1163,7 @@ try {
     $window.UpdateLayout()
     if (!$vm.NotificationsOpen -or $view.FindName('NotificationItemsControl').Items.Count -ne 1) { throw 'Bell did not show pending notifications' }
     $vm.Notifications.Clear(); $window.UpdateLayout()
-    if ($vm.NotificationCount -ne 0 -or !$vm.NotificationsOpen) { throw 'Clearing notifications should retain an open empty-state panel' }
-    $vm.ToggleNotificationsCommand.Execute($null)
+    if ($vm.NotificationCount -ne 0 -or $vm.NotificationsOpen) { throw 'Clearing the last notifications should close the panel' }
     $diagnosticFile = $settingsModel.DebugLogPath
     if ([IO.File]::Exists($diagnosticFile)) { throw 'Disabled performance diagnostics wrote a log' }
     Set-Setting $settingsModel.Settings 'EnableDashboardDiagnostics' $true

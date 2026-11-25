@@ -281,6 +281,7 @@
     <Compile Include="Utils\WindowSizer.cs" />
     <Compile Include="Models\SharedToolbar.cs" />
     <Compile Include="Controls\SharedToolbarEditor.cs" />
+    <Compile Include="Controls\NotificationPanelCloser.cs" />
     <Compile Include="Settings\WindowSizePreset.cs" />
     <Compile Include="Views\WindowSizeDialog.xaml.cs">
       <DependentUpon>WindowSizeDialog.xaml</DependentUpon>

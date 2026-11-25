@@ -113,12 +113,15 @@ namespace LandingPage.ViewModels
             Notifications.CollectionChanged += (sender, args) =>
             {
                 OnPropertyChanged(nameof(NotificationCount));
+                // Dismissing the last notification (or "Dismiss all") closes the flyout.
+                if (Notifications.Count == 0 && NotificationsOpen && (args.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove || args.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset))
+                    NotificationsOpen = false;
                 if (args.NewItems?.Count > 0 && !notificationsMinimized && Settings.Settings.EnableNotifications
                     && !Settings.Settings.MinimizeNotificationsOnLaunch) NotificationsOpen = true;
             };
             ToggleNotificationsCommand = new RelayCommand(() => NotificationsOpen = !NotificationsOpen);
             DeleteNotificationCommand = new RelayCommand<NotificationMessage>(sender => playniteAPI.Notifications.Remove(sender.Id));
-            ClearNotificationsCommand = new RelayCommand(() => playniteAPI.Notifications.RemoveAll());
+            ClearNotificationsCommand = new RelayCommand(() => { playniteAPI.Notifications.RemoveAll(); NotificationsOpen = false; });
             NextRandomBackgroundCommand = new RelayCommand(async () =>
             {
                 await BackgroundViewModel.UpdateBackgroundImagePathAsync(true);
