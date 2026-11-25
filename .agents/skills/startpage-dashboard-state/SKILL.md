@@ -81,7 +81,10 @@ Serialization excludes runtime members (`StartPageViewArgs`, `DesignatorSize`, `
 
 ## Settings window
 
-`LandingPageSettingsView.xaml` tabs: Common, Background, Import from original StartPage, Updates, Debug.
+`LandingPageSettingsView.xaml` tabs (step 24): General, Covers and shelves (global cover options + defaults copied into
+new shelves), Background, Startup intro, Updates and tools (updates, original-StartPage import, debug). Legacy options
+that no longer affect the widget dashboard (ShowClock, ShowMostPlayedGames, EnableGameActivity, ShowRecentAchievements,
+KeepInMemory, global NumberOfGames) stay in `LandingPageSettings` for old configs but have no control. Test: SettingsWindow.
 `BeginEdit` clones (`editingClone`) and snapshots JSON; `CancelEdit` restores the clone only if the JSON
 changed; `EndEdit` saves only if changed, then raises `SettingsChanged` (plugin re-applies global
 background). Per-widget settings are edited on the dashboard (Edit Mode -> Appearance), not here.

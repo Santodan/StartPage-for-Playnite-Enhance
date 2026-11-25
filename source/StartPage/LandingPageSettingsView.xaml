@@ -4,12 +4,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:numeric="http://gu.se/NumericInput"
-             xmlns:local="clr-namespace:LandingPage" 
+             xmlns:local="clr-namespace:LandingPage"
              xmlns:system="clr-namespace:System;assembly=mscorlib"
              xmlns:conv="clr-namespace:LandingPage.Converters"
              xmlns:ext="clr-namespace:PlayniteCommon.Extensions;assembly=felixkmh.PlayniteCommon"
              xmlns:settingsViews="clr-namespace:LandingPage.Views.Settings" xmlns:views="clr-namespace:LandingPage.Views"
              xmlns:settings="clr-namespace:LandingPage.Settings"
+             xmlns:controls="clr-namespace:LandingPage.Controls"
              mc:Ignorable="d"
              d:DesignHeight="400" d:DesignWidth="600"
              d:DataContext="{d:DesignInstance IsDesignTimeCreatable=False, Type=local:LandingPageSettingsViewModel}"
@@ -18,397 +19,191 @@
              >
     <UserControl.Resources>
         <conv:LogConverter x:Key="LogConverter"/>
+        <!-- Section headings and spacing shared by every tab. -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Margin" Value="0,16,0,2"/>
+        </Style>
+        <Style x:Key="FirstSectionHeader" TargetType="TextBlock" BasedOn="{StaticResource SectionHeader}">
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+        <Style x:Key="SettingCheck" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+            <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="SubCheck" TargetType="CheckBox" BasedOn="{StaticResource SettingCheck}">
+            <Setter Property="Margin" Value="24,6,0,0"/>
+        </Style>
+        <Style x:Key="TabScroll" TargetType="ScrollViewer">
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        </Style>
     </UserControl.Resources>
-    <TabControl>
-        <TabItem Header="{DynamicResource LOC_SPG_CommonTab}">
-            <ScrollViewer Padding="10"
-                  HorizontalScrollBarVisibility="Disabled">
-                <Grid>
-                    <StackPanel Grid.IsSharedSizeScope="True">
-                        <CheckBox Content="Preserve restored window size during startup" IsChecked="{Binding Settings.PreserveWindowedStartupSize}" Margin="3" Foreground="{DynamicResource TextBrush}" ToolTip="Prevents an automatic full-monitor resize in normal window mode during the first 30 seconds. Manual resize, maximize and DPI/display changes are left alone."/>
-                        <DockPanel LastChildFill="False">
-                            <DockPanel.ToolTip>
-                                <TextBlock Text="{DynamicResource LOC_SPG_UnsupportedToolTip}" TextWrapping="Wrap" MaxWidth="550"/>
-                            </DockPanel.ToolTip>
-                            <CheckBox IsChecked="{Binding Settings.EnableStartupOverride}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_StartupItem}" Margin="3" VerticalAlignment="Center"/>
-                            <ComboBox Margin="3" VerticalAlignment="Center" 
-                                      IsEnabled="{Binding Settings.EnableStartupOverride, Mode=OneWay}"
-                                      ItemsSource="{Binding Settings.StartPageOptions}" 
-                                      SelectedItem="{Binding Settings.StartPage}"
-                                      MinWidth="150"></ComboBox>
-                        </DockPanel>
-                        <!--<DockPanel IsEnabled="{Binding Settings.EnableStartupOverride, Mode=OneWay}" Margin="25,0,0,0">
-                            <CheckBox IsChecked="{Binding Settings.SwitchWithLowPriority}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_SwitchWithLowPrio}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>-->
-                        <DockPanel>
-                            <DockPanel.ToolTip>
-                                <TextBlock Text="{DynamicResource LOC_SPG_UnsupportedToolTip}" TextWrapping="Wrap" MaxWidth="550"/>
-                            </DockPanel.ToolTip>
-                            <CheckBox IsChecked="{Binding Settings.MoveToTopOfList}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_MoveIconToTop}" Margin="3" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        </DockPanel>
-                        <DockPanel>
-                            <DockPanel.ToolTip>
-                                <TextBlock Text="{DynamicResource LOC_SPG_UnsupportedToolTip}" TextWrapping="Wrap" MaxWidth="550"/>
-                            </DockPanel.ToolTip>
-                            <CheckBox IsChecked="{Binding Settings.EnableGlobalProgressBar}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_ShowGlobalProgressBar}" Margin="3" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        </DockPanel>
-                        <!--<DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.ShowClock}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_ShowClock}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>-->
-                        <!--<DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.ShowMostPlayedGames}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_ShowMostPlayedGames}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel> LOC_SPG_DownScaleCovers -->
-                        <DockPanel ToolTip="{DynamicResource LOC_SPG_HideShelveScrollbar}">
-                            <CheckBox IsChecked="{Binding Settings.HideScrollbarInShelves}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_HideShelveScrollbar}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel ToolTip="{DynamicResource LOC_SPG_DownScaleCoversTooltip}">
-                            <CheckBox IsChecked="{Binding Settings.DownScaleCovers}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_DownScaleCovers}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.LockLayout}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_LockLayout}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.ShowTitleOnCover}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_ShowTitelOnCover}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.ShowDetails}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_ShowGameDetails}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.SkipGamesInPreviousShelves}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_SkipGamesInPreviousShelves}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False">
-                            <TextBlock Text="{DynamicResource LOC_SPG_NumberOfGames}" VerticalAlignment="Center"/>
-                            <numeric:IntBox Value="{Binding Settings.NumberOfGames, UpdateSourceTrigger=PropertyChanged}" 
-                                    MinValue="0"
-                                    MaxValue="30"
-                                    MinWidth="30"
-                                    ValidationTrigger="PropertyChanged"
-                                    Style="{StaticResource {x:Type TextBox}}"
-                                    TextAlignment="Center">
-                            </numeric:IntBox>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False" Grid.Column="0" Grid.Row="0">
-                            <Grid VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                    <ColumnDefinition SharedSizeGroup="Controls"/>
-                                    <ColumnDefinition SharedSizeGroup="Value"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_CoverAspectRatio}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.CoverAspectRatio, Converter={StaticResource LogConverter}, ConverterParameter=2}" Minimum="-1" Maximum="1" Width="200" IsSnapToTickEnabled="True" TickFrequency="0.01" SmallChange="0.005"/>
-                                <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.CoverAspectRatio, UpdateSourceTrigger=PropertyChanged}" 
-                                            MinValue="0.5"
-                                            MaxValue="2"
-                                            MinWidth="30"
-                                            ValidationTrigger="PropertyChanged"
-                                            Style="{StaticResource {x:Type TextBox}}"
-                                            TextAlignment="Center"
-                                            >
-                                </numeric:DoubleBox>
-                            </Grid>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False" Grid.Column="0" Grid.Row="0">
-                            <Grid VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                    <ColumnDefinition SharedSizeGroup="Controls"/>
-                                    <ColumnDefinition SharedSizeGroup="Value"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_MaxCoverWidth}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.MaxCoverWidth}" Minimum="0" Maximum="500" Width="200" IsSnapToTickEnabled="True" TickFrequency="1" SmallChange="1"/>
-                                <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.MaxCoverWidth, UpdateSourceTrigger=PropertyChanged}" 
-                                            MinValue="0"
-                                            MaxValue="500"
-                                            MinWidth="30"
-                                            ValidationTrigger="PropertyChanged"
-                                            Style="{StaticResource {x:Type TextBox}}"
-                                            TextAlignment="Center"
-                                            >
-                                </numeric:DoubleBox>
-                            </Grid>
-                        </DockPanel>
-                        <!--<DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.EnableGameActivity}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_ShowGameActivity}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>-->
-                        <!--<DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.ShowRecentAchievements}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_ShowRecentAchievements}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>-->
-                        <DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.EnableNotifications}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_EnableNotifications}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel IsEnabled="{Binding Settings.EnableNotifications, Mode=OneWay}" Margin="25,0,0,0">
-                            <CheckBox IsChecked="{Binding Settings.MinimizeNotificationsOnLaunch}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_MinimizeNotification}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel IsEnabled="{Binding Settings.EnableNotifications, Mode=OneWay}" Margin="25,0,0,0">
-                            <CheckBox IsChecked="{Binding Settings.ShowNotificationButtons}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_ShowNotificationButtons}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <DockPanel>
-                            <CheckBox IsChecked="{Binding Settings.EnableTagCreation}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_EnableTags}" Margin="3" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <!--<StackPanel Orientation="Horizontal">
-                    <CheckBox IsChecked="{Binding Settings.KeepInMemory}" VerticalAlignment="Center" Margin="3"/>
-                    <TextBlock Text="{DynamicResource LOC_SPG_KeepInMemory}" Margin="3" VerticalAlignment="Center"/>
-                </StackPanel>-->
-                        <TextBlock Text="Achievement provider" Foreground="{DynamicResource TextBrush}" Margin="3,6,3,2"/>
-                        <ComboBox ItemsSource="{Binding Source={ext:EnumBindingSource {x:Type settings:AchievementsProvider}}}" SelectedValue="{Binding Settings.SelectedAchievementsProvider}" Margin="3"/>
-                        <TextBlock Text="Recent Achievements display and limits: open the widget's Appearance menu." TextWrapping="Wrap" Margin="3,6" Foreground="{DynamicResource TextBrush}"/>
+    <TabControl x:Name="SettingsTabs">
+        <!-- General: startup, dashboard behaviour, notifications, library integration and achievements. -->
+        <TabItem x:Name="GeneralTab" Header="General">
+            <ScrollViewer Style="{StaticResource TabScroll}">
+                <StackPanel x:Name="GeneralSettings" MaxWidth="900" HorizontalAlignment="Left">
+                    <TextBlock Text="Startup" Style="{StaticResource FirstSectionHeader}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_StartupItem}" IsChecked="{Binding Settings.EnableStartupOverride}" ToolTip="{DynamicResource LOC_SPG_UnsupportedToolTip}"/>
+                    <ComboBox Margin="24,4,0,0" HorizontalAlignment="Left" MinWidth="220"
+                              IsEnabled="{Binding Settings.EnableStartupOverride, Mode=OneWay}"
+                              ItemsSource="{Binding Settings.StartPageOptions}"
+                              SelectedItem="{Binding Settings.StartPage}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_MoveIconToTop}" IsChecked="{Binding Settings.MoveToTopOfList}" ToolTip="{DynamicResource LOC_SPG_UnsupportedToolTip}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="Preserve restored window size during startup" IsChecked="{Binding Settings.PreserveWindowedStartupSize}"/>
+                    <controls:SettingsHint Text="Prevents an automatic full-monitor resize in normal window mode during the first 30 seconds. Manual resize, maximize and DPI/display changes are left alone. Startup intros are in the Startup intro tab."/>
 
-                        <DockPanel LastChildFill="False">
-                            <DockPanel.ToolTip>
-                                <TextBlock Text="{DynamicResource LOC_SPG_FixGridHeight_Tooltip}" TextWrapping="Wrap" MaxWidth="550"/>
-                            </DockPanel.ToolTip>
-                            <CheckBox IsChecked="{Binding Settings.FixGridSize}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_FixGridHeight}" Margin="3" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                            <numeric:DoubleBox Value="{Binding Settings.FixedGridHeight, UpdateSourceTrigger=Default}" 
-                                    MinValue="0"
-                                    MinWidth="30"
-                                    ValidationTrigger="PropertyChanged"
-                                    Style="{StaticResource {x:Type TextBox}}"
-                                    TextAlignment="Center"
-                                    IsEnabled="{Binding Settings.FixGridSize}">
-                            </numeric:DoubleBox>
-                        </DockPanel>
-                    </StackPanel>
-                </Grid>
-            </ScrollViewer>
-        </TabItem>
-        <TabItem Header="{DynamicResource LOC_SPG_BackgroundTab}">
-            <ScrollViewer Padding="10"
-                  HorizontalScrollBarVisibility="Disabled">
-                <Grid>
-                    <StackPanel Grid.IsSharedSizeScope="True">
-                        <settingsViews:BackgroundAppearanceSettingsView DataContext="{Binding Settings.BackgroundAppearance}"/>
+                    <TextBlock Text="Dashboard" Style="{StaticResource SectionHeader}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_LockLayout}" IsChecked="{Binding Settings.LockLayout}"/>
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <CheckBox Style="{StaticResource SettingCheck}" Margin="0" VerticalAlignment="Center" Content="{DynamicResource LOC_SPG_FixGridHeight}" IsChecked="{Binding Settings.FixGridSize}"/>
+                        <numeric:DoubleBox Grid.Column="1" Margin="8,0,0,0" Width="80" VerticalAlignment="Center"
+                                Value="{Binding Settings.FixedGridHeight, UpdateSourceTrigger=Default}"
+                                MinValue="0" ValidationTrigger="PropertyChanged"
+                                Style="{StaticResource {x:Type TextBox}}" TextAlignment="Center"
+                                IsEnabled="{Binding Settings.FixGridSize}"/>
+                    </Grid>
+                    <controls:SettingsHint Text="{DynamicResource LOC_SPG_FixGridHeight_Tooltip}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_ShowGlobalProgressBar}" IsChecked="{Binding Settings.EnableGlobalProgressBar}" ToolTip="{DynamicResource LOC_SPG_UnsupportedToolTip}"/>
+                    <controls:SettingsHint Text="Options marked (Unsupported) rely on Playnite internals that are not part of its extension API and may stop working with some themes or Playnite versions."/>
 
-                        <DockPanel>
-                            <DockPanel.ToolTip>
-                                <TextBlock Text="{DynamicResource LOC_SPG_UnsupportedToolTip}" TextWrapping="Wrap" MaxWidth="550"/>
-                            </DockPanel.ToolTip>
-                            <CheckBox IsChecked="{Binding Settings.EnableGlobalBackground}" VerticalAlignment="Center" Margin="3"/>
-                            <TextBlock Text="{DynamicResource LOC_SPG_EnableGlobalBackground}" Margin="3" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        </DockPanel>
-                        <TextBlock Text="Use one background image and appearance on every dashboard, including the sidebar and top bar. Disable to restore each page's individual background."
-                                   Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="3,0,3,8"/>
-                        <CheckBox Content="Also show StartPage background in the library and other extensions"
-                                  IsChecked="{Binding Settings.ShowBackgroundOutsideStartPage}" IsEnabled="{Binding Settings.EnableGlobalBackground}"
-                                  Margin="3" ToolTip="Off by default. Other views keep their own backgrounds when you leave StartPage."/>
-                        <DockPanel LastChildFill="False" IsEnabled="{Binding Settings.EnableGlobalBackground}">
-                            <Grid VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                    <ColumnDefinition SharedSizeGroup="Controls"/>
-                                    <ColumnDefinition SharedSizeGroup="Value"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_GlobalBackgroundOpacity}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.GlobalBackgroundOpacity}" Minimum="0" Maximum="1" Width="180" IsSnapToTickEnabled="True" TickFrequency="0.01"/>
-                                <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.GlobalBackgroundOpacity, UpdateSourceTrigger=PropertyChanged}" 
-                                        MinValue="0"
-                                        MaxValue="1"
-                                        MinWidth="30"
-                                        ValidationTrigger="PropertyChanged"
-                                        Style="{StaticResource {x:Type TextBox}}"
-                                        TextAlignment="Center">
-                                </numeric:DoubleBox>
-                            </Grid>
-                        </DockPanel>
-                            <DockPanel LastChildFill="False">
-                                <Grid VerticalAlignment="Center">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                        <ColumnDefinition SharedSizeGroup="Controls"/>
-                                        <ColumnDefinition SharedSizeGroup="Value"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_BlurAmount}" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.BlurAmount}" Minimum="0" Maximum="100" Width="180" IsSnapToTickEnabled="True" TickFrequency="1"/>
-                                    <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.BlurAmount, UpdateSourceTrigger=PropertyChanged}" 
-                                            MinValue="0"
-                                            MaxValue="100"
-                                            MinWidth="30"
-                                            ValidationTrigger="PropertyChanged"
-                                            Style="{StaticResource {x:Type TextBox}}"
-                                            TextAlignment="Center">
-                                    </numeric:DoubleBox>
-                                </Grid>
-                            </DockPanel>
-                        <DockPanel LastChildFill="False">
-                            <Grid VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                    <ColumnDefinition SharedSizeGroup="Controls"/>
-                                    <ColumnDefinition SharedSizeGroup="Value"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_OverlayOpacity}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.OverlayOpacity}" Minimum="0" Maximum="1" Width="180" IsSnapToTickEnabled="True" TickFrequency="0.01"/>
-                                <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.OverlayOpacity, UpdateSourceTrigger=PropertyChanged}" 
-                                        MinValue="0"
-                                        MaxValue="1"
-                                        MinWidth="30"
-                                        ValidationTrigger="PropertyChanged"
-                                        Style="{StaticResource {x:Type TextBox}}"
-                                        TextAlignment="Center">
-                                </numeric:DoubleBox>
-                            </Grid>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False">
-                            <Grid VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                    <ColumnDefinition SharedSizeGroup="Controls"/>
-                                    <ColumnDefinition SharedSizeGroup="Value"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_NoiseOpacity}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.NoiseOpacity}" Minimum="0" Maximum="1" Width="180" IsSnapToTickEnabled="True" TickFrequency="0.01"/>
-                                <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.NoiseOpacity, UpdateSourceTrigger=PropertyChanged}" 
-                                        MinValue="0"
-                                        MaxValue="1"
-                                        MinWidth="30"
-                                        ValidationTrigger="PropertyChanged"
-                                        Style="{StaticResource {x:Type TextBox}}"
-                                        TextAlignment="Center">
-                                </numeric:DoubleBox>
-                            </Grid>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False">
-                            <Grid VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                    <ColumnDefinition SharedSizeGroup="Controls"/>
-                                    <ColumnDefinition SharedSizeGroup="Value"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_BackgroundGameInfoOpacity}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.BackgroundGameInfoOpacity}" Minimum="0" Maximum="1" Width="180" IsSnapToTickEnabled="True" TickFrequency="0.01"/>
-                                <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.BackgroundGameInfoOpacity, UpdateSourceTrigger=PropertyChanged}" 
-                                        MinValue="0"
-                                        MaxValue="1"
-                                        MinWidth="30"
-                                        ValidationTrigger="PropertyChanged"
-                                        Style="{StaticResource {x:Type TextBox}}"
-                                        TextAlignment="Center">
-                                </numeric:DoubleBox>
-                            </Grid>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False">
-                            <Grid VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                    <ColumnDefinition SharedSizeGroup="Controls"/>
-                                    <ColumnDefinition SharedSizeGroup="Value"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_BackgroundAnimationDuration}" VerticalAlignment="Center"/>
-                                <Slider Grid.Column="1" Margin="10,0" VerticalAlignment="Center" Value="{Binding Settings.AnimationDuration}" Minimum="0" Maximum="5" Width="180" IsSnapToTickEnabled="True" TickFrequency="0.01"/>
-                                <numeric:DoubleBox Grid.Column="2" Value="{Binding Settings.AnimationDuration, UpdateSourceTrigger=PropertyChanged}" 
-                                        MinValue="0"
-                                        MaxValue="5"
-                                        MinWidth="30"
-                                        ValidationTrigger="PropertyChanged"
-                                        Style="{StaticResource {x:Type TextBox}}"
-                                        TextAlignment="Center">
-                                </numeric:DoubleBox>
-                            </Grid>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False">
-                            <Grid VerticalAlignment="Center">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition SharedSizeGroup="Descriptions"/>
-                                    <ColumnDefinition SharedSizeGroup="Controls"/>
-                                    <ColumnDefinition SharedSizeGroup="Value"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource LOC_SPG_BackgroundRefreshInterval}" VerticalAlignment="Center"/>
-                                <numeric:IntBox Grid.Column="1" HorizontalAlignment="Left" Value="{Binding Settings.BackgroundRefreshInterval, UpdateSourceTrigger=PropertyChanged}" 
-                                        MinValue="0"
-                                        MinWidth="30"
-                                        ValidationTrigger="PropertyChanged"
-                                        Style="{StaticResource {x:Type TextBox}}"
-                                        TextAlignment="Center">
-                                </numeric:IntBox>
-                            </Grid>
-                        </DockPanel>
-                        <DockPanel LastChildFill="False">
-                            <TextBlock Text="{DynamicResource LOC_SPG_BackgroundImageSource}" VerticalAlignment="Center"/>
-                            <ComboBox ItemsSource="{Binding Source={ext:EnumBindingSource {x:Type local:BackgroundImageSource}}}" 
-                                      SelectedValue="{Binding Settings.BackgroundImageSource}" Margin="5,0" MinWidth="120">
-                            </ComboBox>
-                        </DockPanel>
-                        <DockPanel LastChildFill="True">
-                            <WrapPanel>
-                                <TextBlock Text="{DynamicResource LOC_SPG_BackgroundImagePath}" VerticalAlignment="Center"/>
-                                <TextBox IsReadOnly="True" 
-                                 Text="{Binding Settings.BackgroundImagePath, FallbackValue='  ---  ', TargetNullValue='  ---  ', Mode=OneWay}" 
-                                 VerticalAlignment="Center"
-                                 MaxWidth="400"
-                                 Margin="5,0"/>
-                                <Button Margin="2,0" VerticalAlignment="Center" Command="{Binding SelectImagePathCommand}" Content="{DynamicResource LOCSelectFileTooltip}"/>
-                                <Button Margin="2,0" VerticalAlignment="Center" Command="{Binding SelectImageFolderPathCommand}" Content="{DynamicResource LOCSelectDirectoryTooltip}"/>
-                                <Button Margin="2,0" VerticalAlignment="Center" Command="{Binding ClearImagePathCommand}" Content="{DynamicResource LOCClearLabel}"/>
-                            </WrapPanel>
-                        </DockPanel>
-                        <StackPanel Margin="0,3">
-                            <CheckBox x:Name="CurrentGameBackgroundCb" Content="{DynamicResource LOC_SPG_SetBackgroundToCurrentGame}" IsChecked="{Binding Settings.ShowCurrentlyPlayedBackground}" VerticalAlignment="Center" Margin="3"/>
-                            <CheckBox Content="{DynamicResource LOC_SPG_SetBackgroundToCurrentGameDisableBlur}" 
-                                      IsEnabled="{Binding Settings.ShowCurrentlyPlayedBackground}"
-                                      IsChecked="{Binding Settings.DisableBlurForCurrentlyPlayed}" VerticalAlignment="Center" Margin="25,3,3,3"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Grid>
-            </ScrollViewer>
-        </TabItem>
-        <!--<TabItem Header="Layouts">
-            <views:GridNodePresetsView DataContext="{Binding GridNodePresetsViewModel}"/>
-        </TabItem>-->
-        <TabItem Header="Startup intro">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <settingsViews:StartupIntroSettingsView x:Name="StartupIntroEditor" DataContext="{Binding Settings.StartupIntro}" Margin="10"/>
-            </ScrollViewer>
-        </TabItem>
-        <TabItem Header="Import from original StartPage">
-            <ScrollViewer Padding="12" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <TextBlock Text="Import from original StartPage" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
-                    <TextBlock Text="Import a saved config.json as a dashboard profile. Includes the panel layout, shelves and filters, background, Most Played options, achievement limits and shared dashboard appearance. Current pages stay unchanged." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,12"/>
-                    <TextBlock Text="Usual configuration location" Foreground="{DynamicResource TextBrush}"/>
-                    <TextBox Text="{Binding OriginalSettingsPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,8"/>
-                    <TextBlock Text="This fork shares the original settings location, so your original setup may already be loaded. To recover an earlier setup, choose its config.json from a backup or another Playnite installation." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
-                    <Button Content="Choose original config.json..." Click="ImportOriginalSettings_Click" HorizontalAlignment="Left"/>
-                    <TextBlock Text="{Binding OriginalImportStatus}" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,12,0,12"/>
-                    <TextBlock Text="Save settings to keep the imported profile, or cancel to discard it. Then right-click StartPage ? Dashboard profiles to preview, apply or add its page. External widgets need their provider extensions; background files and game IDs refer to the original installation. Game data, external extension data, startup preferences and old layout presets are not imported." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}"/>
+                    <TextBlock Text="Notifications" Style="{StaticResource SectionHeader}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_EnableNotifications}" IsChecked="{Binding Settings.EnableNotifications}"/>
+                    <CheckBox Style="{StaticResource SubCheck}" Content="{DynamicResource LOC_SPG_MinimizeNotification}" IsChecked="{Binding Settings.MinimizeNotificationsOnLaunch}" IsEnabled="{Binding Settings.EnableNotifications, Mode=OneWay}"/>
+                    <CheckBox Style="{StaticResource SubCheck}" Content="{DynamicResource LOC_SPG_ShowNotificationButtons}" IsChecked="{Binding Settings.ShowNotificationButtons}" IsEnabled="{Binding Settings.EnableNotifications, Mode=OneWay}"/>
+
+                    <TextBlock Text="Library and achievements" Style="{StaticResource SectionHeader}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_EnableTags}" IsChecked="{Binding Settings.EnableTagCreation}"/>
+                    <controls:SettingsField Label="Achievement provider" HorizontalAlignment="Left" MinWidth="240">
+                        <ComboBox ItemsSource="{Binding Source={ext:EnumBindingSource {x:Type settings:AchievementsProvider}}}" SelectedValue="{Binding Settings.SelectedAchievementsProvider}"/>
+                    </controls:SettingsField>
+                    <controls:SettingsHint Text="Used by every StartPage achievement widget. Display options and limits for each achievement widget are in that widget's settings gear on the dashboard."/>
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
-        <TabItem Header="Updates">
-            <ScrollViewer Padding="12" HorizontalScrollBarVisibility="Disabled"><StackPanel>
-                <CheckBox Content="Automatically check GitHub for StartPage updates" Foreground="{DynamicResource TextBrush}" IsChecked="{Binding Settings.CheckForUpdatesAutomatically}"/>
-                <TextBlock Text="Checks shortly after Playnite starts and every six hours while running. Experimental 0.x versions include prereleases; version 1.0.0 and later check stable releases only." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,12"/>
-                <Button x:Name="CheckUpdatesButton" Content="Check now" Click="CheckUpdates_Click" HorizontalAlignment="Left"/>
-                <TextBlock x:Name="UpdateCheckStatus" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,12,0,0"/>
-                <TextBlock Text="Available updates appear in Playnite notifications. Click the notification to review the release and download its .pext package. Nothing is installed automatically. Save settings to keep changes to automatic checks." TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,12,0,0"/>
-            </StackPanel></ScrollViewer>
+        <!-- Covers and shelves: global cover options, then the defaults copied into newly added shelves. -->
+        <TabItem x:Name="CoversTab" Header="Covers and shelves">
+            <ScrollViewer Style="{StaticResource TabScroll}">
+                <StackPanel x:Name="CoverSettings" MaxWidth="900" HorizontalAlignment="Left">
+                    <TextBlock Text="All shelves and Most Played" Style="{StaticResource FirstSectionHeader}"/>
+                    <controls:SettingsField Label="{DynamicResource LOC_SPG_CoverAspectRatio}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Slider x:Name="CoverAspectSlider" VerticalAlignment="Center" Value="{Binding Settings.CoverAspectRatio, Converter={StaticResource LogConverter}, ConverterParameter=2}" Minimum="-1" Maximum="1" IsSnapToTickEnabled="True" TickFrequency="0.01" SmallChange="0.005"/>
+                            <numeric:DoubleBox Grid.Column="1" Width="64" Margin="8,0,0,0" Value="{Binding Settings.CoverAspectRatio, UpdateSourceTrigger=PropertyChanged}"
+                                        MinValue="0.5" MaxValue="2" ValidationTrigger="PropertyChanged"
+                                        Style="{StaticResource {x:Type TextBox}}" TextAlignment="Center"/>
+                        </Grid>
+                    </controls:SettingsField>
+                    <controls:SettingsHint Text="Width divided by height of the cover artwork (for example 0.67 for portrait covers, 1.78 for wide artwork)."/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_DownScaleCovers}" IsChecked="{Binding Settings.DownScaleCovers}" ToolTip="{DynamicResource LOC_SPG_DownScaleCoversTooltip}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_HideShelveScrollbar}" IsChecked="{Binding Settings.HideScrollbarInShelves}"/>
+
+                    <TextBlock Text="Defaults for new shelves" Style="{StaticResource SectionHeader}"/>
+                    <controls:SettingsHint Text="Each shelf keeps its own copy of these options in its settings gear on the dashboard; changing them here only sets the starting values for shelves you add later. Cover width and titles on covers also apply to Most Played."/>
+                    <controls:SettingsSlider x:Name="DefaultCoverWidthSlider" Label="{DynamicResource LOC_SPG_MaxCoverWidth}" Value="{Binding Settings.MaxCoverWidth}" Minimum="0" Maximum="500" Step="1" Precision="0"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_ShowTitelOnCover}" IsChecked="{Binding Settings.ShowTitleOnCover}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_ShowGameDetails}" IsChecked="{Binding Settings.ShowDetails}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_SkipGamesInPreviousShelves}" IsChecked="{Binding Settings.SkipGamesInPreviousShelves}"/>
+                </StackPanel>
+            </ScrollViewer>
         </TabItem>
-        <TabItem Header="Debug">
-            <ScrollViewer Padding="12" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel>
-                    <CheckBox Content="Enable StartPage debug logging" Foreground="{DynamicResource TextBrush}" IsChecked="{Binding Settings.EnableDashboardDiagnostics}" Click="DebugLogging_Click"/>
-                    <TextBlock Foreground="{DynamicResource TextBrush}" Text="Records StartPage lifecycle events, widget loading, dashboard/background timings, cache activity, main-window sizing and display/DPI changes, and the extension's existing debug, information, warning and error messages (including exception details)." TextWrapping="Wrap" Margin="0,8,0,12"/>
-                    <TextBlock Foreground="{DynamicResource TextBrush}" Text="Debug log file" FontWeight="SemiBold"/>
-                    <TextBox Text="{Binding DebugLogPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,8"/>
-                    <Button Content="Open log folder" Click="OpenDebugLogFolder_Click" HorizontalAlignment="Left"/>
-                    <TextBlock Foreground="{DynamicResource TextBrush}" Text="Enable logging, reproduce the issue, then share startpage-debug.log. Leave it enabled and restart Playnite to capture startup. Disable it when finished. Logs rotate at 4 MiB and retain one previous file." TextWrapping="Wrap" Margin="0,12,0,0"/>
+        <!-- Background: shared background, image source, effects, running game, then framing/colors/playback. -->
+        <TabItem x:Name="BackgroundTab" Header="{DynamicResource LOC_SPG_BackgroundTab}">
+            <ScrollViewer Style="{StaticResource TabScroll}">
+                <StackPanel x:Name="BackgroundSettings" MaxWidth="900" HorizontalAlignment="Left">
+                    <controls:SettingsHint Margin="0,0,0,4" Text="With one background for every dashboard, these settings edit that shared background. Otherwise they edit the background of the dashboard page that is currently open; each page's background is also in Manage dashboard pages > Page background."/>
+                    <TextBlock Text="Shared background" Style="{StaticResource SectionHeader}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_EnableGlobalBackground}" IsChecked="{Binding Settings.EnableGlobalBackground}" ToolTip="{DynamicResource LOC_SPG_UnsupportedToolTip}"/>
+                    <controls:SettingsHint Text="Use one background image and appearance on every dashboard, including the sidebar and top bar. Disable to restore each page's individual background."/>
+                    <CheckBox Style="{StaticResource SubCheck}" Content="Also show StartPage background in the library and other extensions"
+                              IsChecked="{Binding Settings.ShowBackgroundOutsideStartPage}" IsEnabled="{Binding Settings.EnableGlobalBackground}"
+                              ToolTip="Off by default. Other views keep their own backgrounds when you leave StartPage."/>
+                    <controls:SettingsSlider Margin="24,0,0,0" Label="{DynamicResource LOC_SPG_GlobalBackgroundOpacity}" Value="{Binding Settings.GlobalBackgroundOpacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2" IsEnabled="{Binding Settings.EnableGlobalBackground}"/>
+
+                    <TextBlock Text="Image" Style="{StaticResource SectionHeader}"/>
+                    <controls:SettingsField Label="{DynamicResource LOC_SPG_BackgroundImageSource}" HorizontalAlignment="Left" MinWidth="240">
+                        <ComboBox ItemsSource="{Binding Source={ext:EnumBindingSource {x:Type local:BackgroundImageSource}}}" SelectedValue="{Binding Settings.BackgroundImageSource}"/>
+                    </controls:SettingsField>
+                    <controls:SettingsField Label="{DynamicResource LOC_SPG_BackgroundImagePath}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBox IsReadOnly="True" VerticalContentAlignment="Center"
+                                     Text="{Binding Settings.BackgroundImagePath, FallbackValue='  ---  ', TargetNullValue='  ---  ', Mode=OneWay}"/>
+                            <WrapPanel Grid.Column="1" Margin="4,0,0,0">
+                                <Button Margin="2,0" Padding="8,3" Command="{Binding SelectImagePathCommand}" Content="{DynamicResource LOCSelectFileTooltip}"/>
+                                <Button Margin="2,0" Padding="8,3" Command="{Binding SelectImageFolderPathCommand}" Content="{DynamicResource LOCSelectDirectoryTooltip}"/>
+                                <Button Margin="2,0" Padding="8,3" Command="{Binding ClearImagePathCommand}" Content="{DynamicResource LOCClearLabel}"/>
+                            </WrapPanel>
+                        </Grid>
+                    </controls:SettingsField>
+                    <controls:SettingsColumns>
+                        <controls:SettingsField Label="{DynamicResource LOC_SPG_BackgroundRefreshInterval}">
+                            <numeric:IntBox Value="{Binding Settings.BackgroundRefreshInterval, UpdateSourceTrigger=PropertyChanged}"
+                                    MinValue="0" ValidationTrigger="PropertyChanged"
+                                    Style="{StaticResource {x:Type TextBox}}" TextAlignment="Center"/>
+                        </controls:SettingsField>
+                        <controls:SettingsSlider Label="{DynamicResource LOC_SPG_BackgroundAnimationDuration}" Value="{Binding Settings.AnimationDuration}" Minimum="0" Maximum="5" Step="0.01" Precision="2"/>
+                    </controls:SettingsColumns>
+
+                    <TextBlock Text="Effects" Style="{StaticResource SectionHeader}"/>
+                    <controls:SettingsColumns>
+                        <controls:SettingsSlider Label="{DynamicResource LOC_SPG_BlurAmount}" Value="{Binding Settings.BlurAmount}" Minimum="0" Maximum="100" Step="1" Precision="0"/>
+                        <controls:SettingsSlider Label="{DynamicResource LOC_SPG_OverlayOpacity}" Value="{Binding Settings.OverlayOpacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+                        <controls:SettingsSlider Label="{DynamicResource LOC_SPG_NoiseOpacity}" Value="{Binding Settings.NoiseOpacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+                        <controls:SettingsSlider Label="{DynamicResource LOC_SPG_BackgroundGameInfoOpacity}" Value="{Binding Settings.BackgroundGameInfoOpacity}" Minimum="0" Maximum="1" Step="0.01" Precision="2"/>
+                    </controls:SettingsColumns>
+
+                    <TextBlock Text="Running game" Style="{StaticResource SectionHeader}"/>
+                    <CheckBox x:Name="CurrentGameBackgroundCb" Style="{StaticResource SettingCheck}" Content="{DynamicResource LOC_SPG_SetBackgroundToCurrentGame}" IsChecked="{Binding Settings.ShowCurrentlyPlayedBackground}"/>
+                    <CheckBox Style="{StaticResource SubCheck}" Content="{DynamicResource LOC_SPG_SetBackgroundToCurrentGameDisableBlur}"
+                              IsEnabled="{Binding Settings.ShowCurrentlyPlayedBackground}" IsChecked="{Binding Settings.DisableBlurForCurrentlyPlayed}"/>
+
+                    <TextBlock Text="Framing, colors and playback" Style="{StaticResource SectionHeader}"/>
+                    <settingsViews:BackgroundAppearanceSettingsView DataContext="{Binding Settings.BackgroundAppearance}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+        <TabItem x:Name="IntroTab" Header="Startup intro">
+            <ScrollViewer Style="{StaticResource TabScroll}">
+                <settingsViews:StartupIntroSettingsView x:Name="StartupIntroEditor" DataContext="{Binding Settings.StartupIntro}" MaxWidth="900" HorizontalAlignment="Left"/>
+            </ScrollViewer>
+        </TabItem>
+        <!-- Updates and tools: update checks, import from the original StartPage, debug logging. -->
+        <TabItem x:Name="ToolsTab" Header="Updates and tools">
+            <ScrollViewer Style="{StaticResource TabScroll}">
+                <StackPanel x:Name="ToolSettings" MaxWidth="900" HorizontalAlignment="Left">
+                    <TextBlock Text="Updates" Style="{StaticResource FirstSectionHeader}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="Automatically check GitHub for StartPage updates" IsChecked="{Binding Settings.CheckForUpdatesAutomatically}"/>
+                    <controls:SettingsHint Text="Checks shortly after Playnite starts and every six hours while running. Experimental 0.x versions include prereleases; version 1.0.0 and later check stable releases only."/>
+                    <Button x:Name="CheckUpdatesButton" Content="Check now" Click="CheckUpdates_Click" HorizontalAlignment="Left" Padding="10,4" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="UpdateCheckStatus" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"/>
+                    <controls:SettingsHint Text="Available updates appear in Playnite notifications. Click the notification to review the release and download its .pext package. Nothing is installed automatically. Save settings to keep changes to automatic checks."/>
+
+                    <TextBlock Text="Import from original StartPage" Style="{StaticResource SectionHeader}"/>
+                    <controls:SettingsHint Text="Import a saved config.json as a dashboard profile. Includes the panel layout, shelves and filters, background, Most Played options, achievement limits and shared dashboard appearance. Current pages stay unchanged."/>
+                    <controls:SettingsField Label="Usual configuration location">
+                        <TextBox Text="{Binding OriginalSettingsPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"/>
+                    </controls:SettingsField>
+                    <controls:SettingsHint Text="This fork shares the original settings location, so your original setup may already be loaded. To recover an earlier setup, choose its config.json from a backup or another Playnite installation."/>
+                    <Button Content="Choose original config.json..." Click="ImportOriginalSettings_Click" HorizontalAlignment="Left" Padding="10,4" Margin="0,8,0,0"/>
+                    <TextBlock Text="{Binding OriginalImportStatus}" TextWrapping="Wrap" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,0"/>
+                    <controls:SettingsHint Text="Save settings to keep the imported profile, or cancel to discard it. Then right-click StartPage > Dashboard profiles to preview, apply or add its page. External widgets need their provider extensions; background files and game IDs refer to the original installation. Game data, external extension data, startup preferences and old layout presets are not imported."/>
+
+                    <TextBlock Text="Debug logging" Style="{StaticResource SectionHeader}"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="Enable StartPage debug logging" IsChecked="{Binding Settings.EnableDashboardDiagnostics}" Click="DebugLogging_Click"/>
+                    <controls:SettingsHint Text="Records StartPage lifecycle events, widget loading, dashboard/background timings, cache activity, main-window sizing and display/DPI changes, and the extension's existing debug, information, warning and error messages (including exception details)."/>
+                    <controls:SettingsField Label="Debug log file">
+                        <TextBox Text="{Binding DebugLogPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"/>
+                    </controls:SettingsField>
+                    <Button Content="Open log folder" Click="OpenDebugLogFolder_Click" HorizontalAlignment="Left" Padding="10,4" Margin="0,8,0,0"/>
+                    <controls:SettingsHint Text="Enable logging, reproduce the issue, then share startpage-debug.log. Leave it enabled and restart Playnite to capture startup. Disable it when finished. Logs rotate at 4 MiB and retain one previous file."/>
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
