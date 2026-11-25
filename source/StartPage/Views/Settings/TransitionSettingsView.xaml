@@ -1,0 +1,141 @@
+<UserControl x:Class="LandingPage.Views.Settings.TransitionSettingsView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:lp="clr-namespace:LandingPage" xmlns:models="clr-namespace:LandingPage.Models" xmlns:numeric="http://gu.se/NumericInput"
+ xmlns:settingsViews="clr-namespace:LandingPage.Views.Settings" xmlns:controls="clr-namespace:LandingPage.Controls" Foreground="{DynamicResource TextBrush}">
+ <!-- Editor for one PageTransitionSettings: the global transition (extension settings and page manager) or a page's own. -->
+ <StackPanel>  <TextBlock Foreground="{DynamicResource TextBrush}" Text="Transition"/>
+  <ComboBox SelectedValue="{Binding Transition}" SelectedValuePath="Tag" Margin="0,4,0,8">
+      <ComboBoxItem Content="None" Tag="{x:Static lp:DashboardTransition.None}"/>
+      <ComboBoxItem Content="Fade" Tag="{x:Static lp:DashboardTransition.Fade}"/>
+      <ComboBoxItem Content="Slide" Tag="{x:Static lp:DashboardTransition.Slide}"/>
+      <ComboBoxItem Content="Slide and fade" Tag="{x:Static lp:DashboardTransition.SlideFade}"/>
+      <ComboBoxItem Content="Zoom in" Tag="{x:Static lp:DashboardTransition.ZoomIn}"/>
+      <ComboBoxItem Content="Zoom out" Tag="{x:Static lp:DashboardTransition.ZoomOut}"/>
+      <ComboBoxItem Content="Wipe" Tag="{x:Static lp:DashboardTransition.Wipe}"/>
+      <ComboBoxItem Content="Custom preset" Tag="{x:Static lp:DashboardTransition.Custom}"/>
+  </ComboBox>
+  <TextBlock Foreground="{DynamicResource TextBrush}" Text="Built-in duration in milliseconds (50-1000)"/>
+  <numeric:IntBox Value="{Binding DurationMs}" MinValue="50" MaxValue="1000" Style="{StaticResource {x:Type TextBox}}" Margin="0,4,0,8"/>
+  <TextBlock Foreground="{DynamicResource TextBrush}" Text="Slide / wipe direction"/>
+  <ComboBox SelectedValue="{Binding Direction}" SelectedValuePath="Tag" Margin="0,4,0,8">
+      <ComboBoxItem Content="Automatic (page order)" Tag="{x:Static lp:DashboardSlideDirection.Automatic}"/>
+      <ComboBoxItem Content="Left" Tag="{x:Static lp:DashboardSlideDirection.Left}"/>
+      <ComboBoxItem Content="Right" Tag="{x:Static lp:DashboardSlideDirection.Right}"/>
+      <ComboBoxItem Content="Up" Tag="{x:Static lp:DashboardSlideDirection.Up}"/>
+      <ComboBoxItem Content="Down" Tag="{x:Static lp:DashboardSlideDirection.Down}"/>
+  </ComboBox>
+  <WrapPanel Margin="0,4,0,8">
+   <Button x:Name="PreviewButton" Content="Preview transition" Click="PreviewTransition_Click" Margin="0,0,6,0"/>
+   <Button x:Name="StopPreviewButton" Content="Stop" Click="StopPreview_Click" Visibility="Collapsed"/>
+  </WrapPanel>
+  <!-- Shown where there is no dashboard to animate (extension settings): plays between two sample pages. -->
+  <Border x:Name="PreviewArea" Visibility="Collapsed" Margin="0,0,0,8" BorderThickness="1" BorderBrush="{DynamicResource NormalBorderBrush}">
+   <controls:TransitionPreviewBox x:Name="PreviewBox"/>
+  </Border>
+  <Expander x:Name="TransitionMediaSection" Header="GIF or video during the transition" Margin="0,0,0,6">
+      <settingsViews:TransitionMediaSettingsView x:Name="TransitionMediaEditor" Margin="8,4,0,8" DataContext="{Binding Media}"/>
+  </Expander>
+  <Expander Header="Custom transition editor">
+      <StackPanel Margin="8,6,0,8">
+          <TextBlock Text="Choose Custom preset above to use this editor. Movement is a percentage of the dashboard size; scale 1 is normal size." Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+          <TextBlock Text="Preset name" Foreground="{DynamicResource TextBrush}"/>
+          <TextBox Text="{Binding Custom.Name, UpdateSourceTrigger=PropertyChanged}"/>
+          <TextBlock Text="Custom duration (ms)" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,2"/>
+          <numeric:IntBox Value="{Binding Custom.DurationMs}" MinValue="50" MaxValue="1000" Style="{StaticResource {x:Type TextBox}}"/>
+          <TextBlock Text="Easing" Foreground="{DynamicResource TextBrush}" Margin="0,6,0,2"/>
+          <ComboBox SelectedValue="{Binding Custom.Easing}" SelectedValuePath="Tag">
+              <ComboBoxItem Content="Linear" Tag="{x:Static models:TransitionEasing.Linear}"/>
+              <ComboBoxItem Content="Quadratic" Tag="{x:Static models:TransitionEasing.Quadratic}"/>
+              <ComboBoxItem Content="Cubic" Tag="{x:Static models:TransitionEasing.Cubic}"/>
+              <ComboBoxItem Content="Sine" Tag="{x:Static models:TransitionEasing.Sine}"/>
+          </ComboBox>
+          <CheckBox Content="Reverse movement for previous page" Foreground="{DynamicResource TextBrush}" IsChecked="{Binding Custom.ReverseOnPrevious}" Margin="0,6,0,4"/>
+          <Expander Header="Incoming page" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Start opacity" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Incoming.StartOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="End opacity" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Incoming.EndOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Start scale" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Incoming.StartScale}" MinValue="0.5" MaxValue="1.5" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="End scale" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Incoming.EndScale}" MinValue="0.5" MaxValue="1.5" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Start horizontal (%)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Incoming.StartX}" MinValue="-100" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="End horizontal (%)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Incoming.EndX}" MinValue="-100" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Start vertical (%)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Incoming.StartY}" MinValue="-100" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="End vertical (%)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Incoming.EndY}" MinValue="-100" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Delay (ms)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:IntBox Grid.Column="1" Value="{Binding Custom.Incoming.DelayMs}" MinValue="0" MaxValue="500" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+          </StackPanel></Expander>
+          <Expander Header="Outgoing page" Margin="0,6,0,0"><StackPanel Margin="8,6,0,8">
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Start opacity" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Outgoing.StartOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="End opacity" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Outgoing.EndOpacity}" MinValue="0" MaxValue="1" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Start scale" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Outgoing.StartScale}" MinValue="0.5" MaxValue="1.5" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="End scale" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Outgoing.EndScale}" MinValue="0.5" MaxValue="1.5" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Start horizontal (%)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Outgoing.StartX}" MinValue="-100" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="End horizontal (%)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Outgoing.EndX}" MinValue="-100" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Start vertical (%)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Outgoing.StartY}" MinValue="-100" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="End vertical (%)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:DoubleBox Grid.Column="1" Value="{Binding Custom.Outgoing.EndY}" MinValue="-100" MaxValue="100" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+              <Grid Margin="0,2"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Delay (ms)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                  <numeric:IntBox Grid.Column="1" Value="{Binding Custom.Outgoing.DelayMs}" MinValue="0" MaxValue="500" Style="{StaticResource {x:Type TextBox}}"/>
+              </Grid>
+          </StackPanel></Expander>
+          <WrapPanel Margin="0,8,0,6">
+              <Button Content="Save preset" Click="SaveTransitionPreset_Click" Margin="0,0,6,4"/>
+              <Button Content="Import JSON..." Click="ImportTransitionPreset_Click" Margin="0,0,6,4"/>
+              <Button Content="Export editor JSON..." Click="ExportTransitionPreset_Click" Margin="0,0,0,4"/>
+          </WrapPanel>
+          <TextBlock Text="Saved transition presets" Foreground="{DynamicResource TextBrush}"/>
+          <ComboBox x:Name="TransitionPresetPicker" ItemsSource="{Binding PresetLibrary, RelativeSource={RelativeSource AncestorType=UserControl}}" DisplayMemberPath="Name" Margin="0,4,0,6"/>
+          <WrapPanel><Button Content="Load into editor" Click="LoadTransitionPreset_Click" Margin="0,0,6,0"/><Button Content="Delete preset" Click="DeleteTransitionPreset_Click"/></WrapPanel>
+      </StackPanel>
+  </Expander>
+  <TextBlock x:Name="TransitionPresetStatus" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="0,6,0,6"/>
+ </StackPanel>
+</UserControl>

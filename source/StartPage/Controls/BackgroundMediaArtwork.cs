@@ -20,6 +20,26 @@ namespace LandingPage.Controls
         public bool PlaybackVisible { get => (bool)GetValue(PlaybackVisibleProperty); set => SetValue(PlaybackVisibleProperty,value); }
         public static readonly DependencyProperty MediaErrorProperty = DependencyProperty.Register(nameof(MediaError),typeof(string),typeof(BackgroundMediaArtwork),new PropertyMetadata(null));
         public string MediaError { get => (string)GetValue(MediaErrorProperty); private set => SetValue(MediaErrorProperty,value); }
+        // What non-looping media does after its end (intros and transitions): stop on the last frame (default, also for
+        // backgrounds and the image widget), or keep repeating its first/last EndRepeatMs. MediaFinished is still raised
+        // once, at the first natural end, so "until the media ends" lengths are unchanged.
+        public static readonly DependencyProperty EndBehaviorProperty = DependencyProperty.Register(nameof(EndBehavior),typeof(MediaEndBehavior),typeof(BackgroundMediaArtwork),
+            new PropertyMetadata(MediaEndBehavior.HoldLastFrame,(s,e) => ((BackgroundMediaArtwork)s).endBehavior = (int)(MediaEndBehavior)e.NewValue));
+        public MediaEndBehavior EndBehavior { get => (MediaEndBehavior)GetValue(EndBehaviorProperty); set => SetValue(EndBehaviorProperty,value); }
+        public static readonly DependencyProperty EndRepeatMsProperty = DependencyProperty.Register(nameof(EndRepeatMs),typeof(int),typeof(BackgroundMediaArtwork),
+            new PropertyMetadata(1000,(s,e) => ((BackgroundMediaArtwork)s).endRepeatMs = Math.Max(1,(int)e.NewValue)));
+        public int EndRepeatMs { get => (int)GetValue(EndRepeatMsProperty); set => SetValue(EndRepeatMsProperty,value); }
+        private volatile int endBehavior, endRepeatMs = 1000;
+        private bool finishedRaised;
+        private System.Windows.Threading.DispatcherTimer segmentTimer;
+        private TimeSpan segmentStart, segmentEnd;
+        // True once the media is repeating its first/last part after its end (tests read it).
+        public bool IsRepeatingPart { get; private set; }
+        // Current GIF playback position in ms (written by the playback loop; diagnostics and tests).
+        public double GifPositionMs { get; private set; }
+        // How many times the repeated part has played to its end since the clip ended (previews wait for a few).
+        private int repeatCount;
+        public int RepeatCount => Volatile.Read(ref repeatCount);
         // Raised once when non-looping media reaches its end, or when playback fails (MediaError is then set).
         public event EventHandler MediaFinished;
         private void RaiseFinished() => MediaFinished?.Invoke(this,EventArgs.Empty);
@@ -87,6 +107,7 @@ namespace LandingPage.Controls
         private void CloseMedia()
         {
             generation++; playing = false; loading = false;
+            segmentTimer?.Stop(); finishedRaised = false; IsRepeatingPart = false; Volatile.Write(ref repeatCount,0);
             cancellation?.Cancel(); cancellation?.Dispose(); cancellation = null;
             if(player != null) { player.MediaOpened -= VideoOpened; player.MediaEnded -= VideoEnded; player.MediaFailed -= VideoFailed; player.Close(); player = null; }
         }
@@ -118,10 +139,21 @@ namespace LandingPage.Controls
                 await Task.Run(async () => {
                     var clock = Stopwatch.StartNew(); var last = clock.Elapsed.TotalMilliseconds; double position = 0;
                     var loggedAt = 0.0; var rendered = 0; double decodeTotal = 0,decodeMax = 0;
+                    var repeating = false; double partStart = 0,partEnd = 0;
                     while(!token.IsCancellationRequested && loaded.FrameCount>1) {
                         if(!playing) { await resume.WaitAsync(token).ConfigureAwait(false); last = clock.Elapsed.TotalMilliseconds; continue; }
                         var now = clock.Elapsed.TotalMilliseconds; position += (now-last)*Volatile.Read(ref speed); last = now;
-                        var finished = !loop && position>=loaded.Duration;
+                        if(repeating && position>=partEnd) { position = partStart + (position-partEnd)%Math.Max(1,partEnd-partStart); Interlocked.Increment(ref repeatCount); }
+                        var finished = !loop && !repeating && position>=loaded.Duration;
+                        var behavior = endBehavior;
+                        if(finished && behavior != (int)MediaEndBehavior.HoldLastFrame) {
+                            // Keep playing the first or last part instead of stopping on the last frame.
+                            var part = Math.Min(loaded.Duration,Math.Max(1,endRepeatMs));
+                            partStart = behavior == (int)MediaEndBehavior.RepeatStart ? 0 : loaded.Duration-part; partEnd = partStart+part;
+                            position = partStart + (position-loaded.Duration)%part; repeating = true; finished = false;
+                            await Dispatcher.InvokeAsync(() => { if(version == generation) { IsRepeatingPart = true; if(!finishedRaised) { finishedRaised = true; RaiseFinished(); } } });
+                        }
+                        GifPositionMs = position;
                         var decodeStart = Stopwatch.GetTimestamp();
                         if(loaded.Render(loaded.FrameAt(position,loop))) {
                             var decodeMs = (Stopwatch.GetTimestamp()-decodeStart)*1000.0/Stopwatch.Frequency;
@@ -155,6 +187,22 @@ namespace LandingPage.Controls
         {
             if(sender != player) return;
             if(Appearance?.LoopMedia == true) { player.Position = TimeSpan.Zero; UpdatePlayback(); }
+            else if(endBehavior != (int)MediaEndBehavior.HoldLastFrame && player.NaturalDuration.HasTimeSpan && player.NaturalDuration.TimeSpan > TimeSpan.Zero) {
+                // Keep playing the first or last part: jump to its start; the first part also needs a stop point.
+                if(IsRepeatingPart) Interlocked.Increment(ref repeatCount); // the last part reached the end again
+                var duration = player.NaturalDuration.TimeSpan;
+                var part = TimeSpan.FromMilliseconds(Math.Min(duration.TotalMilliseconds,Math.Max(1,endRepeatMs)));
+                segmentStart = endBehavior == (int)MediaEndBehavior.RepeatStart ? TimeSpan.Zero : duration-part; segmentEnd = segmentStart+part;
+                player.Position = segmentStart; IsRepeatingPart = true; UpdatePlayback();
+                if(endBehavior == (int)MediaEndBehavior.RepeatStart && segmentEnd < duration) {
+                    if(segmentTimer == null) {
+                        segmentTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Render,Dispatcher) { Interval = TimeSpan.FromMilliseconds(15) };
+                        segmentTimer.Tick += (s,a) => { if(player != null && IsRepeatingPart && player.Position >= segmentEnd) { player.Position = segmentStart; Interlocked.Increment(ref repeatCount); } };
+                    }
+                    segmentTimer.Start();
+                }
+                if(!finishedRaised) { finishedRaised = true; RaiseFinished(); }
+            }
             else { ended = true; UpdatePlayback(); RaiseFinished(); }
         }
         private void VideoFailed(object sender,ExceptionEventArgs e) { if(sender == player) Fail(e.ErrorException,"The video could not be played. Check the file and installed Windows video codecs."); }

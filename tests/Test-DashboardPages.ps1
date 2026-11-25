@@ -1,4 +1,4 @@
-﻿# Runs entirely against temporary settings and an in-memory Playnite API.
+# Runs entirely against temporary settings and an in-memory Playnite API.
 # powershell.exe -STA -File tests/Test-DashboardPages.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -1083,22 +1083,22 @@ try {
     }
     $preset = Get-Setting $settingsModel.Settings 'DashboardCustomTransition'
     $preset.Name = 'Fixture custom motion'
-    $view.GetType().GetMethod('SaveTransitionPreset_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    $transitionEditor = $view.FindName('PageTransitionEditor'); $transitionEditor.GetType().GetMethod('SaveTransitionPreset_Click',$flags).Invoke($transitionEditor,@($null,[Windows.RoutedEventArgs]::new()))
     $savedMotions = Get-Setting $settingsModel.Settings 'DashboardTransitionPresets'
     if ($savedMotions.Count -ne 1) { throw 'Saving custom transition failed' }
     $preset.Incoming.StartX = 25
     if ($savedMotions[0].Incoming.StartX -eq 25) { throw 'Saved custom preset aliases editor settings' }
-    $view.GetType().GetMethod('LoadTransitionPreset_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    $transitionEditor.GetType().GetMethod('LoadTransitionPreset_Click',$flags).Invoke($transitionEditor,@($null,[Windows.RoutedEventArgs]::new()))
     if ((Get-Setting $settingsModel.Settings 'DashboardCustomTransition').Incoming.StartX -eq 25) { throw 'Loading custom preset failed' }
     $beforePreview = $vm.SelectedPage.Id
-    $view.GetType().GetMethod('PreviewTransition_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    $view.GetType().GetMethod('PageTransitionEditor_PreviewRequested',$flags).Invoke($view,@($transitionEditor,[EventArgs]::Empty))
     $previewDeadline = [datetime]::UtcNow.AddSeconds(10)
     while ($snapshotImage.Source) {
         if ([datetime]::UtcNow -gt $previewDeadline) { throw 'Transition preview did not complete' }
         $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle); Start-Sleep -Milliseconds 5
     }
     if ($vm.SelectedPage.Id -ne $beforePreview -or !$scene.IsHitTestVisible) { throw 'Preview changed the page or left controls blocked' }
-    $view.GetType().GetMethod('DeleteTransitionPreset_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
+    $transitionEditor.GetType().GetMethod('DeleteTransitionPreset_Click',$flags).Invoke($transitionEditor,@($null,[Windows.RoutedEventArgs]::new()))
     if ($savedMotions.Count -ne 0) { throw 'Deleting custom transition preset failed' }
     Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::Slide)
     foreach ($direction in @('Left','Right','Up','Down','Automatic')) {
@@ -1133,6 +1133,155 @@ try {
     Wait-Task $switch
     if ($snapshotImage.Source -or !$scene.IsHitTestVisible -or $vm.IsSwitchingPage) { throw 'Interrupted transition left snapshot/navigation stuck' }
     'PASS: real fade/slide lifecycle, all slide directions, None mode, outgoing snapshot retention, cleanup/navigation release, and duration bounds (animations follow Windows preference).'
+
+    # GIF/video during transitions: the three placements, the None effect, GIF end detection, skip, page-intro priority, cleanup.
+    $mediaFolder = Join-Path ([IO.Path]::GetTempPath()) ('sp-transition-media-' + [guid]::NewGuid())
+    [void][IO.Directory]::CreateDirectory($mediaFolder)
+    $makeFrame = {
+        param($blue)
+        $frame = [Windows.Media.Imaging.WriteableBitmap]::new(32,18,96,96,[Windows.Media.PixelFormats]::Bgra32,$null)
+        $framePixels = [byte[]]::new(32 * 18 * 4)
+        for ($index = 0; $index -lt $framePixels.Length; $index += 4) { $framePixels[$index] = $blue; $framePixels[$index + 1] = 80; $framePixels[$index + 2] = 200; $framePixels[$index + 3] = 255 }
+        $frame.WritePixels([Windows.Int32Rect]::new(0,0,32,18),$framePixels,128,0); $frame
+    }
+    $stillPath = Join-Path $mediaFolder 'still.png'
+    $encoder = [Windows.Media.Imaging.PngBitmapEncoder]::new(); $encoder.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create((& $makeFrame 10)))
+    $stream = [IO.File]::Create($stillPath); $encoder.Save($stream); $stream.Close()
+    # A real 0.6 s non-looping GIF (like the other media tests); the GIF check is skipped without ffmpeg.
+    $gifPath = Join-Path $mediaFolder 'clip.gif'
+    $ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
+    if ($ffmpeg) { & $ffmpeg.Source -hide_banner -loglevel error -f lavfi -i 'testsrc2=size=64x32:rate=10' -t 0.6 -loop -1 -y $gifPath }
+    $mediaLayer = $view.FindName('DashboardTransitionMedia')
+    $transitionMedia = Get-Setting $settingsModel.Settings 'DashboardTransitionMedia'
+    $transitionMedia.Enabled = $true; $transitionMedia.MediaPath = $stillPath
+    # Long enough that the polling below sees each phase on a slow machine.
+    $transitionMedia.Length = [LandingPage.Settings.TransitionMediaLength]::FixedTime; $transitionMedia.FixedMs = 700; $transitionMedia.FadeMs = 60
+    # Phases are sampled on every rendered frame (CompositionTarget.Rendering), so short phases are not missed between polls.
+    $script:mediaSeen = $null; $script:mediaSkip = $false
+    $mediaSampler = [EventHandler]{
+        $seenNow = $script:mediaSeen; if ($seenNow -eq $null) { return }
+        if ($mediaLayer.Visibility -eq [Windows.Visibility]::Visible -and $mediaLayer.Opacity -gt 0.99) {
+            $seenNow.LayerShown = $true
+            if ($script:mediaSkip -and !$mediaLayer.WasSkipped) { $mediaLayer.Skip() }
+        }
+        if ($scene.Opacity -eq 0) { $seenNow.SceneHidden = $true }
+        if ($mediaLayer.Visibility -eq [Windows.Visibility]::Visible -and $snapshotImage.Visibility -ne [Windows.Visibility]::Visible) { $seenNow.SnapshotGone = $true }
+    }
+    $describe = { param($values) ($values.GetEnumerator() | Sort-Object Key | ForEach-Object { $_.Key + '=' + $_.Value }) -join '; ' }
+    $runMediaSwitch = {
+        param($label,[bool]$skipWhenShown = $false)
+        $target = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+        $seen = @{ LayerShown = $false; SceneHidden = $false; SnapshotGone = $false }
+        $script:mediaSeen = $seen; $script:mediaSkip = $skipWhenShown
+        [Windows.Media.CompositionTarget]::add_Rendering($mediaSampler)
+        try {
+            $watch = [Diagnostics.Stopwatch]::StartNew()
+            $task = $vm.SwitchPageAsync($target)
+            $seen.Prepared = $mediaLayer.PreparedMedia; $seen.Z = [Windows.Controls.Panel]::GetZIndex($mediaLayer); $seen.Backdrop = $mediaLayer.Backdrop.Fill
+            $deadline = [datetime]::UtcNow.AddSeconds(15)
+            while (!$task.IsCompleted) {
+                if ([datetime]::UtcNow -gt $deadline) { throw ('Media transition did not finish: ' + $label) }
+                $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::Background); Start-Sleep -Milliseconds 2
+            }
+            Wait-Task $task
+        } finally { [Windows.Media.CompositionTarget]::remove_Rendering($mediaSampler); $script:mediaSeen = $null }
+        $seen.Ms = $watch.ElapsedMilliseconds; $seen.Skipped = $mediaLayer.WasSkipped
+        if ($snapshotImage.Source -or !$scene.IsHitTestVisible -or $scene.Opacity -ne 1 -or $scene.RenderTransform -ne [Windows.Media.Transform]::Identity `
+            -or $mediaLayer.Visibility -ne [Windows.Visibility]::Collapsed -or $mediaLayer.PreparedMedia -or $mediaLayer.Clip -or $vm.IsSwitchingPage) { throw ('Media transition did not clean up: ' + $label) }
+        $seen
+    }
+    $placements = [LandingPage.Settings.TransitionMediaPlacement]
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::Wipe)
+    $transitionMedia.Placement = $placements::RevealedByEffect
+    $seen = @(& $runMediaSwitch 'wipe revealed')[-1]
+    if ($seen.Prepared -ne $stillPath -or $seen.Z -ne 899 -or !$seen.SceneHidden -or !$seen.SnapshotGone -or $seen.Backdrop -eq [Windows.Media.Brushes]::Transparent) { throw ('Revealed media must sit between the pages, hide the new page and be uncovered by the effect: ' + (& $describe $seen)) }
+    foreach ($mode in @('Fade','Slide','SlideFade','ZoomIn','Custom')) {
+        Set-Setting $settingsModel.Settings 'DashboardTransition' ([Enum]::Parse([LandingPage.DashboardTransition],$mode))
+        $seen = @(& $runMediaSwitch ('revealed ' + $mode))[-1]
+        if (!$seen.SnapshotGone) { throw ('Revealed media was not uncovered by ' + $mode + ': ' + (& $describe $seen)) }
+    }
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::Fade)
+    $transitionMedia.Placement = $placements::Instead
+    $seen = @(& $runMediaSwitch 'instead')[-1]
+    if ($seen.Z -ne 905 -or !$seen.LayerShown -or !$seen.SnapshotGone) { throw ('Media played instead of the effect must cover the old page and then reveal the new page: ' + (& $describe $seen)) }
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::Slide)
+    $transitionMedia.Placement = $placements::OverEffect
+    $seen = @(& $runMediaSwitch 'over')[-1]
+    if ($seen.Z -ne 905 -or !$seen.LayerShown -or $seen.Backdrop -ne [Windows.Media.Brushes]::Transparent) { throw ('Media over the effect must play on top without a backdrop: ' + (& $describe $seen)) }
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::None)
+    $transitionMedia.Placement = $placements::RevealedByEffect
+    $seen = @(& $runMediaSwitch 'none effect')[-1]
+    if ($seen.Prepared -ne $stillPath -or $seen.Z -ne 905 -or !$seen.LayerShown) { throw ('With the None effect the media must still play, directly: ' + (& $describe $seen)) }
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::Fade)
+    if (Test-Path -LiteralPath $gifPath) {
+        $transitionMedia.MediaPath = $gifPath; $transitionMedia.Length = [LandingPage.Settings.TransitionMediaLength]::UntilMediaEnds; $transitionMedia.MaximumMs = 8000
+        $seen = @(& $runMediaSwitch 'gif until end')[-1]
+        if ($seen.Prepared -ne $gifPath -or $seen.Ms -ge 6000) { throw ('A GIF must end the media wait when it finishes, not at the maximum (took ' + $seen.Ms + ' ms)') }
+    } else { 'SKIP: ffmpeg not found; transition GIF end detection not checked.' }
+    $transitionMedia.MediaPath = $stillPath; $transitionMedia.Length = [LandingPage.Settings.TransitionMediaLength]::FixedTime; $transitionMedia.FixedMs = 6000
+    $seen = @(& $runMediaSwitch 'skip' $true)[-1]
+    if (!$seen.Skipped -or $seen.Ms -ge 4000) { throw 'Skipping the transition media did not end it early' }
+    $transitionMedia.FixedMs = 700
+    $introTarget = if ($vm.SelectedPage -eq $vm.Pages[0]) { $vm.Pages[1] } else { $vm.Pages[0] }
+    $introTarget.Intro.Enabled = $true; $introTarget.Intro.Repeat = [LandingPage.Settings.IntroRepeat]::EveryTime
+    $seen = @(& $runMediaSwitch 'page intro priority')[-1]
+    $introTarget.Intro.Enabled = $false
+    if ($seen.Prepared) { throw 'A due page intro must take priority over the transition media' }
+    $transitionMedia.Enabled = $false
+    $seen = @(& $runMediaSwitch 'media off')[-1]
+    if ($seen.Prepared) { throw 'Disabled transition media still played' }
+    $transitionMedia.FixedMs = 1; $transitionMedia.MaximumMs = 99999; $transitionMedia.FadeMs = -5
+    if ($transitionMedia.FixedMs -ne 200 -or $transitionMedia.MaximumMs -ne 15000 -or $transitionMedia.FadeMs -ne 0) { throw 'Transition media limits were not clamped' }
+    $mediaCopy = [LandingPage.Models.DashboardProfiles]::Clone($transitionMedia)
+    if ($mediaCopy.Placement -ne $transitionMedia.Placement -or $mediaCopy.MediaPath -ne $stillPath -or $mediaCopy.Media.Fit -ne $transitionMedia.Media.Fit) { throw 'Transition media settings did not round-trip' }
+    $legacyMedia = [Newtonsoft.Json.JsonConvert]::DeserializeObject('{"Enabled":true}',[LandingPage.Settings.TransitionMediaSettings])
+    if ($legacyMedia.Placement -ne $placements::RevealedByEffect -or $legacyMedia.Media.Fit -ne [LandingPage.Settings.BackgroundFit]::Fit -or !$legacyMedia.Media.VideoMuted) { throw 'Partial transition media settings did not load defaults' }
+    Set-Setting $settingsModel.Settings 'DashboardTransition' ([LandingPage.DashboardTransition]::Fade)
+    Remove-Item -LiteralPath $mediaFolder -Recurse -Force -ErrorAction SilentlyContinue
+    'PASS: transition media revealed by every effect, instead of the effect, over the effect and with None; GIF end detection, skip, page-intro priority, limits, round-trip and cleanup.'
+
+    # Global vs per-page transitions: the page manager edits the global one until a page gets its own; copy from/to
+    # global and "Use on all dashboards"; the destination page's own transition plays when switching to it.
+    $global = Get-Setting $settingsModel.Settings 'GlobalTransition'
+    $invokeView = { param($name) $view.GetType().GetMethod($name,$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new())) | Out-Null; $app.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::ApplicationIdle) }
+    $ownToggle = $view.FindName('PageOwnTransitionToggle')
+    $pageA = $vm.SelectedPage; $pageB = @($vm.Pages | Where-Object { $_ -ne $pageA })[0]
+    $view.GetType().GetMethod('UpdateTransitionEditor',$flags).Invoke($view,@()) | Out-Null
+    if (![object]::ReferenceEquals($transitionEditor.DataContext,$global) -or $ownToggle.IsChecked -or $view.FindName('CopyTransitionToGlobalButton').IsEnabled) { throw 'The page manager must edit the global transition while the page has none of its own' }
+    $global.Transition = [LandingPage.DashboardTransition]::Fade; $global.DurationMs = 60
+    if ((Get-Setting $settingsModel.Settings 'DashboardTransition') -ne [LandingPage.DashboardTransition]::Fade -or (Get-Setting $settingsModel.Settings 'DashboardTransitionMilliseconds') -ne 60) { throw 'Global transition edits do not reach the saved transition settings' }
+    $ownToggle.IsChecked = $true; & $invokeView 'PageOwnTransition_Click'
+    if (!$pageA.UseOwnTransition -or !$pageA.Transition -or [object]::ReferenceEquals($pageA.Transition,$global) -or [object]::ReferenceEquals($pageA.Transition.Custom,$global.Custom) -or $pageA.Transition.Transition -ne $global.Transition -or ![object]::ReferenceEquals($transitionEditor.DataContext,$pageA.Transition)) { throw 'Turning on a page transition must start from an independent copy of the global one and edit it' }
+    $pageA.Transition.Transition = [LandingPage.DashboardTransition]::Wipe; $pageA.Transition.Media.FadeMs = 777
+    if ($global.Transition -ne [LandingPage.DashboardTransition]::Fade) { throw 'Editing a page transition changed the global transition' }
+    & $invokeView 'CopyTransitionToGlobal_Click'
+    if ($global.Transition -ne [LandingPage.DashboardTransition]::Wipe -or $global.Media.FadeMs -ne 777 -or [object]::ReferenceEquals($global.Media,$pageA.Transition.Media)) { throw 'Copy to global did not copy an independent transition' }
+    $global.Transition = [LandingPage.DashboardTransition]::Slide; $global.DurationMs = 70
+    & $invokeView 'CopyTransitionFromGlobal_Click'
+    if ($pageA.Transition.Transition -ne [LandingPage.DashboardTransition]::Slide -or $pageA.Transition.DurationMs -ne 70) { throw 'Copy from global did not copy the global transition to the page' }
+    # Switching plays the destination's own transition, or the global one.
+    $global.Transition = [LandingPage.DashboardTransition]::Fade; $pageA.Transition.Transition = [LandingPage.DashboardTransition]::Wipe
+    $player = $view.GetType().GetProperty('Player',$flags).GetValue($view)
+    $switch = $vm.SwitchPageAsync($pageB); $towardsGlobal = $player.ActiveTransition; Wait-Task $switch
+    $switch = $vm.SwitchPageAsync($pageA); $towardsOwn = $player.ActiveTransition; Wait-Task $switch
+    if ($towardsGlobal -ne [LandingPage.DashboardTransition]::Fade -or $towardsOwn -ne [LandingPage.DashboardTransition]::Wipe) { throw "Switching must use the destination page's own transition, else the global one ($towardsGlobal, $towardsOwn)" }
+    if (![object]::ReferenceEquals($transitionEditor.DataContext,$pageA.Transition) -or !$ownToggle.IsChecked) { throw 'The page manager did not follow the selected page transition after switching' }
+    $pageB.Transition = $global.Copy(); $pageB.UseOwnTransition = $true
+    & $invokeView 'UseTransitionOnAll_Click'
+    if ($global.Transition -ne [LandingPage.DashboardTransition]::Wipe -or @($vm.Pages | Where-Object UseOwnTransition).Count -or !$pageA.Transition -or ![object]::ReferenceEquals($transitionEditor.DataContext,$global)) { throw 'Use on all dashboards must make the edited transition global and turn off every page transition, keeping their settings' }
+    $kept = $pageA.Transition; $ownToggle.IsChecked = $true; & $invokeView 'PageOwnTransition_Click'
+    if (![object]::ReferenceEquals($pageA.Transition,$kept)) { throw 'Turning a page transition back on lost its own settings' }
+    $ownToggle.IsChecked = $false; & $invokeView 'PageOwnTransition_Click'
+    if ($pageA.UseOwnTransition) { throw 'Turning off the page transition did not return to the global one' }
+    $pageCopy = [LandingPage.Models.DashboardProfiles]::Clone($pageA)
+    if ($pageCopy.UseOwnTransition -or !$pageCopy.Transition -or $pageCopy.Transition.Transition -ne $pageA.Transition.Transition) { throw 'Page transition settings did not round-trip with the page' }
+    $saved = [Newtonsoft.Json.JsonConvert]::SerializeObject($settingsModel.Settings)
+    if ($saved.Contains('"GlobalTransition"') -or !$saved.Contains('"DashboardTransitionMilliseconds"')) { throw 'The global transition must be saved in the original transition settings only' }
+    $legacy = [Newtonsoft.Json.JsonConvert]::DeserializeObject('{"DashboardTransition":6,"DashboardTransitionMilliseconds":321,"DashboardSlideDirection":3}',[LandingPage.LandingPageSettings])
+    $legacyGlobal = Get-Setting $legacy 'GlobalTransition'
+    if ($legacyGlobal.Transition -ne [LandingPage.DashboardTransition]::Wipe -or $legacyGlobal.DurationMs -ne 321 -or $legacyGlobal.Direction -ne [LandingPage.DashboardSlideDirection]::Up) { throw 'Existing transition settings did not load into the global transition' }
+    $global.Transition = [LandingPage.DashboardTransition]::Fade; $global.DurationMs = 60
+    'PASS: page manager edits the global or the page transition, copy from/to global, use on all dashboards, destination-page transitions on switch, round-trip and legacy load.'
     $notificationAnchor = [Windows.Controls.Button]::new()
     $notificationAnchor.Width = 32; $notificationAnchor.Height = 28
     $notificationAnchor.HorizontalAlignment = [Windows.HorizontalAlignment]::Left

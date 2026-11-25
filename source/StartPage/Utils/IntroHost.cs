@@ -37,7 +37,8 @@ namespace LandingPage.Utils
             return window?.Content as FrameworkElement;
         }
 
-        public static async Task<bool> PlayAsync(FrameworkElement target,StartupIntroSettings options,Func<bool> dashboardReady)
+        // `holdUntil` (optional) keeps the intro up after its length until it returns true (bounded by the maximum).
+        public static async Task<bool> PlayAsync(FrameworkElement target,StartupIntroSettings options,Func<bool> dashboardReady,Func<bool> holdUntil = null)
         {
             if (Current != null || target == null || options == null || !options.Enabled) return false;
             var layer = AdornerLayer.GetAdornerLayer(target);
@@ -51,7 +52,7 @@ namespace LandingPage.Utils
             if (window != null) window.PreviewKeyDown += keys;
             try
             {
-                var played = await presenter.PlayAsync(options,dashboardReady);
+                var played = await presenter.PlayAsync(options,dashboardReady,holdUntil);
                 ExtensionDiagnostics.Record(LandingPageExtension.Instance,
                     $"Startup intro: played={played}; media={presenter.PlayedMedia ?? "(none)"}; coverage={options.Coverage}; length={options.Length}; elapsed={presenter.Elapsed.TotalMilliseconds:0} ms; skipped={presenter.WasSkipped}.");
                 return played;

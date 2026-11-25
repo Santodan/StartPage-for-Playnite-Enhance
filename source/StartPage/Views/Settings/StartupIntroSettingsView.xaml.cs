@@ -69,14 +69,35 @@ namespace LandingPage.Views.Settings
             if (IntroHost.Current != null) { PreviewStatus.Text = "An intro is already playing."; return; }
             var copy = Models.DashboardProfiles.Clone(options); copy.Enabled = true;
             if (copy.ResolveMedia() == null && copy.Length == IntroLength.UntilMediaEnds) { PreviewStatus.Text = "Choose an existing image, GIF or video (or a folder that contains one) to preview."; return; }
-            PreviewPlaceholder.Visibility = Visibility.Collapsed; PreviewStatus.Text = "Playing preview..."; previewing = true;
+            var plan = PlanPreview(copy, out var holdUntil);
+            PreviewPlaceholder.Visibility = Visibility.Collapsed; PreviewStatus.Text = "Playing preview" + plan + "..."; previewing = true;
             try
             {
-                var played = await IntroHost.PlayAsync(PreviewArea,copy,() => true);
-                PreviewStatus.Text = played ? "Preview finished." : "The preview could not start.";
+                var played = await IntroHost.PlayAsync(PreviewArea,copy,() => true,holdUntil);
+                PreviewStatus.Text = played ? "Preview finished" + plan + "." : "The preview could not start.";
             }
             catch (Exception ex) { PreviewStatus.Text = ex.Message; }
             finally { previewing = false; PreviewPlaceholder.Visibility = Visibility.Visible; }
+        }
+
+        // The preview has no Playnite or dashboard to wait for. A GIF/video plays to its end (instead of ending at once in
+        // "until the dashboard has loaded"), and with "repeat its first/last part" the part then repeats PreviewRepeats times,
+        // so the whole clip and the repeat can be checked. Returns a description for the status line.
+        internal const int PreviewRepeats = 3;
+        internal static string PlanPreview(StartupIntroSettings copy,out Func<bool> holdUntil)
+        {
+            holdUntil = null;
+            var media = copy.ResolveMedia();
+            var clip = media != null && BackgroundMediaFiles.IsAnimated(new Uri(media,UriKind.Absolute)) && !copy.Media.LoopMedia;
+            if (!clip) return "";
+            if (copy.RepeatsAfterEnd)
+            {
+                copy.Length = IntroLength.UntilMediaEnds; copy.MinimumMs = 0; copy.MaximumMs = 60000;
+                holdUntil = () => (IntroHost.Current?.Artwork.RepeatCount ?? PreviewRepeats) >= PreviewRepeats;
+                return ": the whole clip, then its " + (copy.AfterEnd == MediaEndBehavior.RepeatStart ? "first" : "last") + " " + copy.AfterEndRepeatMs + " ms " + PreviewRepeats + " times";
+            }
+            if (copy.Length == IntroLength.UntilDashboardLoaded) { copy.Length = IntroLength.UntilMediaEnds; copy.MinimumMs = 0; return ": the whole clip"; }
+            return "";
         }
 
         private void StopPreview_Click(object sender,RoutedEventArgs e) => StopPreview();

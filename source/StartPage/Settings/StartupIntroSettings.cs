@@ -13,6 +13,9 @@ namespace LandingPage.Settings
     // Global intro: once = when Playnite starts, every = every time StartPage opens.
     // Page intro: once = first switch to the page each session, every = every switch to the page.
     public enum IntroRepeat { OncePerSession, EveryTime }
+    // What a non-looping GIF/video shows once it has reached its end while the intro or transition is still up
+    // (still loading, minimum/fixed time, waiting for Playnite): its last frame, or a repeating part of it.
+    public enum MediaEndBehavior { HoldLastFrame, RepeatStart, RepeatEnd }
 
     // A startup intro: an image, GIF or video shown over Playnite or StartPage before the dashboard appears.
     // Used globally (LandingPageSettings.StartupIntro) and per dashboard page (DashboardPage.Intro).
@@ -49,6 +52,12 @@ namespace LandingPage.Settings
         public int MinimumMs { get => minimumMs; set => SetValue(ref minimumMs,Limit(value,0,30000)); }
         private int maximumMs = 12000;
         public int MaximumMs { get => maximumMs; set => SetValue(ref maximumMs,Limit(value,1000,60000)); }
+        // After a non-looping GIF/video ends while the intro is still shown: hold the last frame or repeat its first/last part.
+        private MediaEndBehavior afterEnd = MediaEndBehavior.HoldLastFrame;
+        public MediaEndBehavior AfterEnd { get => afterEnd; set => SetValue(ref afterEnd,value,nameof(AfterEnd),nameof(RepeatsAfterEnd)); }
+        private int afterEndRepeatMs = 1000;
+        public int AfterEndRepeatMs { get => afterEndRepeatMs; set => SetValue(ref afterEndRepeatMs,Limit(value,1,10000)); }
+        [JsonIgnore] public bool RepeatsAfterEnd => AfterEnd != MediaEndBehavior.HoldLastFrame;
         private int fadeInMs = 300;
         public int FadeInMs { get => fadeInMs; set => SetValue(ref fadeInMs,Limit(value,0,3000)); }
         private IntroExit exit = IntroExit.Fade;
@@ -73,13 +82,16 @@ namespace LandingPage.Settings
         [JsonIgnore] public bool UsesFixedTime => Length == IntroLength.FixedTime;
 
         // The media file to play now: the chosen file, or a random supported file from the folder. Null when nothing usable exists.
-        public string ResolveMedia(Random random = null)
+        public string ResolveMedia(Random random = null) => ResolveMedia(Source,MediaPath,FolderPath,random);
+
+        // Shared with transition media: the chosen file, or a random supported file from the folder.
+        public static string ResolveMedia(IntroMediaSource source,string mediaPath,string folderPath,Random random = null)
         {
             try
             {
-                if (Source == IntroMediaSource.File) return !string.IsNullOrEmpty(MediaPath) && File.Exists(MediaPath) && Utils.BackgroundMediaFiles.IsSupportedFile(MediaPath) ? MediaPath : null;
-                if (string.IsNullOrEmpty(FolderPath) || !Directory.Exists(FolderPath)) return null;
-                var files = Directory.EnumerateFiles(FolderPath).Where(Utils.BackgroundMediaFiles.IsSupportedFile).OrderBy(file => file,StringComparer.OrdinalIgnoreCase).ToList();
+                if (source == IntroMediaSource.File) return !string.IsNullOrEmpty(mediaPath) && File.Exists(mediaPath) && Utils.BackgroundMediaFiles.IsSupportedFile(mediaPath) ? mediaPath : null;
+                if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath)) return null;
+                var files = Directory.EnumerateFiles(folderPath).Where(Utils.BackgroundMediaFiles.IsSupportedFile).OrderBy(file => file,StringComparer.OrdinalIgnoreCase).ToList();
                 return files.Count == 0 ? null : files[(random ?? new Random()).Next(files.Count)];
             }
             catch (Exception) { return null; }
@@ -89,7 +101,7 @@ namespace LandingPage.Settings
         {
             Coverage = IntroCoverage.PlayniteWindow; Repeat = IntroRepeat.OncePerSession; PlayWhenStartPageOpens = false; PlayWhileLoading = true; LaunchFullScreen = false; Length = IntroLength.UntilMediaEnds;
             FixedMs = 3000; MinimumMs = 1000; MaximumMs = 12000; FadeInMs = 300; Exit = IntroExit.Fade; ExitMs = 600; BackgroundColor = "#FF000000";
-            SkipOnInput = true; ShowSkipHint = true; Media = DefaultMedia();
+            SkipOnInput = true; ShowSkipHint = true; Media = DefaultMedia(); AfterEnd = MediaEndBehavior.HoldLastFrame; AfterEndRepeatMs = 1000;
         }
     }
 }

@@ -170,6 +170,18 @@
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
+        <!-- Transitions: the global page transition, used by every dashboard page without its own. -->
+        <TabItem x:Name="TransitionsTab" Header="Transitions">
+            <ScrollViewer Style="{StaticResource TabScroll}">
+                <StackPanel x:Name="TransitionSettings" MaxWidth="900" HorizontalAlignment="Left">
+                    <TextBlock Text="Global page transition" Style="{StaticResource FirstSectionHeader}"/>
+                    <controls:SettingsHint Text="Plays when you switch to any dashboard page that does not have its own transition. To give a page its own, or to copy a page's transition here and use it on every dashboard, open Manage dashboard pages > Dashboard transitions. Preview plays here between two sample pages; Preview in the page manager plays on your real dashboard."/>
+                    <settingsViews:TransitionSettingsView x:Name="GlobalTransitionEditor" DataContext="{Binding Settings.GlobalTransition}" PreviewInBox="True"
+                        PresetLibrary="{Binding DataContext.Settings.DashboardTransitionPresets, ElementName=SettingsTabs}" Margin="0,6,0,0"/>
+                    <CheckBox Style="{StaticResource SettingCheck}" Content="Follow Windows animation preference (applies to every transition)" IsChecked="{Binding Settings.DashboardRespectWindowsAnimations}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
         <TabItem x:Name="IntroTab" Header="Startup intro">
             <ScrollViewer Style="{StaticResource TabScroll}">
                 <settingsViews:StartupIntroSettingsView x:Name="StartupIntroEditor" DataContext="{Binding Settings.StartupIntro}" MaxWidth="900" HorizontalAlignment="Left"/>

@@ -66,7 +66,7 @@ See [fork identity, import scope and compatibility](docs/FORK-IDENTITY.md) for t
 | Game detail widgets | Independent artwork, title, description, activity, details, library information, scores, links and actions, synchronized to the same game. |
 | Library statistics | Library totals, playtime, progress, metadata coverage and source/platform breakdowns; per-counter layout, text and colors. |
 | Library charts | Multiple bar, vertical bar, pie and doughnut charts with configurable data, size, rotation, legends, labels and segment borders. |
-| Transitions | Fade, slide, zoom, wipe and custom presets with previews and JSON import/export. |
+| Transitions | Fade, slide, zoom, wipe and custom presets with previews and JSON import/export, plus an optional image, GIF or video revealed by the effect, played instead of it or over it. One global transition (also in the extension settings) or a page's own, with copy to and from global. |
 | Startup intros | Your own image, GIF or video when Playnite starts or StartPage opens, over the whole window or only StartPage, plus per-page intros when switching dashboards; length, exit effects, framing, sound and skip controls. An optional dashboard reveal animates the widgets in afterwards. |
 | Profiles | Save, import, export, append or restore complete dashboards, with independent snapshots and automatic backups when applying. |
 

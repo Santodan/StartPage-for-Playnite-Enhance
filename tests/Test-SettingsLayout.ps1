@@ -199,8 +199,44 @@ $body = @'
     if($panelNode.ViewProperties.Appearance.BorderWidth -ne 3) { throw 'Panel border width slider does not save the width' }
     'PASS: most played rows, shelf sliders and the shared panel appearance sliders edit their settings.'
 
+    # Transition media (Dashboard transitions > GIF or video during the transition): options appear when enabled,
+    # file/folder fields follow the source, sliders edit the settings and opening leaves them unchanged.
+    $mediaSettings = [LandingPage.Settings.TransitionMediaSettings]::new(); $mediaSettings.Enabled = $true
+    $mediaBefore = [Newtonsoft.Json.JsonConvert]::SerializeObject($mediaSettings)
+    $mediaEditor = [LandingPage.Views.Settings.TransitionMediaSettingsView]::new(); $mediaEditor.DataContext = $mediaSettings
+    $mediaHost = Host-Editor $mediaEditor 520; Expand-All $mediaEditor
+    if([Newtonsoft.Json.JsonConvert]::SerializeObject($mediaSettings) -ne $mediaBefore) { throw 'Opening the transition media editor modified its settings' }
+    if($mediaEditor.FindName('MediaOptions').Visibility -ne 'Visible' -or $mediaEditor.FindName('PlacementSelector').SelectedValue -ne [LandingPage.Settings.TransitionMediaPlacement]::RevealedByEffect) { throw 'Transition media editor does not show its options or the saved placement' }
+    if($mediaEditor.FindName('FileField').Visibility -ne 'Visible' -or $mediaEditor.FindName('FolderField').Visibility -ne 'Collapsed') { throw 'Transition media editor does not show the file field for a file source' }
+    $mediaSettings.Source = [LandingPage.Settings.IntroMediaSource]::RandomFromFolder; Flush-Layout
+    if($mediaEditor.FindName('FileField').Visibility -ne 'Collapsed' -or $mediaEditor.FindName('FolderField').Visibility -ne 'Visible') { throw 'Transition media editor does not switch to the folder field' }
+    $mediaSettings.Source = [LandingPage.Settings.IntroMediaSource]::File; Flush-Layout
+    $fadeSlider = @(Get-Descendants $mediaEditor | Where-Object { $_ -is [LandingPage.Controls.SettingsSlider] -and $_.Label -eq 'Fade in/out (ms)' })
+    if(!$fadeSlider.Count) { throw 'Transition media fade is not a labeled slider' }
+    $fadeSlider[0].Slider.Value = 500; Flush-Layout
+    if($mediaSettings.FadeMs -ne 500) { throw 'Transition media fade slider does not save the value' }
+    $mediaSettings.Enabled = $false; Flush-Layout
+    if($mediaEditor.FindName('MediaOptions').Visibility -ne 'Collapsed') { throw 'Transition media options stay visible when it is off' }
+    $mediaSettings.Enabled = $true; Flush-Layout
+    'PASS: transition media editor shows its options when on, follows the media source, edits its sliders and leaves settings untouched when opened.'
+
+    # Shared transition editor (extension settings Transitions tab and Manage dashboard pages), fully expanded.
+    $pageTransition = [LandingPage.Settings.PageTransitionSettings]::new(); $pageTransition.Media.Enabled = $true
+    $pageTransitionBefore = [Newtonsoft.Json.JsonConvert]::SerializeObject($pageTransition)
+    $transitionEditor = [LandingPage.Views.Settings.TransitionSettingsView]::new(); $transitionEditor.DataContext = $pageTransition
+    $transitionEditor.PresetLibrary = [Collections.ObjectModel.ObservableCollection[LandingPage.Models.DashboardTransitionPreset]]::new()
+    $transitionHost = Host-Editor $transitionEditor 520; Expand-All $transitionEditor
+    if([Newtonsoft.Json.JsonConvert]::SerializeObject($pageTransition) -ne $pageTransitionBefore) { throw 'Opening the transition editor modified its settings' }
+    $pageTransition.Custom.Name = 'Layout preset'
+    $transitionEditor.GetType().GetMethod('SaveTransitionPreset_Click',[Reflection.BindingFlags]'Instance,NonPublic').Invoke($transitionEditor,@($null,[Windows.RoutedEventArgs]::new())) | Out-Null
+    if($transitionEditor.PresetLibrary.Count -ne 1 -or [object]::ReferenceEquals($transitionEditor.PresetLibrary[0],$pageTransition.Custom)) { throw 'Transition editor did not save an independent preset into its library' }
+    if($transitionEditor.FindName('PreviewArea').Visibility -ne 'Collapsed') { throw 'The dashboard page manager editor must not show the preview box' }
+    $transitionEditor.PreviewInBox = $true; Flush-Layout
+    if($transitionEditor.FindName('PreviewArea').Visibility -ne 'Visible' -or $transitionEditor.FindName('StopPreviewButton').Visibility -ne 'Visible') { throw 'Transition editor does not show its preview box' }
+    'PASS: transition editor saves presets into the shared library, switches to a preview box where there is no dashboard, and leaves settings untouched when opened.'
+
     # Editors fit narrow and wide settings panels and do not modify settings when shown.
-    foreach($pair in @(@($textHost,'Text editor'),@($imageHost,'Image editor'),@($clockHost,'Clock editor'),@($dividerHost,'Divider editor'),@($shortcutHost,'Shortcut editor'),@($toolbarHost,'Toolbar editor'),@($statsHost,'Library statistics editor'),@($chartsHost,'Library charts editor'),@($featuredHost,'Featured game editor'),@($detailHost,'Game detail editor'),@($achievementHost,'Achievement editor'),@($mostPlayedHost,'Most played editor'),@($shelvesHost,'Shelves editor'),@($panelHost,'Panel appearance'))) {
+    foreach($pair in @(@($textHost,'Text editor'),@($imageHost,'Image editor'),@($clockHost,'Clock editor'),@($dividerHost,'Divider editor'),@($shortcutHost,'Shortcut editor'),@($toolbarHost,'Toolbar editor'),@($statsHost,'Library statistics editor'),@($chartsHost,'Library charts editor'),@($featuredHost,'Featured game editor'),@($detailHost,'Game detail editor'),@($achievementHost,'Achievement editor'),@($mostPlayedHost,'Most played editor'),@($shelvesHost,'Shelves editor'),@($panelHost,'Panel appearance'),@($mediaHost,'Transition media editor'),@($transitionHost,'Transition editor'))) {
         foreach($width in @(260,520)) { $pair[0].Width = $width; Flush-Layout; Assert-Fits $pair[0] $pair[1] }
     }
     $alignment = Find-Named $textEditor 'AlignmentColumns'

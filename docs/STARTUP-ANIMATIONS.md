@@ -47,6 +47,7 @@ For the global intro set to **Whole Playnite window** and **When Playnite starts
 - **Fixed time** (0.5-30 s).
 - **Until the dashboard has loaded**: stays until the page's widgets are ready, at least **Minimum** and at most **Maximum**.
 - **Minimum** and **Maximum** (up to 60 s) bound every mode except Fixed time, so an intro can never get stuck.
+- **If the GIF or video ends first**: when the intro stays up longer than the clip (Playnite still loading, the minimum or fixed time, *until the dashboard has loaded*), it can **Hold the last frame** (default), **Repeat its first part** or **Repeat its last part**. **Repeated part** (1 ms to 10 s) is the length of that part; it plays in a loop until the intro exits. Not used when **Loop** is on. **Preview intro** cannot wait for Playnite or the dashboard, so it plays a GIF or video to its end and, with a repeated part, repeats that part three times.
 - **Fade in** and an **exit**: fade out, zoom in/out with fade, spotlight (a hole opens from the center), curtain (splits from the middle) or cut.
 - **Skip on click or key press**, with an optional "Click or press any key to skip" hint.
 

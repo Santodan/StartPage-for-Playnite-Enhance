@@ -64,6 +64,8 @@ namespace LandingPage.Controls
             {
                 Backdrop.Fill = ParseBrush(settings.BackgroundColor);
                 Artwork.Appearance = settings.Media;
+                // While the intro stays up after the clip ended (still loading, minimum time): hold or repeat a part.
+                Artwork.EndBehavior = settings.AfterEnd; Artwork.EndRepeatMs = settings.AfterEndRepeatMs;
                 Artwork.MediaFinished += onFinished;
                 var animated = false;
                 if (media != null)
@@ -111,7 +113,9 @@ namespace LandingPage.Controls
                     if (settings.Length == IntroLength.UntilDashboardLoaded && (dashboardReady == null || dashboardReady())) return;
                     if (settings.Length == IntroLength.FixedTime) return;
                 }
-                await Task.WhenAny(skip.Task,finished,Task.Delay(50));
+                // Once the media has finished, waiting on it again would return at once and spin the UI thread
+                // until the length is reached (the intro would freeze); wait on the delay instead.
+                await (finished.IsCompleted ? Task.WhenAny(skip.Task,Task.Delay(50)) : Task.WhenAny(skip.Task,finished,Task.Delay(50)));
             }
         }
 

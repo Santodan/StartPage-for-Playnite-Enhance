@@ -18,6 +18,13 @@ namespace LandingPage.Models
         // Optional intro shown when switching to this page; saved with the page, so profiles carry it.
         private Settings.StartupIntroSettings intro;
         public Settings.StartupIntroSettings Intro { get => intro ?? (intro = new Settings.StartupIntroSettings()); set => SetValue(ref intro, value ?? new Settings.StartupIntroSettings()); }
+        // Optional own transition used when switching to this page; otherwise the global transition applies.
+        // Transition stays null until the page first gets its own (it then starts as a copy of the global one).
+        // Saved with the page, so profiles carry it.
+        private bool useOwnTransition;
+        public bool UseOwnTransition { get => useOwnTransition; set => SetValue(ref useOwnTransition, value); }
+        private Settings.PageTransitionSettings transition;
+        public Settings.PageTransitionSettings Transition { get => transition; set => SetValue(ref transition, value); }
     }
 
     // The existing settings remain the active-page projection, so existing controls,
@@ -81,6 +88,25 @@ namespace LandingPage.Models
 
     public static class DashboardPages
     {
+        // The transition played when switching to `page`: its own when it has one turned on, else the global transition.
+        public static Settings.PageTransitionSettings EffectiveTransition(LandingPageSettings settings, DashboardPage page)
+            => page != null && page.UseOwnTransition && page.Transition != null ? page.Transition : settings.GlobalTransition;
+
+        // Turns on a page's own transition; the first time it starts as a copy of the global transition.
+        public static Settings.PageTransitionSettings UseOwnTransition(LandingPageSettings settings, DashboardPage page)
+        {
+            if (page.Transition == null) page.Transition = settings.GlobalTransition.Copy();
+            page.UseOwnTransition = true;
+            return page.Transition;
+        }
+
+        // Makes `source` the global transition and every page use it.
+        public static void UseOnAllPages(LandingPageSettings settings, Settings.PageTransitionSettings source)
+        {
+            settings.GlobalTransition.CopyFrom(source);
+            foreach (var page in settings.DashboardPages ?? Enumerable.Empty<DashboardPage>()) page.UseOwnTransition = false;
+        }
+
         public static bool UsesGlobalBackground(LandingPageSettings settings, DashboardPage page = null)
             => settings.EnableGlobalBackground && (page ?? settings.DashboardPages?.FirstOrDefault(item => item.Id == settings.ActiveDashboardPageId))?.UseGlobalBackground != false;
         public static DashboardPage Ensure(LandingPageSettings settings)

@@ -16,6 +16,10 @@ namespace LandingPage.ViewModels
     public sealed class DashboardTransitionEventArgs : EventArgs
     {
         public bool Forward { get; set; }
+        // The page being switched to (null for a preview).
+        public Models.DashboardPage Destination { get; set; }
+        // Previews pass the transition being edited; page switches use the destination's effective transition.
+        public Settings.PageTransitionSettings Transition { get; set; }
     }
 
     public partial class StartPageViewModel
@@ -456,7 +460,7 @@ namespace LandingPage.ViewModels
             long backgroundMilliseconds = 0;
             try
             {
-                PageTransitionStarting?.Invoke(this, new DashboardTransitionEventArgs { Forward = Pages.IndexOf(page) > Pages.IndexOf(previous) });
+                PageTransitionStarting?.Invoke(this, new DashboardTransitionEventArgs { Forward = Pages.IndexOf(page) > Pages.IndexOf(previous), Destination = page });
                 // Capture the outgoing projection before installing the next background.
                 // Neither widget shutdown nor settings serialization should hold the old
                 // page's artwork on screen while the destination is loading.

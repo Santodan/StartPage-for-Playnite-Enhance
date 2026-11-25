@@ -74,23 +74,44 @@ namespace LandingPage
         private double fixedGridHeight = 1080;
         public double FixedGridHeight { get => fixedGridHeight; set => SetValue(ref fixedGridHeight, value); }
 
-        private DashboardTransitionPreset dashboardCustomTransition = new DashboardTransitionPreset();
-        public DashboardTransitionPreset DashboardCustomTransition { get => dashboardCustomTransition; set => SetValue(ref dashboardCustomTransition, value ?? new DashboardTransitionPreset()); }
+        // The global page transition (used by every page without its own). It is stored in the original Dashboard*
+        // properties below so existing configs load and save unchanged; editors bind to GlobalTransition.
+        private Settings.PageTransitionSettings globalTransition;
+        [DontSerialize, Newtonsoft.Json.JsonIgnore]
+        public Settings.PageTransitionSettings GlobalTransition
+        {
+            get
+            {
+                if (globalTransition == null) { globalTransition = new Settings.PageTransitionSettings(); globalTransition.PropertyChanged += GlobalTransitionChanged; }
+                return globalTransition;
+            }
+        }
+        private void GlobalTransitionChanged(object sender, System.ComponentModel.PropertyChangedEventArgs args)
+        {
+            switch (args.PropertyName)
+            {
+                case nameof(Settings.PageTransitionSettings.Transition): OnPropertyChanged(nameof(DashboardTransition)); break;
+                case nameof(Settings.PageTransitionSettings.DurationMs): OnPropertyChanged(nameof(DashboardTransitionMilliseconds)); break;
+                case nameof(Settings.PageTransitionSettings.Direction): OnPropertyChanged(nameof(DashboardSlideDirection)); break;
+                case nameof(Settings.PageTransitionSettings.Custom): OnPropertyChanged(nameof(DashboardCustomTransition)); break;
+                case nameof(Settings.PageTransitionSettings.Media): OnPropertyChanged(nameof(DashboardTransitionMedia)); break;
+            }
+        }
+        public DashboardTransitionPreset DashboardCustomTransition { get => GlobalTransition.Custom; set => GlobalTransition.Custom = value; }
         private ObservableCollection<DashboardTransitionPreset> dashboardTransitionPresets = new ObservableCollection<DashboardTransitionPreset>();
         [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
         public ObservableCollection<DashboardTransitionPreset> DashboardTransitionPresets { get => dashboardTransitionPresets; set => SetValue(ref dashboardTransitionPresets, value ?? new ObservableCollection<DashboardTransitionPreset>()); }
-        private DashboardTransition dashboardTransition = DashboardTransition.Fade;
-        public DashboardTransition DashboardTransition { get => dashboardTransition; set => SetValue(ref dashboardTransition, value); }
-        private DashboardSlideDirection dashboardSlideDirection = DashboardSlideDirection.Automatic;
-        public DashboardSlideDirection DashboardSlideDirection { get => dashboardSlideDirection; set => SetValue(ref dashboardSlideDirection, value); }
+        public DashboardTransition DashboardTransition { get => GlobalTransition.Transition; set => GlobalTransition.Transition = value; }
+        // Optional image/GIF/video played during the global transition (global, not part of dashboard profiles).
+        public Settings.TransitionMediaSettings DashboardTransitionMedia { get => GlobalTransition.Media; set => GlobalTransition.Media = value; }
+        public DashboardSlideDirection DashboardSlideDirection { get => GlobalTransition.Direction; set => GlobalTransition.Direction = value; }
         private bool preserveWindowedStartupSize = true;
         public bool PreserveWindowedStartupSize { get => preserveWindowedStartupSize; set => SetValue(ref preserveWindowedStartupSize,value); }
         private bool enableDashboardDiagnostics;
         public bool EnableDashboardDiagnostics { get => enableDashboardDiagnostics; set => SetValue(ref enableDashboardDiagnostics, value); }
         private bool dashboardRespectWindowsAnimations = true;
         public bool DashboardRespectWindowsAnimations { get => dashboardRespectWindowsAnimations; set => SetValue(ref dashboardRespectWindowsAnimations, value); }
-        private int dashboardTransitionMilliseconds = 200;
-        public int DashboardTransitionMilliseconds { get => dashboardTransitionMilliseconds; set => SetValue(ref dashboardTransitionMilliseconds, Math.Max(50, Math.Min(1000, value))); }
+        public int DashboardTransitionMilliseconds { get => GlobalTransition.DurationMs; set => GlobalTransition.DurationMs = value; }
         // Custom Playnite window sizes for the toolbar's window size button (shared by every toolbar).
         private ObservableCollection<Settings.WindowSizePreset> customWindowSizes = new ObservableCollection<Settings.WindowSizePreset>();
         [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]

@@ -96,6 +96,8 @@
     <Page Include="Views\Settings\BackgroundAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\DividerWidgetSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\StartupIntroSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Views\Settings\TransitionMediaSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Views\Settings\TransitionSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\WindowSizeDialog.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\ShortcutWidgetSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
     <Page Include="Views\Settings\SectionAppearanceSettingsView.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
@@ -276,6 +278,20 @@
     </Compile>
     <Compile Include="Settings\StartupIntroSettings.cs" />
     <Compile Include="Controls\IntroPresenter.cs" />
+    <Compile Include="Controls\TransitionMediaLayer.cs" />
+    <Compile Include="Controls\TransitionPlayer.cs" />
+    <Compile Include="Controls\TransitionPreviewBox.cs" />
+    <Compile Include="Settings\TransitionMediaSettings.cs" />
+    <Compile Include="Settings\PageTransitionSettings.cs" />
+    <Compile Include="Views\StartPageView.PageTransition.cs">
+      <DependentUpon>StartPageView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Settings\TransitionSettingsView.xaml.cs">
+      <DependentUpon>TransitionSettingsView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Settings\TransitionMediaSettingsView.xaml.cs">
+      <DependentUpon>TransitionMediaSettingsView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Utils\IntroHost.cs" />
     <Compile Include="Utils\LaunchIntro.cs" />
     <Compile Include="Utils\WindowSizer.cs" />

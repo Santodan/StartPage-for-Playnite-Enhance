@@ -65,6 +65,17 @@
    <CheckBox x:Name="PlayOnOpenToggle" Content="Also play when StartPage opens on this page (after the global intro, if any, has played this session)" IsChecked="{Binding PlayWhenStartPageOpens}" Visibility="Collapsed"/>
    <controls:SettingsSlider Label="Fixed time (ms) - also used for images and looping media" Value="{Binding FixedMs}" Minimum="500" Maximum="30000" Step="100" Precision="0"/>
    <controls:SettingsColumns>
+    <controls:SettingsField Label="If the GIF or video ends first">
+     <ComboBox x:Name="AfterEndSelector" SelectedValue="{Binding AfterEnd}" SelectedValuePath="Tag">
+      <ComboBoxItem Content="Hold the last frame" Tag="{x:Static settings:MediaEndBehavior.HoldLastFrame}"/>
+      <ComboBoxItem Content="Repeat its first part" Tag="{x:Static settings:MediaEndBehavior.RepeatStart}"/>
+      <ComboBoxItem Content="Repeat its last part" Tag="{x:Static settings:MediaEndBehavior.RepeatEnd}"/>
+     </ComboBox>
+    </controls:SettingsField>
+    <controls:SettingsSlider x:Name="AfterEndRepeatSlider" Label="Repeated part (ms)" Value="{Binding AfterEndRepeatMs}" Minimum="1" Maximum="10000" Step="1" Precision="0" IsEnabled="{Binding RepeatsAfterEnd}"/>
+   </controls:SettingsColumns>
+   <controls:SettingsHint Text="When the intro stays up longer than the clip (Playnite still loading, the minimum or fixed time, until the dashboard has loaded), it keeps repeating the first or last part of that length instead of stopping on the last frame. Not used when Loop is on."/>
+   <controls:SettingsColumns>
     <controls:SettingsSlider Label="Minimum (ms)" Value="{Binding MinimumMs}" Minimum="0" Maximum="30000" Step="100" Precision="0"/>
     <controls:SettingsSlider Label="Maximum (ms)" Value="{Binding MaximumMs}" Minimum="1000" Maximum="60000" Step="500" Precision="0"/>
    </controls:SettingsColumns>

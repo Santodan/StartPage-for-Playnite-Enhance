@@ -208,6 +208,33 @@ $body = @'
     if (!$pageEditor.IsPageIntro -or ![object]::ReferenceEquals($pageEditor.DataContext,$vm.SelectedPage.Intro)) { throw 'Page manager intro editor is not bound to the selected page' }
     $view.GetType().GetMethod('ClosePages_Click',$flags).Invoke($view,@($null,[Windows.RoutedEventArgs]::new()))
     'PASS: intro editors use global/page wording, switch file/folder fields and bind the page manager to the selected page.'
+
+    # Editor preview: "until the dashboard has loaded" cannot be simulated, so a clip plays to its end; with a repeated
+    # part, the preview then repeats that part three times before it ends.
+    if ($gif) {
+        $previewSettings = [LandingPage.Settings.StartupIntroSettings]::new(); $previewSettings.Enabled = $true; $previewSettings.MediaPath = $gif
+        $previewSettings.Length = 'UntilDashboardLoaded'; $previewSettings.MinimumMs = 0; $previewSettings.FadeInMs = 0; $previewSettings.ExitMs = 0
+        $previewSettings.AfterEnd = 'RepeatEnd'; $previewSettings.AfterEndRepeatMs = 300
+        $previewEditor = [LandingPage.Views.Settings.StartupIntroSettingsView]::new(); $previewEditor.DataContext = $previewSettings
+        [void]$view.Content.Children.Add($previewEditor); $window.UpdateLayout(); Pump-For 50
+        $previewEditor.GetType().GetMethod('Preview_Click',$flags).Invoke($previewEditor,@($null,[Windows.RoutedEventArgs]::new()))
+        $watch = [Diagnostics.Stopwatch]::StartNew(); $mostRepeats = 0; $until = [datetime]::UtcNow.AddSeconds(15)
+        do {
+            Pump-For 20
+            if ($introHost::Current) { $mostRepeats = [Math]::Max($mostRepeats,$introHost::Current.Artwork.RepeatCount) }
+            if ([datetime]::UtcNow -gt $until) { throw 'The intro preview did not finish' }
+        } while ($previewEditor.FindName('PreviewStatus').Text -notmatch 'finished|could not')
+        $status = $previewEditor.FindName('PreviewStatus').Text
+        if ($mostRepeats -lt 3 -or $watch.ElapsedMilliseconds -lt 1100 -or $status -notmatch 'whole clip.*last 300 ms 3 times') { throw "The intro preview did not play the whole clip and repeat the last part three times ($mostRepeats repeats, $($watch.ElapsedMilliseconds) ms, '$status')" }
+        if ($previewSettings.Length -ne 'UntilDashboardLoaded' -or $previewSettings.MaximumMs -eq 60000) { throw 'The intro preview changed the saved intro settings' }
+        $previewSettings.AfterEnd = 'HoldLastFrame'
+        $previewEditor.GetType().GetMethod('Preview_Click',$flags).Invoke($previewEditor,@($null,[Windows.RoutedEventArgs]::new()))
+        $watch.Restart(); $until = [datetime]::UtcNow.AddSeconds(15)
+        do { Pump-For 20; if ([datetime]::UtcNow -gt $until) { throw 'The plain intro preview did not finish' } } while ($previewEditor.FindName('PreviewStatus').Text -notmatch 'finished|could not')
+        if ($watch.ElapsedMilliseconds -lt 400 -or $previewEditor.FindName('PreviewStatus').Text -notmatch 'whole clip') { throw "The intro preview of an until-loaded intro did not play the whole clip ($($watch.ElapsedMilliseconds) ms)" }
+        [void]$view.Content.Children.Remove($previewEditor)
+        'PASS: the intro preview plays the whole clip, then the repeated part three times, without changing the saved settings.'
+    } else { 'SKIP: ffmpeg not found; intro preview of the repeated part not checked.' }
     } finally { $introHost::ResetSession(); Remove-Item -Recurse -Force $introRoot -ErrorAction SilentlyContinue }
 
 '@
