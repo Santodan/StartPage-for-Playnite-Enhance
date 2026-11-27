@@ -26,6 +26,7 @@ The global intro is in the extension settings, **Startup intro** tab. Each dashb
 For the global intro set to **Whole Playnite window** and **When Playnite starts**, **Start while Playnite is loading** (on by default) opens the intro as soon as StartPage is loaded by Playnite, before Playnite's main window exists:
 
 - It plays in its own borderless window placed where Playnite's window opens (from Playnite's saved window position; the whole monitor when Playnite was maximized), or **Full screen** when chosen.
+- It stays above Playnite's own windows but not above other apps, so you can switch to another app while Playnite loads; that app then stays in front when the intro ends, and Playnite only takes the focus back if the intro still had it. **Keep it above other apps while Playnite loads** keeps the intro above every window until it ends and then focuses Playnite.
 - It runs on its own UI thread, so the video keeps playing smoothly while Playnite loads its library and widgets behind it.
 - It never ends before Playnite reports that it has started (in every length mode), and in *until the dashboard has loaded* mode it also waits for the dashboard. The maximum still applies. It then reveals Playnite with the exit effect and focuses Playnite's window.
 - Playnite shows its own small banner before any extension loads, so an extension cannot replace it. To skip it, add `--hidesplashscreen` to the Playnite shortcut (Properties > Target, after the `.exe` path).

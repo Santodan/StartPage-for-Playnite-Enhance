@@ -11,8 +11,8 @@ using Newtonsoft.Json.Linq;
 namespace LandingPage.Utils
 {
     // The launch intro: started from the plugin constructor while Playnite is still loading (before its main window
-    // exists), in a borderless topmost window on its own UI thread so playback stays smooth while Playnite's UI thread
-    // is busy. It stays up until Playnite reports it has started (and, in "until loaded" mode, until the dashboard is
+    // exists), in a borderless window on its own UI thread so playback stays smooth while Playnite's UI thread is busy.
+    // The window stays above Playnite's own windows (or above every app with LaunchAboveOtherApps). It stays up until Playnite reports it has started (and, in "until loaded" mode, until the dashboard is
     // ready), bounded by the intro's maximum, then reveals Playnite with the exit effect and focuses it.
     public static class LaunchIntro
     {
@@ -65,10 +65,55 @@ namespace LandingPage.Utils
             return new Rect(work.Left + (work.Width-width)/2,work.Top + (work.Height-height)/2,width,height);
         }
 
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr window,uint command);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window,IntPtr insertAfter,int x,int y,int width,int height,uint flags);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool EnumThreadWindows(uint thread,EnumWindowsProc callback,IntPtr parameter);
+        private delegate bool EnumWindowsProc(IntPtr window,IntPtr parameter);
+        private const uint GW_HWNDPREV = 3, SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10, SWP_ASYNCWINDOWPOS = 0x4000;
+
+        // Playnite's UI thread (Start is called from the plugin constructor on it) and the intro window's handle.
+        private static uint playniteThread;
+        private static IntPtr introHandle;
+        // Whether the intro still had the focus when it ended; only then is Playnite's window activated.
+        private static volatile bool hadFocusAtEnd;
+        public static bool HadFocusAtEnd => hadFocusAtEnd;
+
+        // Without "above other apps", the intro is a normal window kept just above Playnite's own windows: any Playnite
+        // window that ends up above it (the main window appearing, a click on Playnite's taskbar button) is moved back
+        // below it, without activating anything or changing its order relative to other apps. Runs on the intro thread;
+        // SWP_ASYNCWINDOWPOS keeps it from waiting on Playnite's busy UI thread. Returns how many windows were moved.
+        internal static int KeepAbovePlaynite(IntPtr intro,uint thread)
+        {
+            if (intro == IntPtr.Zero || thread == 0) return 0;
+            var moved = 0;
+            EnumThreadWindows(thread,(window,parameter) =>
+            {
+                if (window != intro && IsWindowVisible(window) && IsAbove(window,intro))
+                {
+                    SetWindowPos(window,intro,0,0,0,0,SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
+                    moved++;
+                }
+                return true;
+            },IntPtr.Zero);
+            return moved;
+        }
+
+        // True when `window` is higher than `reference` in the z-order.
+        internal static bool IsAbove(IntPtr window,IntPtr reference)
+        {
+            for (var current = GetWindow(reference,GW_HWNDPREV); current != IntPtr.Zero; current = GetWindow(current,GW_HWNDPREV))
+                if (current == window) return true;
+            return false;
+        }
+
         // Returns false when the intro cannot start (already running, or nothing to show).
         public static bool Start(StartupIntroSettings settings,Rect bounds,bool maximized)
         {
             if (running || settings == null) return false;
+            playniteThread = GetCurrentThreadId(); hadFocusAtEnd = true;
             var copy = Models.DashboardProfiles.Clone(settings); copy.Enabled = true;
             if (copy.ResolveMedia() == null && copy.Length == IntroLength.UntilMediaEnds) return false;
             PlayniteReady = false; DashboardReady = false; running = true; covering = true;
@@ -89,11 +134,27 @@ namespace LandingPage.Utils
                 var window = new Window
                 {
                     Title = "Playnite", WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, AllowsTransparency = true,
-                    Background = Brushes.Transparent, Topmost = true, ShowInTaskbar = false, ShowActivated = true,
+                    // Above every app only when asked; otherwise a normal window kept above Playnite's own windows.
+                    Background = Brushes.Transparent, Topmost = options.LaunchAboveOtherApps, ShowInTaskbar = false, ShowActivated = true,
                     WindowStartupLocation = WindowStartupLocation.Manual, Left = area.Left, Top = area.Top, Width = area.Width, Height = area.Height
                 };
                 var presenter = new IntroPresenter();
                 window.Content = presenter; Window = window; Presenter = presenter;
+                DispatcherTimer order = null;
+                window.SourceInitialized += (sender,args) =>
+                {
+                    introHandle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+                    if (options.LaunchAboveOtherApps) return;
+                    order = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(30) };
+                    order.Tick += (s,a) => KeepAbovePlaynite(introHandle,playniteThread);
+                    order.Start();
+                };
+                window.Closing += (sender,args) =>
+                {
+                    order?.Stop();
+                    // If the user switched to another app while Playnite loaded, leave it in front.
+                    hadFocusAtEnd = options.LaunchAboveOtherApps || GetForegroundWindow() == introHandle;
+                };
                 window.PreviewKeyDown += (sender,args) => { if (options.SkipOnInput) presenter.Skip(); };
                 var started = false;
                 window.ContentRendered += async (sender,args) =>
@@ -119,9 +180,10 @@ namespace LandingPage.Utils
         private static void Finish()
         {
             if (!running) return;
-            covering = false; running = false; Presenter = null; Window = null; Dispatcher = null;
-            // Give Playnite's main window the focus the intro window held.
-            try { Application.Current?.Dispatcher.BeginInvoke(new Action(() => { var main = IntroHost.MainWindow(); if (main != null && main.IsVisible) main.Activate(); })); } catch (Exception) { }
+            covering = false; running = false; Presenter = null; Window = null; Dispatcher = null; introHandle = IntPtr.Zero;
+            // Give Playnite's main window the focus the intro window held, unless the user had switched to another app.
+            if (hadFocusAtEnd)
+                try { Application.Current?.Dispatcher.BeginInvoke(new Action(() => { var main = IntroHost.MainWindow(); if (main != null && main.IsVisible) main.Activate(); })); } catch (Exception) { }
             try { Completed?.Invoke(); } catch (Exception) { }
         }
     }

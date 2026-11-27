@@ -44,6 +44,10 @@ namespace LandingPage.Settings
         public bool PlayWhileLoading { get => playWhileLoading; set => SetValue(ref playWhileLoading,value); }
         private bool launchFullScreen;
         public bool LaunchFullScreen { get => launchFullScreen; set => SetValue(ref launchFullScreen,value); }
+        // The launch intro window normally stays above Playnite's own windows only, so other apps can be used while
+        // Playnite loads. On: it stays above every app until it ends (the original behavior).
+        private bool launchAboveOtherApps;
+        public bool LaunchAboveOtherApps { get => launchAboveOtherApps; set => SetValue(ref launchAboveOtherApps,value); }
         private IntroLength length = IntroLength.UntilMediaEnds;
         public IntroLength Length { get => length; set => SetValue(ref length,value,nameof(Length),nameof(UsesFixedTime)); }
         private int fixedMs = 3000;
@@ -99,7 +103,7 @@ namespace LandingPage.Settings
 
         public void ResetOptions()
         {
-            Coverage = IntroCoverage.PlayniteWindow; Repeat = IntroRepeat.OncePerSession; PlayWhenStartPageOpens = false; PlayWhileLoading = true; LaunchFullScreen = false; Length = IntroLength.UntilMediaEnds;
+            Coverage = IntroCoverage.PlayniteWindow; Repeat = IntroRepeat.OncePerSession; PlayWhenStartPageOpens = false; PlayWhileLoading = true; LaunchFullScreen = false; LaunchAboveOtherApps = false; Length = IntroLength.UntilMediaEnds;
             FixedMs = 3000; MinimumMs = 1000; MaximumMs = 12000; FadeInMs = 300; Exit = IntroExit.Fade; ExitMs = 600; BackgroundColor = "#FF000000";
             SkipOnInput = true; ShowSkipHint = true; Media = DefaultMedia(); AfterEnd = MediaEndBehavior.HoldLastFrame; AfterEndRepeatMs = 1000;
         }

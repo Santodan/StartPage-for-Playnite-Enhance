@@ -59,8 +59,9 @@
     <controls:SettingsColumns>
      <CheckBox x:Name="PlayWhileLoadingToggle" Content="Start while Playnite is loading" IsChecked="{Binding PlayWhileLoading}"/>
      <CheckBox Content="Full screen (otherwise where Playnite's window opens)" IsChecked="{Binding LaunchFullScreen}" IsEnabled="{Binding PlayWhileLoading}"/>
+     <CheckBox x:Name="AboveOtherAppsToggle" Content="Keep it above other apps while Playnite loads" IsChecked="{Binding LaunchAboveOtherApps}" IsEnabled="{Binding PlayWhileLoading}"/>
     </controls:SettingsColumns>
-    <controls:SettingsHint Text="Plays in its own window as soon as StartPage loads, while Playnite opens behind it, and stays until Playnite is ready. Playnite shows its small banner before extensions load; to hide it, add --hidesplashscreen to your Playnite shortcut. Desktop mode only."/>
+    <controls:SettingsHint Text="Plays in its own window as soon as StartPage loads, while Playnite opens behind it, and stays until Playnite is ready. It stays above Playnite's own windows but lets you switch to other apps meanwhile (they then stay in front when it ends), unless you keep it above other apps. Playnite shows its small banner before extensions load; to hide it, add --hidesplashscreen to your Playnite shortcut. Desktop mode only."/>
    </StackPanel>
    <CheckBox x:Name="PlayOnOpenToggle" Content="Also play when StartPage opens on this page (after the global intro, if any, has played this session)" IsChecked="{Binding PlayWhenStartPageOpens}" Visibility="Collapsed"/>
    <controls:SettingsSlider Label="Fixed time (ms) - also used for images and looping media" Value="{Binding FixedMs}" Minimum="500" Maximum="30000" Step="100" Precision="0"/>
